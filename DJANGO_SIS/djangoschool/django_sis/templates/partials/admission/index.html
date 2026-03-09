@@ -1,0 +1,22 @@
+{% extends "base_admission.html" %}
+{% block title %}
+    SIS - Admission
+{% endblock %}
+{% block app_name %}App Header goes here{% endblock %}
+{% block content %}
+
+        
+    <div class="responsive">
+        {% if user.is_authenticated %}
+            <h1 style="font-size: 1.5em;"><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
+        {% else %}
+            &nbsp;
+        {% endif %}
+        <div class="mb-4">
+            <div class="card bg-base-100">
+                <h1 style="font-size: 1.5em; text-align: center;"><strong>Total Students From Across The Schools</strong></h1>
+                <h1 style="font-size: 2.5em; text-align: center;">{{ student_count }}</h1>
+            </div>
+        </div>
+    </div>
+{% endblock %}

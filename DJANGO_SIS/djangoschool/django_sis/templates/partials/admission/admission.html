@@ -1,0 +1,85 @@
+{% extends "base_admission.html" %}
+
+{% load crispy_forms_tags %}
+
+{% block head %}
+{{ wizard.form.media }}
+{% endblock %}
+
+{% block content %}
+<style>
+    form p {
+        margin-bottom: 1.2rem;  /* adjust as needed */
+    }
+    .sticky {
+        position: sticky;
+    }
+</style>
+{% comment %} <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p> {% endcomment %}
+{% comment %} <div class="wizard-container container mt-4">
+            <h4 class="mb-0">Registration - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
+</div> {% endcomment %}
+<div class="flex-1 card card-compact bg-base-100 p-4 mb-4">
+<div>
+<div class="collapse-title text-xl font-medium">Admission Form</div>
+</div>
+<div class="w-full">
+<div class="flex-1 card card-compact bg-base-100 p-4 mb-4 ">
+<div class="wizard-container">
+<form action="" class="flex-1" style="max-width: 100%; width: 100%; padding: 20px" method="post">
+{% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-8 offset-md-2">
+                            {% comment %} <table class="table table-borderless"> {% endcomment %}
+{{ wizard.management_form }}
+{% if wizard.form.forms %}
+    {{ wizard.form.management_form }}
+    {% for form in wizard.form.forms %}
+        {% comment %} {{ form.as_p }}
+    {% endfor %}
+{% else %}
+    {{ wizard.form.as_p }}
+{% endif %} {% endcomment %}
+
+
+<div class="mb-3">
+        {{ form.as_p }}
+    </div>
+    <hr class="my-4"> 
+{% endfor %}
+{% else %}
+<div class="mb-2">
+        {{ wizard.form.as_p }}
+    </div>
+{% endif %}
+</div>
+</div>
+
+
+
+
+{% comment %} </table> {% endcomment %}
+                <div class="w-full z-20 border-t border-base-300 sticky max-lg:fixed max-lg:-mx-3 bottom-0">
+                <div class="p-3 bg-base-100 justify-between flex flex-row-reverse gap-15 sticky top-3 max-md:hidden">
+                <div class="text-start flex  gap-2">
+                    {% if wizard.steps.prev %}
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
+                            &laquo; Previous
+                        </button>
+                    {% else %}
+                        <div></div> 
+                    {% endif %}
+
+                    <button type="submit" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
+                            Next &raquo;
+                    </button>
+                    </div>
+                </div>
+                </div>
+</form>
+</div>
+</div>
+</div>
+{% comment %} <a href="{% url 'student-table' %}" class="btn btn-secondary">
+    Student Table per Class {% endcomment %}
+{% endblock %}

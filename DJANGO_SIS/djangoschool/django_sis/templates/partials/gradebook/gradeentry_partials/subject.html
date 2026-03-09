@@ -1,0 +1,4 @@
+<option value="">Select Subject</option>
+{% for subject in subjects %}
+    <option value="{{ subject.id }}" {% if selected_subject and subject.id|stringformat:"s" == selected_course %}selected{% endif %}>{{ subject }}</option>
+{% endfor %}

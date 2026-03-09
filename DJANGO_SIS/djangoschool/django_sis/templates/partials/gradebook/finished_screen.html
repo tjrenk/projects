@@ -1,0 +1,10 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+
+<h1>Grade Entry Complete!</h1>
+<button onclick="window.location.href='{% url 'grade-entry' %}'" class="btn btn-primary mt-3">
+    ← Back
+    </button>
+
+{% endblock %}

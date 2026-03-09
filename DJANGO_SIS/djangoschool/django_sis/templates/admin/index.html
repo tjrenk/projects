@@ -1,0 +1,34 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+{% load dash_tags %}
+{% load i18n %}
+
+{# 1. LOAD THE NEW FILE WE CREATED #}
+{% load gradebook_tags %}
+
+{% block content_title %}
+    {{ index_title|default:"Django Daisy Dashboard" }}
+{% endblock %}
+
+
+
+{% block content %}
+
+    <div class="navbar">
+    <div class="navbar-start">
+    <p>&nbsp;</p>
+    </div>
+<div class="navbar-center">
+<h1 style="font-size: 50px">Welcome to the Admin Dashboard!</h1>
+</div>
+<div class="navbar-end">
+    <p>&nbsp;</p>
+</div>
+</div>    
+    {% all_students_stats %}
+    <br>
+    {% render_attendance_dashboard_widget %}
+
+    
+
+{% endblock %}

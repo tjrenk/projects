@@ -1,0 +1,314 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<style>
+.sticky {
+    position: sticky;
+}
+</style>
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+<div>
+<div class="collapse-title text-xl font-medium">Grade Entry</div>
+</div>
+    {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
+    <fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1">
+        {% comment %} <div class="card bg-primary text-white">
+            <h4 class="mb-2">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
+        </div> {% endcomment %}
+        {% comment %} <table>
+        <tr>
+        <td>
+        <p>Academic year: </p>
+        </td>
+        <td>
+        {{ form.academic_year }}
+        </td>
+        </tr>
+        <tr>
+        <td>
+        <p>Period: </p>
+        </td>
+        <td>
+        {{ form.period }}
+        </td>
+        </tr>
+        <tr>
+        <td>
+        <p>Teacher: </p>
+        </td>
+        <td>
+        {{ form.teacher }}
+        </td>
+        </tr>
+        </table> {% endcomment %}
+
+        <div class="flex-1 card-body" style="max-width: 100%; width: auto;">
+            {% if selected_course %}
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-book"></i> 
+                    <strong>Class:</strong> {{ selected_course }} 
+                </span>
+                {% if wizard.steps.current == '2' and assignment_head_data %}
+                <span class="badge bg-light text-dark border">
+                    Topic: {{ assignment_head_data.topic }} | Date: {{ assignment_head_data.date }}
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <form action="" method="post">
+                {% csrf_token %}
+                
+                {{ wizard.management_form }}
+                
+                {# === STEP 3 (index '2'): Tampilan TABEL untuk Input Nilai Banyak Siswa === #}
+                {% if wizard.steps.current == '2' %}
+                
+                    {{ wizard.form.management_form }}
+
+                    {% if wizard.form.forms %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30%;">Name</th>
+                                        <th style="width: 20%;">Score</th>
+                                        <th style="width: 30%;">Nonactive Details</th>
+                                        {% comment %} <th style="width: 70%;">Teacher's Notes</th> {% endcomment %}
+                                        <th style="width: 10%;">Active?</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for form in wizard.form %}
+                                    <tr>
+  {% for hidden in form.hidden_fields %}
+    {{ hidden }}  {# This will now include the student ID #}
+{% endfor %}
+<td>
+    {{ form.student_name }} 
+</td>
+
+                                        <td>
+                                            {{ form.score }}
+                                            {% if form.score.errors %}
+                                                <div class="text-danger small">{{ form.score.errors }}</div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td id="na_reason_td_{{ forloop.counter0 }}">
+        {# Determine if the row is currently active #}
+        {# We check if the value is True. We assume default is True if None. #}
+        {% with is_active=form.is_active.value|default_if_none:True %}
+        
+        <input 
+            id="na_reason_input_{{ forloop.counter0 }}"
+            type="text" 
+            class="form-control"
+            name="{{ form.na_reason.html_name }}" 
+            value="{{ form.na_reason.value|default_if_none:'' }}"
+            
+            {# LOGIC: If is_active is True, make it Readonly #}
+            {% if is_active %}
+                readonly
+                style="background-color: #e9ecef; cursor: not-allowed;"
+                placeholder="Item is active"
+            {% else %}
+                placeholder="Enter reason..."
+            {% endif %}
+        >
+        {% endwith %}
+
+        {% if form.na_reason.errors %}
+            <div class="text-danger small">{{ form.na_reason.errors }}</div>
+        {% endif %}
+    </td>
+
+    <td class="text-center">
+        {{ form.is_active }}
+    </td>
+
+                                        {% comment %} <td>
+                                            {{ form.na_reason }}
+                                            {% if form.na_reason.errors %}
+                                                <div class="text-danger small">{{ form.na_reason.errors }}</div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td class="text-center">
+                                            {{ form.is_active }}
+                                        </td> {% endcomment %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            No students found within this course.
+                        </div>
+                    {% endif %}
+
+                {# === STEP 1 & 2 (index '0' & '1'): Tampilan FORM Biasa === #}
+                {% else %}
+                    <div class="row">
+                    {{ wizard.form.management_form }}
+                        <div class="col-md-8 offset-md-2">
+                            <table class="table table-borderless">
+                                {% if wizard.steps.current == '0' %}
+                                <tr>
+                                <td>
+                                {{ wizard.form.academic_year.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.academic_year }}
+                                    <div class="error">
+                                        {{ wizard.form.academic_year.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.period.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.period }}
+                                    <div class="error">
+                                        {{ wizard.form.period.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.teacher.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.teacher }}
+                                    <div class="error">
+                                        {{ wizard.form.teacher.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.subject.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.subject }}
+                                    <div class="error">
+                                        {{ wizard.form.subject.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.course.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.course }}
+                                    <div class="error">
+                                        {{ wizard.form.course.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.assignment_type.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.assignment_type }}
+                                    <div class="error">
+                                        {{ wizard.form.assignment_type.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                {% elif wizard.steps.current == '1' %}
+                                <tr>
+                                <td>
+                                {{ wizard.form.date.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.date }}
+                                    <div class="error">
+                                        {{ wizard.form.date.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.topic.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.topic }}
+                                    <div class="error">
+                                        {{ wizard.form.topic.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td>
+                                {{ wizard.form.max_score.label }}
+                                </td>
+                                <td>
+                                {{ wizard.form.max_score }}
+                                    <div class="error">
+                                        {{ wizard.form.max_score.errors }}
+                                    </div>
+                                </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% comment %} <hr class="my-4"> {% endcomment %}
+                
+                
+                {% comment %} <div class="d-flex justify-content-between"> {% endcomment %}
+                
+                    {% if wizard.steps.prev %}
+                    <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0">
+                    <div class="p-3 bg-base-100 justify-between flex flex-row-reverse gap-15 sticky top-3 max-md:hidden">
+                    <div class="text-start flex  gap-2">
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
+                            &laquo; Back
+                        </button>
+                    {% else %}
+                        <div></div> 
+                    {% endif %}
+
+                    <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                        {% if wizard.steps.current == '2' %}
+                            Save Grades
+                        {% else %}
+                            Next
+                        {% endif %}
+                    </button>
+                </div>
+                </div>
+                </div>
+                </div>
+                
+            </form>
+        </div>
+    {% comment %} </div> {% endcomment %}
+    </fieldset>
+</div>
+
+<style>
+    /* Agar input score tidak terlalu lebar di dalam tabel */
+    input[name$="-score"] {
+        width: 100px; 
+        display: inline-block;
+        form-control;
+    }
+    input[name$="-student_name"] {
+        border: none;
+        background-color: transparent;
+        font-weight: bold;
+        width: 100%;
+    }
+</style>
+
+{% endblock %}

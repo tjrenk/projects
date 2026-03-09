@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+
+{% block content %}
+{% load static %}
+<html>
+<head>
+    <title>Welcome to School Management App</title>
+    {% comment %} <style type="text/css">
+        body{
+            width: 50%;
+            text-align: right;
+            margin-left: 500px;
+        }
+        div.gallery {
+            border: 1px solid #ffa800;
+        }
+        div.gallery:hover {
+            border: 2px solid skyblue;
+        }
+        div.gallery img {
+            width: 100%;
+            height: auto;
+        }
+        div.desc {
+            padding: 15px;
+            text-align: center;
+            color:#fff;
+            background:silver;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        .responsive {
+            padding: 0 6px;
+            float: left;
+            width: 20%;
+        }
+        @media only screen and (max-width: 800px){
+            .responsive {
+                width: 49.99999%;
+                margin: 6px 0;
+            }
+        }
+        @media only screen and (max-width: 500px){
+            .responsive {
+                width: 100%;
+            }
+        }
+        .clearfix:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        body {
+            background-image: url("{% static 'images/bg_front.png' %}");
+            background-repeat: no-repeat;
+            background-attachment: fixed; 
+            background-size: 100% 100%;
+        }
+    </style> {% endcomment %}
+</head>
+<body style="font-family: Verdana, sans-serif;">
+    {% comment %} <nav class="navbar navbar-expand-lg navbar-dark bg-dark"> {% endcomment %}
+        {% comment %} <div class="container">
+        <h2><br />Select a SIS Module down below:</h2>
+        <div>&nbsp;</div>
+        <div class="navbar-nav ms-auto">
+            {% if user.is_authenticated %}
+                <div><h3>Welcome, {{ user.username }}!</h3>
+                <a class="btn btn-outline-light btn-xs" href="{% url 'logout' %}">Logout</a></div>
+            {% else %}
+                Please <a href="{% url 'register' %}">register</a> to create account, or <a href="{% url 'login' %}">login</a>
+            {% endif %}
+        </div> {% endcomment %}
+    {% comment %} </nav> {% endcomment %}
+    
+        {% comment %} <div class="responsive">
+            <div>
+                <a target="_blank" href="admission/">
+                    <img src="{% static 'images/admission.png' %}" width="600" height="400">
+                </a>
+                <div class="desc">Admission</div>
+            </div>
+        </div>
+        <div class="responsive">
+            <div class="gallery">
+                <a target="_blank" href="gradebook/">
+                    <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400">
+                </a>
+                <div class="desc">Gradebook</div>
+            </div>
+        </div>
+        <div class="responsive">
+            <div class="gallery">
+                <a target="_blank" href="#">
+                    <img src="{% static 'images/librarian.png' %}" width="600" height="400">
+                </a>
+                <div class="desc">Library</div>
+            </div>
+        </div>
+        <div class="responsive">
+            <div class="gallery">
+                <a target="_blank" href="#">
+                    <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400">
+                </a>
+                <div class="desc">Finance</div>
+            </div>
+        </div>
+        <div class="responsive">
+            <div class="gallery">
+                <a target="_blank" href="admin/">
+                    <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400">
+                </a>
+                <div class="desc">SIS Admin</div>
+            </div>
+        </div> {% endcomment %}
+        {% comment %} <div class="clearfix"></div><br /><br /><br /><br /><br /><br /> {% endcomment %}
+         <div class="responsive">
+        <h1 style="font-size: 2em; text-align: center;">Welcome to ECHS SIS!</h1>
+        
+    </div>
+</body>
+</html>
+{% endblock %}

@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html data-use-i18n="1" data-theme="" class="custom-scrollbars"
+      lang="en-us"
+      dir="ltr">
+
+<head>
+    <script>
+        /* set selected theme before everything
+        * to avoid color flash on refresh
+        *  */
+        function getSystemColorScheme() {
+            try {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    return 'dark';
+                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    return 'light';
+                } else {
+                    return 'light';  // In case the user's preference is not explicitly set.
+                }
+            } catch (e) {
+                return 'light'
+            }
+        }
+
+        document.documentElement.setAttribute(
+            'data-theme', localStorage.getItem('theme') || getSystemColorScheme()
+        )
+
+        
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        Log in | SIS
+    </title>
+
+    
+
+    
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.13/dist/full.min.css" rel="stylesheet"
+              type="text/css"/>
+        <script src="/static_files/admin/js/tailwind-3.4.5.js"></script>
+    
+
+    <link href="/static_files/admin/css/customized_tailwind.css?v=2" rel="stylesheet">
+    <link href="/static_files/admin/css/calendar.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static_files/admin/fonts/fontawesome-free-6.6.0-web/css/all.min.css"/>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
+
+    
+        <style>
+            @font-face {
+                font-family: 'rtl-font';
+                src: url("/static_files/admin/fonts/Vazir.woff2") format('woff');
+                font-weight: normal;
+                font-style: normal;
+            };
+
+            @font-face {
+                font-family: 'body-font';
+                src: local('Ubuntu'), local('Ubuntu-Regular'), url("/static_files/admin/fonts/Ubuntu/Ubuntu-Regular.ttf") format('truetype');
+                font-weight: normal;
+                font-style: normal;
+            }
+
+            /* Bold */
+            @font-face {
+                font-family: 'body-font';
+                src: local('Ubuntu-Medium'), url("/static_files/admin/fonts/Ubuntu/Ubuntu-Medium.ttf") format('truetype');
+                font-weight: bold;
+                font-style: normal;
+            }
+        </style> 
+</head>
+
+<body class="bg-base-200 font-cantarell ">
+
+<div class="flex">
+    
+    <!-- Main content -->
+    <div id="content"
+         class="content-wrapper w-full flex flex-col min-h-screen  main-wrapper transition-all duration-200 ease-in-out">
+        
+	
+
+        <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+        </div>
+
+        <div class="main-content h-full max-md:p-3 p-5 pt-2 pb-0">
+
+    <div id="content-main" class="flex justify-center items-center h-full">
+        <div class="card w-96 shadow-lg bg-base-100">
+            <div class="card-body">
+                <h2 class="text-2xl font-bold text-center mb-6">User Log In</h2>
+            <div class="w-full p-6 bg-white border-t-4 border-gray-600 rounded-md shadow-md border-top lg:max-w-lg">
+                {% if form.errors %}
+                    <p>Your username and password didn't match. Please try again.</p>
+                {% endif %}
+                <form method="post" class="space-y-4">
+                    {% csrf_token %}
+                    {{ form.as_div }}
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <div class="form-control mt-6">
+                        <button class="btn btn-primary" type="submit">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+        </div>
+    </div>
+
+</div>
+
+
+<script src="/static_files/admin/js/vendor/jquery/jquery.min.js"></script>
+<script src="/static_files/admin/js/jquery.init.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+<script src="/static_files/admin/js/theme-change.js"></script>
+<script defer src="/static_files/admin/js/SelectBox.js"></script>
+<script src="/static_files/admin/js/admin/dashboard.js"></script>
+</div>
+</body>
+</html>

@@ -1,0 +1,9 @@
+Two-Factor Authentication Recovery Codes - https://rehobotfoundation.org (rehofound)
+
+Each line of 16 letters and numbers is a single recovery code, with optional spaces for readability. To use a recovery code, after entering your username and password, enter the code like "1234 5678 90AB CDEF" at the 2FA prompt. If your site has a custom login prompt and does not show a 2FA prompt, you can use the single-step method by entering your password and the code together in the Password field, like "mypassword1234 5678 90AB CDEF". Your recovery codes are:
+
+44ee 863a 5616 f539
+38cd db54 30dd 56bf
+dd60 3ce0 89e7 58b6
+817a 5eff c74e 1e49
+c3ee 7350 e2a3 b1f6

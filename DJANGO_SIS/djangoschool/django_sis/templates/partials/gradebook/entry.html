@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}
+    SIS - Teachers' Gradebook
+{% endblock %}
+{% block app_name %}App Header goes here{% endblock %}
+{% block content %}
+    <div class="responsive">
+        {% if user.is_authenticated %}
+            Welcome back {{ user.first_name }} ({{ user.username }})
+        {% endif %}
+    </div>
+{% endblock %}
+{% block dynamic_content %}
+    <div id="grade-entry-form">
+        <form method="POST">
+            {% csrf_token %}
+            {% comment %} {{ form.teacher.as_field_group }}
+            {{ form.academic_year.as_field_group }}
+            {{ form.period.as_field_group }}
+            {{ form.subject.as_field_group }}
+            {{ form.course.as_field_group }} {% endcomment %}
+            {{ form.as_p }}
+        </form>
+    </div>    
+    <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0 ">
+        <div class="mt-4 ml-4 mr-5 p-3 bg-base-100 justify-between flex flex-row-reverse gap-15 sticky top-3">
+            <button class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" type="submit">
+                Start Grade Entry
+                <i class="fas fa-sync"></i>
+            </button>
+        </div>
+    </div>
+{% endblock %}

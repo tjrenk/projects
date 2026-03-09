@@ -1,0 +1,293 @@
+{% load django_htmx %}
+<!DOCTYPE html>
+<html data-use-i18n="1" data-theme="" class="custom-scrollbars"
+      lang="en-us"
+      dir="ltr">
+
+<head>
+
+    <script>
+        /* set selected theme before everything
+        * to avoid color flash on refresh
+        *  */
+        function getSystemColorScheme() {
+            try {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    return 'dark';
+                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    return 'light';
+                } else {
+                    return 'light';  // In case the user's preference is not explicitly set.
+                }
+            } catch (e) {
+                return 'light'
+            }
+        }
+
+        document.documentElement.setAttribute(
+            'data-theme', localStorage.getItem('theme') || getSystemColorScheme()
+        )
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        {% block title %}Django DaisyUI{% endblock %}
+    </title>
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.13/dist/full.min.css" rel="stylesheet" type="text/css"/>
+        <script src="/static_files/admin/js/tailwind-3.4.5.js"></script>
+
+
+        <link href="/static_files/admin/css/customized_tailwind.css?v=2" rel="stylesheet">
+        <link href="/static_files/admin/css/calendar.css" rel="stylesheet">
+
+        <link rel="stylesheet" href="/static_files/admin/fonts/fontawesome-free-6.6.0-web/css/all.min.css"/>
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
+
+
+        <style>
+            @font-face {
+                font-family: 'rtl-font';
+                src: url("/static_files/admin/fonts/Vazir.woff2") format('woff');
+                font-weight: normal;
+                font-style: normal;
+            }
+
+            @font-face {
+                font-family: 'body-font';
+                src: local('Ubuntu'), local('Ubuntu-Regular'), url("/static_files/admin/fonts/Ubuntu/Ubuntu-Regular.ttf") format('truetype');
+                font-weight: normal;
+                font-style: normal;
+            }
+
+            /* Bold */
+            @font-face {
+                font-family: 'body-font';
+                src: local('Ubuntu-Medium'), url("/static_files/admin/fonts/Ubuntu/Ubuntu-Medium.ttf") format('truetype');
+                font-weight: bold;
+                font-style: normal;
+            }
+        </style>
+        <style>
+        /* Add any additional styling if needed */
+        </style>
+        {% htmx_script %}
+</head>
+
+<body hx-headers='{"x-csrftoken": "{{ csrf_token }}"}' class="bg-base-200 font-cantarell ">
+    <div class="flex">
+        <div id="sidebar" class="flex max-md:hidden flex-col justify-between sidebar bg-base-100 border-base-200 border-e w-56">
+            <!-- Sidebar header with logo -->
+            <a class="flex flex-row h-16 items-center" href="#">
+                <div class="w-full">
+                    <!-- Logo sekolah -->
+                    <img loading="lazy" class="max-h-20 p-2 m-auto max-w-32" src="/static_files/admin/img/logo_echs.jpeg" />
+                </div>
+            </a>
+            <!-- Sidebar menu -->
+             <ul class="menu rounded-box mb-auto w-56">
+            <!-- Dashboard link -->
+                <div class="divider text-base-content/40 menu-title divider-start">Gradebook</div>
+                <li class="mb-2">
+                    <details  open >
+                        <summary>
+                            <i class="fa-solid fa-users-gear"></i>
+                            Operations
+                        </summary>
+                        <ul>
+                            <li class="model-weighting">
+                                <a class=""
+                                   href="{% url 'grade-entry-table' %}">
+                                    Grade Entry
+                                </a>
+                            </li>
+                            <li class="model-passinggrade">
+                                <a class=""
+                                   href="{% url 'student-attendance' %}">
+                                    Student Attendance
+                                </a>
+                            </li>
+                            <li class="model-passinggrade">
+                                <a class=""
+                                   href="{% url 'report-card' %}">
+                                    Teacher's Notes
+                                </a>
+                            </li>
+                        </ul>
+                    </details>
+                </li>
+                <li class="mb-2">
+                    <details  open >
+                        <summary>
+                            <i class="fa-solid fa-users-gear"></i>
+                            Reports
+                        </summary>
+                        <ul>
+
+                                <li class="model-weighting">
+                                    <a class=""
+                                       href="#">
+                                        Students' Grade
+                                    </a>
+                                </li>
+
+                                <li class="model-passinggrade">
+                                    <a class=""
+                                       href="#">
+                                        Comment Review
+                                    </a>
+                                </li>
+                                <li class="model-passinggrade">
+                                    <a class=""
+                                       href="{% url "midterm_report" %}">
+                                        Generate Report
+                                    </a>
+                                </li>
+
+                        </ul>
+                    </details>
+                </li>
+            </ul>
+        </div>
+        <!-- Main content -->
+        <div id="content"
+            class="content-wrapper w-full flex flex-col min-h-screen
+            main-wrapper transition-all duration-200 ease-in-out">
+            <div class="navbar bg-base-100">
+                <div class="navbar-start">
+                     <div id="menu-toggle" tabindex="0" role="button" class="btn btn-ghost btn-circle">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                        </svg>
+                     </div>
+                </div>
+                <div class="navbar-center max-sm:hidden">
+                        
+                </div>
+                <div class="navbar-end">
+                    <div class="dropdown dropdown-bottom dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-sm m-1">Theme
+                            <svg
+                                width="12px"
+                                height="12px"
+                                class="inline-block h-2 w-2 fill-current opacity-60"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 2048 2048">
+                                <path d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"></path>
+                            </svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content  bg-base-300 rounded-md z-20 w-48 p-2 shadow-2xl">
+                            <li>
+                                <input
+                                    data-set-theme="light" data-act-class="ACTIVECLASS"
+                                    type="radio"
+                                    name="theme-dropdown"
+                                    class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+                                    aria-label="Light"
+                                    value="light"
+                                />
+                            </li>
+                            <li>
+                                <input
+                                    type="radio"
+                                    name="theme-dropdown"
+                                    class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+                                    aria-label="Dark"
+                                    value="dark"
+                                    data-act-class="ACTIVECLASS"
+                                    data-set-theme="dark"
+                                />
+                            </li>
+                            <li>
+                                <input
+                                    type="radio"
+                                    name="theme-dropdown"
+                                    class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+                                    aria-label="Dracula"
+                                    value="dracula"
+                                    data-act-class="ACTIVECLASS"
+                                    data-set-theme="dracula"
+                                />
+                            </li>
+                            <li>
+                                <input
+                                    type="radio"
+                                    name="theme-dropdown"
+                                    class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+                                    aria-label="Dim"
+                                    value="dim"
+                                    data-act-class="ACTIVECLASS"
+                                    data-set-theme="dim"
+                                />
+                            </li>
+                            <li>
+                                <input
+                                    type="radio"
+                                    name="theme-dropdown"
+                                    class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+                                    aria-label="Lemonade"
+                                    value="lemonade"
+                                    data-act-class="ACTIVECLASS"
+                                    data-set-theme="lemonade"
+                                />
+                            </li>
+                            <li>
+                                <input
+                                    type="radio"
+                                    name="theme-dropdown"
+                                    class="theme-controller btn btn-sm btn-block btn-ghost justify-start"
+                                    aria-label="Autumn"
+                                    value="autumn"
+                                    data-act-class="ACTIVECLASS"
+                                    data-set-theme="autumn"
+                                />
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="dropdown dropdown-bottom dropdown-end">
+                    <div tabindex="0" role="button" class="btn btn-ghost btn-circle m-1">
+                        <i class="fa-regular fa-user text-lg"></i>
+                    </div>
+                    <ul tabindex="0" class="dropdown-content rounded-md  bg-base-300 z-20 w-48 p-2 shadow-2xl">
+                        <li>
+                            <a class="btn btn-sm btn-block btn-ghost justify-start"
+                               href="/admin/password_change/">Change password</a>
+                        </li>
+                        <li>
+                            <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Log out</a></li>
+                        </li>
+                    </ul>
+                </div>
+                </div>
+            </div>
+            <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+                <div class="breadcrumbs">
+                    {% block content %}
+                        Halo kontent
+                    {% endblock %}
+                </div>
+            </div>
+            <div id="dyn-display-area" class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
+                {% block dynamic_content %}
+                    
+                {% endblock %}
+            </div>
+
+    <form id="logout-form" class="hidden" method="post" action="/admin/logout/">
+        {% csrf_token %}
+        <button type="submit"></button>
+    </form>
+
+    <script src="/static_files/admin/js/vendor/jquery/jquery.min.js"></script>
+    <script src="/static_files/admin/js/jquery.init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+    <script src="/static_files/admin/js/theme-change.js"></script>
+    <script defer src="/static_files/admin/js/SelectBox.js"></script>
+    <script src="/static_files/admin/js/admin/dashboard.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<style type="text/css">
+    .custom-color {
+        background-color: #4a0505ff;
+    }
+    .white-font-color {
+        color: #fffafaff;
+    }
+    .sticky-header {
+        position: sticky;
+        top: 0;
+    }
+    a {
+    text-decoration: none;
+    }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <title>EkuPoint</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .action-btn { margin-right: 0.5rem; }
+    </style>
+</head>
+<body style="font-family: Figtree, sans-serif; ">
+    <nav class="navbar navbar-expand-lg navbar-dark custom-color shadow-sm p-3 mb-5">
+        <div class="container">
+        <div class="navbar-center">
+            <h1 class="navbar-brand"><strong>ECHS Report Card</strong></h1>
+        </div>
+        <div class="navbar navbar-expand-lg">
+                <a href="admission/" class="btn btn-ghost" style="color: #FFFFFF">Admission</a>
+                    {% comment %} <img src="{% static 'images/admission.png' %}" width="600" height="400"> {% endcomment %}
+        </div>
+        <div class="navbar navbar-expand-lg">
+                <a href="gradebook/" class="btn btn-ghost" style="color: #FFFFFF">Gradebook</a>
+                    {% comment %} <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400"> {% endcomment %}
+        </div>
+        {% comment %} <div class="responsive">
+            <div class="gallery">
+                <a target="_blank" href="#">
+                 <div class="desc">Library</div>
+                    {% comment %} <img src="{% static 'images/librarian.png' %}" width="600" height="400"> {% endcomment %}
+               {% comment %} </a>
+               
+            </div> {% endcomment %}
+                {% comment %} <div class="responsive">
+            <div class="gallery">
+                <a target="_blank" href="#">
+                <div class="desc">Finance</div>
+                    <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400">
+                </a>
+                
+            </div> {% endcomment %}
+        </div>
+        <div class="navbar navbar-expand-lg" style="width: 50%; margin: 0 auto;">
+                <a href="{% url 'admin:index' %}" class="btn btn-ghost" style="color: #FFFFFF">SIS Admin</a>
+                    {% comment %} <img src="{% static 'images/gradebook.jpg' %}" width="600" height="400"> {% endcomment %}
+        </div>
+            {% comment %} {% if is_admin or is_staff %}
+            <a class="btn btn-outline-light btn-xs" href="{% url 'admin:index' %}">Admin Panel</a>
+            {% else %}
+            <p></p>
+            {% endif %} {% endcomment %}
+                <p>&nbsp</p>
+            </div>
+            <div class="navbar bg-base-100">
+                    <span class="navbar-text me-3" style="color: #FFFFFF;">Welcome, {{ user.username }}</span>
+                {% comment %} {% if is_admin or is_staff %}
+                    <span class="badge bg-danger ms-1">Admin</span>
+                {% else %}
+                    <span class="badge bg-info ms-1">Student</span>
+                {% endif %} {% endcomment %}
+                </span>
+            {% comment %} {% if is_admin or is_staff %}
+                    <a class="btn btn-outline-light btn-xs" href="{% url 'admin:index' %}"><i class="bi bi-person"> Admin Panel</i></a>
+            {% else %}
+                    <p></p>
+            {% endif %} {% endcomment %}
+            <p>&nbsp</p>
+            <a class="btn btn-outline-light btn-xs" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            
+
+
+            </div>
+            </div>
+        </div>
+    </nav>
+    <main class="container mt-4">
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+</html>

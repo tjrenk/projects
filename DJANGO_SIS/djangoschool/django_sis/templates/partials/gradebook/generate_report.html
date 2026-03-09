@@ -1,0 +1,20 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+
+<table>
+<th>Nama Siswa</th>
+{% for siswa in all_students %}
+<tr>
+<td>{{ siswa }}</td>
+<td><a href="{% url 'midterm_report_pdf' siswa.id %}" class="btn btn-primary">Print PDF</a></td>
+{% empty %}
+<td></td>
+</tr>
+{% endfor %}
+</table>
+
+
+
+
+{% endblock %}
