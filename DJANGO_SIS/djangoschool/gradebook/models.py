@@ -12,6 +12,11 @@ GRADE_CHOICES = [
     ("D", "D"),
     ("E", "E"),
 ]
+EXTRA_CHOICES = [
+    ("EK", "Ekstrakurikuler"),
+    ("PD", "Pengembangan Diri"),
+    ("P", "Prestasi"),
+]
 class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
@@ -164,3 +169,10 @@ class StudentBehaviourReport(models.Model):
     behaviour = models.ForeignKey(ReportcardBehaviour, on_delete=models.CASCADE)
     rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
     score = models.IntegerField(default=0)
+
+class StudentReportExtra(models.Model):
+    reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
+    extra_type = models.CharField(max_length=2, choices=EXTRA_CHOICES)
+    extra_description = models.TextField(null=True, blank=True)
+    extra_score = models.IntegerField(default=0)
+    extra_notes = models.TextField(null=True, blank=True)

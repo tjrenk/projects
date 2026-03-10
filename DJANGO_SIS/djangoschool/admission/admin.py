@@ -37,7 +37,7 @@ class ClassMemberInline(admin.TabularInline):
     max_num = 0
 
 class KelasAdmin(admin.ModelAdmin):
-    list_display = ["academic_year", "short_name", "teacher", "count_students"]
+    list_display = ["academic_year", "short_name", "teacher", "count_students", "is_home_class"]
     search_fields = ["academic_year__class__name"]
     inlines = [ ClassMemberInline, ]
     def count_students(self, obj: Class):
