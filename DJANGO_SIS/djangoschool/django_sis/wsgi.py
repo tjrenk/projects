@@ -14,3 +14,6 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_sis.settings")
 
 application = get_wsgi_application()
+
+# dibawah buat deploy ke Vercel, bukan bawaan template sebelumnya -nic
+app = application
