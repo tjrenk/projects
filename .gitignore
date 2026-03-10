@@ -2,4 +2,8 @@
 /djweb
 /old_djangoschool
 /DJANGO_SIS/djangoschool/gradebook/migrations/
+/DJANGO_SIS/djangoschool/gradebook/migrations/__pycache__/
 /DJANGO_SIS/djangoschool/admission/migrations/
+/DJANGO_SIS/djangoschool/admission/migrations/__pycache__/
+*.pyc
+*.pyc
