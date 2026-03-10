@@ -1,5 +1,8 @@
+from email import header
 import io
 from multiprocessing import context
+import os
+from django.conf import settings
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
@@ -16,10 +19,12 @@ from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Frame, Para
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
 from reportlab.graphics.shapes import Drawing, Line
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import logout
+from PIL import Image as PILImage
 
 # Create your views here.
 def index(request):
@@ -237,25 +242,178 @@ def pdf_regist_table(request):
     
     # --- PDF GENERATION STARTS HERE ---
     
+    # Custom class to add watermark logo
+    class PageWithWatermark(SimpleDocTemplate):
+        def __init__(self, *args, **kwargs):
+            self.watermark_image = kwargs.pop('watermark_image', None)
+            super().__init__(*args, **kwargs)
+        
+        def _endPage(self):
+            if self.watermark_image:
+                self.canv.saveState()
+                self.canv.setOpacity(1.15)  # Set opacity to 15% for watermark effect
+                # Center the logo on the page
+                img_width = 300
+                img_height = 300
+                x = (self.pagesize[0] - img_width) / 2
+                y = (self.pagesize[1] - img_height) / 2
+                self.canv.drawImage(
+                    self.watermark_image, 
+                    x, y, 
+                    width=img_width, 
+                    height=img_height,
+                    preserveAspectRatio=True
+                )
+                self.canv.restoreState()
+            super()._endPage()
+    
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
-    elements = []
+    watermark_logo_path = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_echs_vert.jpeg')
+    
+    # 1. Use the standard SimpleDocTemplate
+    doc = SimpleDocTemplate(
+        buf, 
+        pagesize=A4, 
+        rightMargin=30, 
+        leftMargin=30, 
+        topMargin=30, 
+        bottomMargin=18
+    )
+    
+    # 2. Define a background callback function
+    def draw_watermark(canvas, doc):
+        canvas.saveState()
+        
+        # Center the logo on the page
+        img_width = 300
+        img_height = 300
+        x = (doc.pagesize[0] - img_width) / 2
+        y = (doc.pagesize[1] - img_height) / 2
+        
+        # 1. Open the image with Pillow and force it into RGBA mode (adds an alpha channel)
+        img = PILImage.open(watermark_logo_path).convert("RGBA")
+        
+        # 2. Extract the alpha channel and reduce its intensity to 15%
+        r, g, b, a = img.split()
+        alpha = a.point(lambda p: int(p * 0.15)) 
+        img.putalpha(alpha)
+        
+        # 3. Wrap it in ReportLab's ImageReader and draw
+        # mask='auto' tells ReportLab to respect the Pillow alpha channel
+        canvas.drawImage(
+            ImageReader(img), 
+            x, y, 
+            width=img_width, 
+            height=img_height,
+            preserveAspectRatio=True,
+            mask='auto' 
+        )
+        canvas.restoreState()
+
+    flowables = []
     styles = getSampleStyleSheet()
+
+
+
+    center_style = ParagraphStyle(
+        'Center',
+        parent=styles['Normal'],
+        alignment=TA_CENTER,
+        fontName='Times-Roman'
+)
+    
+    center_style_small = ParagraphStyle(
+        'Center',
+        parent=styles['Normal'],
+        alignment=TA_CENTER,
+        fontSize=8,
+        fontName='Times-Roman',
+        textColor="#1C1F7E"
+)
+    # Kopsurat styling
+    kopsurat_nama_institusi = ParagraphStyle(
+        'KopSuratNamaInstitusi',
+        parent=styles['Normal'],
+        fontSize=30,
+        leading=30,
+        alignment=TA_CENTER,
+        fontName='Times-Bold',
+        textColor="#1C1F7E"
+    )
+
+    available_width = 595 - 10  # A4 width minus margins (595 - 30 - 30 = 535)
+
+    separator = Drawing(available_width, 2)
+    logo = os.path.join(settings.BASE_DIR, 'static_files\images\logo_echs_vert.jpeg')
+
+    # # setting gambar
+    logo_stte = Image(logo, width=100, height=90)
+
+
+    line = Line(
+        x1=-50, y1=1,
+        x2=available_width, y2=1,
+        strokeColor=colors.HexColor("#1C1F7E"),
+        strokeWidth=2
+    )
+
+    separator.add(line)
+
+    kop_left_content = [
+        Spacer(1, -15),
+        logo_stte,
+    ]
+
+    kop_right_content = [
+        Paragraph("SMAK EKUMENE", kopsurat_nama_institusi),
+        Spacer(1, 4),
+        Paragraph("Pertokoan Gading Kirana A10 1-2 Kelapa Gading Barat, Jakarta Utara 14240, Indonesia", center_style_small),
+        Paragraph("0813 9948 8499  |  info@ekumene.sch.id", center_style_small),
+    ]
+
+    kopsurat_data_1 = [
+        [kop_left_content, kop_right_content],
+    ]
+
+    kopsurat_table = Table(kopsurat_data_1, colWidths=[100, 400])
+
+    kopsurat_table.setStyle(TableStyle([
+            ('GRID', (0, 0), (-1, -1), 0.5, "#FFFFFFFF"), # No grid
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Align labels (col 0) to the left
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'), # Align values (col 1) to the left
+            ('FONTNAME', (0, 0), (0, -1), 'Times-Roman') # Make labels bold
+        ]))
+    # rekreasi kop surat
+    # flowables.append(kopsurat_table)
+    background = Image(logo, width=500, height=700)
+    # flowables.append(background)
+    flowables.append(kopsurat_table)
+    flowables.append(separator)
+    flowables.append(Spacer(1, 12))
+    # flowables.append(Spacer(1, 24))
+    
+    # judul ("EKUPOINT REPORT")
+    # flowables.append(header)
+    # flowables.append(Spacer(1, 12))
+    # flowables.append(header_dua)
+    flowables.append(Spacer(1, 24))
+
+
 
     # Title
     title_style = ParagraphStyle(name='CenterTitle', parent=styles['Heading1'], alignment=TA_CENTER)
-    elements.append(Paragraph("Student Report", title_style))
+    flowables.append(Paragraph("Student Report", title_style))
     
     # Add a subtitle showing active filters (Optional but helpful)
-    # filter_info = []
-    # if year_id: filter_info.append(f"Year ID: {year_id}")
-    # if class_id: filter_info.append(f"Class ID: {class_id}")
-    # if search_query: filter_info.append(f"Search: {search_query}")
+    filter_info = []
+    if year_id: filter_info.append(f"Year ID: {year_id}")
+    if class_id: filter_info.append(f"Class ID: {class_id}")
+    if search_query: filter_info.append(f"Search: {search_query}")
     
-    # if filter_info:
-    #     elements.append(Paragraph(f"Filters: {', '.join(filter_info)}", styles['Normal']))
+    flowables.append(Paragraph(f"{', '.join(filter_info)}", styles['Normal']))
     
-    elements.append(Spacer(1, 0.25 * inch))
+    flowables.append(Spacer(1, 0.25 * inch))
 
     # Table Header
     data = [['NISN', 'Name', 'Active', 'Reason']]
@@ -290,8 +448,12 @@ def pdf_regist_table(request):
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
     ]))
 
-    elements.append(table)
-    doc.build(elements)
+    flowables.append(table)
+    doc.build(
+        flowables, 
+        onFirstPage=draw_watermark, 
+        onLaterPages=draw_watermark
+    )
 
     # Return Response
     buf.seek(0)
