@@ -1733,3 +1733,23 @@ def student_behavior_grading(request, pk):
     return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
 
 # pls github i need this
+
+# EXTRA REPORT FORM LOGIC
+class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
+    template_name = "partials/gradebook/report_extra.html"
+    
+    form_list = [
+        ("0", ExtraReportForm),
+    ]
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        
+        if self.steps.current == '0':
+            acayear = AcademicYear.objects.all()
+            period = LearningPeriod.objects.all().select_related('academic_year')
+            level = GradeLevel.objects.all()
+            context['selected_acayear'] = acayear
+            context['selected_period'] = period
+            context['selected_level'] = level
+        return context

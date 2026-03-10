@@ -1060,3 +1060,11 @@ class StudentListFormSetBase(BaseFormSet):
 
 # # FormSet for Behavior Grading
 # BehaviorGradingFormSet = formset_factory(BehaviorGradingForm, formset=BehaviorGradingFormSet, extra=0)
+
+
+# EXTRA REPORT FORM
+class ExtraReportForm(forms.Form):
+    class Meta:
+        model = StudentReportExtra
+        fields = ['extra_type', 'extra_description', 'extra_score', 'extra_notes']
+

@@ -43,6 +43,9 @@ urlpatterns = [
     path('rubric-entry/', views.RubricEntryWizard.as_view(), name="rubric-entry"),
     path('student-behavior-grading/<int:pk>', views.student_behavior_grading, name='student-behavior-grading'),
 
+    # EXTRA REPORT
+    path('extra-report/', views.ExtraReportWizard.as_view(), name='extra-report'),
+
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
