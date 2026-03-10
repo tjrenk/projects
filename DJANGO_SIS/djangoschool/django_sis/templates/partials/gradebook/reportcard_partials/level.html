@@ -1,0 +1,4 @@
+<option value="">Select Level</option>
+{% for level in levels %}
+    <option value="{{ level.id }}" {% if selected_level and level.id|stringformat:"s" == selected_level %}selected{% endif %}>{{ level }}</option>
+{% endfor %}
