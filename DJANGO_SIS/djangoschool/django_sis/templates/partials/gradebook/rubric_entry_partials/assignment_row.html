@@ -1,0 +1,52 @@
+{# templates/partials/gradebook/_assignment_row.html #}
+<tr>
+    {# 1. Render Hidden Fields (Includes the Student ID) #}
+    {% for hidden in form.hidden_fields %}
+        {{ hidden }}
+    {% endfor %}
+
+    {# 2. Student Name Column #}
+    <td>
+        {{ form.student_name }}
+        {% if form.student.errors %}
+            <div class="text-danger small">{{ form.student.errors }}</div>
+        {% endif %}
+    </td>
+
+    {# 3. Score Column #}
+    <td>
+        {{ form.score }}
+        {% if form.score.errors %}
+            <div class="text-danger small text-xs">{{ form.score.errors }}</div>
+        {% endif %}
+    </td>
+
+    {# 4. N/A Reason Column (Manual Rendering for Logic) #}
+    <td>
+        {% with is_active=form.is_active.value %}
+        {# Logic: If is_active is checked (True or None), make readonly #}
+        <input 
+            type="text" 
+            name="{{ form.na_reason.html_name }}" 
+            value="{{ form.na_reason.value|default_if_none:'' }}"
+            class="form-control"
+            {% if is_active != False %} 
+                readonly 
+                style="background-color: #f8f9fa; cursor: not-allowed;"
+                placeholder="Active"
+            {% else %}
+                placeholder="Reason for N/A"
+            {% endif %}
+        >
+        {% endwith %}
+
+        {% if form.na_reason.errors %}
+            <div class="text-danger small">{{ form.na_reason.errors }}</div>
+        {% endif %}
+    </td>
+
+    {# 5. Active Checkbox Column #}
+    <td class="text-center">
+        {{ form.is_active }}
+    </td>
+</tr>

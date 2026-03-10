@@ -1,0 +1,131 @@
+{% extends "base_admission.html" %}
+
+{% block content %}
+<style>
+/* ... your existing styles ... */
+</style>
+
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+
+    <div class="navbar">
+        <div class="navbar-center">
+            <h1 style="font-size: 30px">Students List</h1>
+        </div>
+    </div>
+
+
+    <form method="GET" action=".">
+        <div class="flex flex-row space-x-4 p-4 mb-4 items-end">
+            
+            <div class="form-control">
+                <label class="label"><span class="label-text font-bold">Academic Year</span></label>
+                <select name="year" class="select select-bordered select-sm">
+                    <option value="">All Years</option>
+                    {% for ay in academic_years %}
+                        <option value="{{ ay.id }}" {% if ay.id == selected_year %}selected{% endif %}>
+                            {{ ay.year }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-control">
+                <label class="label"><span class="label-text font-bold">Class</span></label>
+                <select name="class" class="select select-bordered select-sm">
+                    <option value="">All Classes</option>
+                    {% for cls in classes %}
+                        <option value="{{ cls.id }}" {% if cls.id == selected_class %}selected{% endif %}>
+                            {{ cls.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-control">
+                <label class="label"><span class="label-text font-bold">Teacher</span></label>
+                <select name="teacher" class="select select-bordered select-sm">
+                    <option value="">All Teachers</option>
+                    {% for tch in teachers %}
+                        <option value="{{ tch.id }}" {% if tch.id == selected_teacher %}selected{% endif %}>
+                            {{ tch.last_name }}, {{ tch.first_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                <a href="." class="btn btn-sm btn-ghost">Reset</a>
+        <div class="form-control  flex flex-row items-center rounded-sm border border-base-content/20 ps-3 w-full">
+        <label for="searchbar" class="flex items-center">
+                    <i class="fa fa-search text-gray-400"></i>
+                </label>
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Search" class="input w-full border-0 focus:border-transparent focus:outline-0 transition-all input-sm focus:outline-offset-0" />
+            {% comment %} <input type="button" value="Search" class="rounded search-submit btn btn-sm"> {% endcomment %}
+            
+        </div>
+                <div class="divider lg:divider-horizontal"></div>
+        <a href="{% url 'pdf_regist_table' %}" class="btn btn-secondary mb-4">Export to PDF</a>
+        </div>
+
+
+
+
+    </form>
+    <div class="card-body px-3 py-1 w-full">
+        <div class="overflow-auto max-h-[60vh]">
+            <table class="table table-sm border border-base-200 table-hover">
+                <thead class="bg-base-300 text-gray-950">
+                    <tr>
+                        <th class="flex-1">No</th>
+                        <th class="flex-1">NISN</th>
+                        <th class="flex-1">Name</th>
+                        <th class="flex-1">Gender</th>
+                        <th class="flex-1">Active</th>
+                        <th class="flex-1">NA Details</th>
+                    </tr>
+                </thead>
+                <tbody class="flex-1">
+                    {% for stdent in pnation_regist %}
+                    <tr class="hover:bg-base-200">
+                        <td class="flex-1">{{ forloop.counter0|add:pnation_regist.start_index }}</td> <td class="flex-1">{{ stdent.nisn }}</td>
+                        <td class="flex-1"><strong>{{ stdent.registration_data.first_name }} {{ stdent.registration_data.middle_name }} {{ stdent.registration_data.last_name }}</strong></td>
+                        <td class="flex-1"><strong>{{ stdent.registration_data.gender }}</strong></td>
+                        {% if stdent.is_active %}
+                        <td class="flex-1"><i class="text-base fa fa-circle-check text-success"></i></td>
+                        {% else %}
+                        <td class="flex-1"><i class="text-base fa fa-circle-xmark text-error"></i></td>
+                        {% endif %}
+                        {% if not stdent.is_active %}
+                        <td class="flex-1">{{ stdent.na_reason }}</td>
+                        {% else %}
+                        <td class="flex-1">-</td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No students found matching filters.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card-actions justify-center" style="margin-center: 10px;">
+        <div class="join">
+            {% if pnation_regist.has_previous %}
+            <a class="join-item btn" href="?page=1{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_class %}&class={{ selected_class }}{% endif %}{% if selected_teacher %}&teacher={{ selected_teacher }}{% endif %}">&laquo;</a>
+            <a class="join-item btn" href="?page={{ pnation_regist.previous_page_number }}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_class %}&class={{ selected_class }}{% endif %}{% if selected_teacher %}&teacher={{ selected_teacher }}{% endif %}">&lsaquo;</a>
+            {% endif %}
+
+                Page {{ pnation_regist.number }} of {{ pnation_regist.paginator.num_pages }}
+
+            {% if pnation_regist.has_next %}
+            <a class="join-item btn" href="?page={{ pnation_regist.next_page_number }}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_class %}&class={{ selected_class }}{% endif %}{% if selected_teacher %}&teacher={{ selected_teacher }}{% endif %}">&rsaquo;</a>
+            <a class="join-item btn" href="?page={{ pnation_regist.paginator.num_pages }}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_class %}&class={{ selected_class }}{% endif %}{% if selected_teacher %}&teacher={{ selected_teacher }}{% endif %}">&raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

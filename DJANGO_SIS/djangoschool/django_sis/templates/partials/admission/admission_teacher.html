@@ -1,0 +1,66 @@
+{% extends "header.html" %}
+
+{% load crispy_forms_tags %}
+
+{% block head %}
+{{ wizard.form.media }}
+{% endblock %}
+
+{% block content %}
+<style>
+    form p {
+        margin-bottom: 1.2rem;  /* adjust as needed */
+    }
+</style>
+{% comment %} <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p> {% endcomment %}
+<div class="wizard-container container mt-4">
+            <h4 class="mb-0">Registration - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
+</div>
+
+<form action="" style="width: 1200px; padding: 20px" method="post">
+{% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-8 offset-md-2">
+                            {% comment %} <table class="table table-borderless"> {% endcomment %}
+{{ wizard.management_form }}
+{% if wizard.form.forms %}
+    {{ wizard.form.management_form }}
+    {% for form in wizard.form.forms %}
+        {% comment %} {{ form.as_p }}
+    {% endfor %}
+{% else %}
+    {{ wizard.form.as_p }}
+{% endif %} {% endcomment %}
+
+
+<div class="mb-3">
+        {{ form.as_p }}
+    </div>
+    <hr class="my-4"> 
+{% endfor %}
+{% else %}
+<div class="mb-2">
+        {{ wizard.form.as_p }}
+    </div>
+    <hr class="my-4"> 
+{% endif %}
+</div>
+</div>
+
+
+{% comment %} </table> {% endcomment %}
+                <div class="d-flex justify-content-between">
+                    {% if wizard.steps.prev %}
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-secondary">
+                            &laquo; Previous
+                        </button>
+                    {% else %}
+                        <div></div> 
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-success px-4">
+                            Next &raquo;
+                    </button>
+                </div>
+</form>
+{% endblock %}

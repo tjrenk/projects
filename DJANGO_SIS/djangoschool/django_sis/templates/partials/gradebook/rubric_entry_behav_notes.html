@@ -1,0 +1,131 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<style>
+.score-radio {
+    display: inline-block;
+    margin: 0 5px;
+}
+.indicator-row {
+    border-bottom: 1px solid #ddd;
+}
+</style>
+
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium mb-4">Student Behavior Grading</div>
+    
+    <!-- Student Information Header -->
+    <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-gray-100 rounded-lg">
+        <div>
+            <p class="text-gray-600 text-sm"><strong>NIM:</strong></p>
+            <p class="text-lg font-semibold">{{ student.id_number }}</p>
+        </div>
+        <div>
+            <p class="text-gray-600 text-sm"><strong>Name:</strong></p>
+            <p class="text-lg font-semibold">
+                {% if student.registration_data %}
+                    {{ student.registration_data.first_name }} {{ student.registration_data.last_name }}
+                {% else %}
+                    {{ student }}
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <p class="text-gray-600 text-sm"><strong>Academic Year:</strong></p>
+            <p class="text-lg font-semibold">{{ academic_year.year|default:"N/A" }}</p>
+        </div>
+        <div>
+            <p class="text-gray-600 text-sm"><strong>Period:</strong></p>
+            <p class="text-lg font-semibold">{{ period.period_name|default:"N/A" }}</p>
+        </div>
+    </div>
+
+    <!-- Grading Form -->
+    <form method="post" class="form-horizontal">
+        {% csrf_token %}
+        
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead class="bg-base-200">
+                    <tr>
+                        <th style="width: 20%;">Rubric Type</th>
+                        <th style="width: 40%;">Indicator</th>
+                        <th style="width: 40%;">Score (1-4)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rubric in rubrics %}
+                        {% for indicator in rubric.rubricindicator_set.all %}
+                            <tr class="indicator-row">
+                                <!-- Rubric Type (only show on first indicator of each rubric) -->
+                                {% if forloop.first %}
+                                    <td rowspan="{{ rubric.rubricindicator_set.count }}" class="font-semibold align-middle">
+                                        <span class="badge {% if rubric.type == 'Spiritual' %}badge-info{% else %}badge-success{% endif %}">
+                                            {{ rubric.get_type_display }}
+                                        </span>
+                                    </td>
+                                {% endif %}
+                                
+                                <!-- Indicator Text -->
+                                <td>
+                                    <p class="mb-0">{{ indicator.indicator_text }}</p>
+                                </td>
+                                
+                                <!-- Score Radio Buttons (1-4) -->
+                                <td>
+                                    <div class="flex gap-3">
+                                        {% for value, label in score_choices %}
+                                            <div class="score-radio form-check">
+                                                <input 
+                                                    type="radio" 
+                                                    class="form-check-input" 
+                                                    id="indicator_{{ indicator.id }}_{{ value }}"
+                                                    name="indicator_{{ indicator.id }}"
+                                                    value="{{ value }}"
+                                                >
+                                                <label class="form-check-label cursor-pointer" for="indicator_{{ indicator.id }}_{{ value }}">
+                                                    {{ label }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center py-4 text-gray-500">
+                                No rubrics available for the selected academic year.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Buttons -->
+        <div class="mt-6 flex gap-2">
+            <a href="{% url 'rubric-entry' %}" class="btn btn-outline btn-sm">Cancel</a>
+            {% if rubrics %}
+                <button type="submit" class="btn btn-primary btn-sm">Save Grades</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<script>
+    // Optional: Add visual feedback when score is selected
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Remove highlight from siblings
+            const parent = this.closest('.flex');
+            parent.querySelectorAll('input').forEach(input => {
+                input.closest('.form-check').classList.remove('ring-2', 'ring-blue-500');
+            });
+            // Add highlight to selected
+            this.closest('.form-check').classList.add('ring-2', 'ring-blue-500');
+        });
+    });
+</script>
+
+{% endblock %}
