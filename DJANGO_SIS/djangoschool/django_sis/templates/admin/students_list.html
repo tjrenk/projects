@@ -1,8 +1,9 @@
 <!-- shop/templates/admin/statistics.html -->
 
 {% block content %}
-<div class="rounded-box border bg-base-100 wide">
-<div class="navbar shadow-sm">
+{% comment %} <div class="flex-1 rounded-box border bg-base-100 wide" style="padding: 20px; max-width: 100%; width: auto; max-height: 100%; height: auto;"> {% endcomment %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+<div class="navbar">
 <div class="navbar-start">  
 <p>&nbsp;</p>
 </div>
@@ -119,12 +120,12 @@
   <div class="col-6">
   <div class="navbar-center">
   <h1 style="margin: 20px;">Total students per class</h1>
-    <canvas id="studentChart" width="4100" height="1000" style="margin: 20px;"></canvas>
+    <canvas id="studentChart" width="4100" height="3000" style="margin: 20px;"></canvas>
   </div>
   </div>
   <!-- Add new chart for student counts -->
   <div class="col-6">
-    <canvas id="salesChart" width="400" height="200"></canvas>
+    <canvas id="salesChart" width="400" height="300"></canvas>
   </div>
 </div>
 </div>

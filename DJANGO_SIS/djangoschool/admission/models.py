@@ -7,11 +7,11 @@ from django.contrib.auth.models import User
 
 class AbstractPerson(models.Model):
     GENDER_CHOICES = {"M": "Male", "F": "Female"}
-    first_name = models.CharField(max_length=20)
-    middle_name = models.CharField(max_length=20)
-    last_name = models.CharField(max_length=20)
-    place_of_birth = models.CharField(max_length=25)
-    date_of_birth = models.DateField()
+    first_name = models.CharField(max_length=20, blank=True, null=True)
+    middle_name = models.CharField(max_length=20, blank=True, null=True)
+    last_name = models.CharField(max_length=20, blank=True, null=True)
+    place_of_birth = models.CharField(max_length=25, blank=True, null=True)
+    date_of_birth = models.DateField(blank=True, null=True)
     gender = models.CharField(max_length=1, blank=True, choices=GENDER_CHOICES)
     class Meta:
         abstract = True
@@ -72,7 +72,7 @@ class Registration(AbstractPerson):
     father_email = models.CharField(max_length=20, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.form_no} ({self.first_name})" 
+        return f"{self.form_no} ({self.first_name} {self.last_name})" 
 
 class AcademicYear(models.Model):
     year = models.CharField(max_length=4)
@@ -108,7 +108,7 @@ class Student(models.Model):
                                     name='unique_student_data'),
         ]
     def __str__(self):
-        return f"{self.id_number}"
+        return f"{self.id_number} - {self.registration_data.first_name} {self.registration_data.last_name}"
 
 
 class AbstractClass(models.Model):
@@ -155,14 +155,9 @@ class SchoolData(models.Model):
 class SchoolLevel(models.Model):
     level_name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
-
-    class Meta:
-        verbose_name_plural = "School Levels"
-        verbose_name = "School Level"
-
     def __str__(self):
         return self.level_name
-
+    
 class GradeLevel(models.Model):
     school_level = models.ForeignKey(SchoolLevel, on_delete=models.CASCADE)
     grade_name = models.CharField(max_length=25, unique=True)
@@ -174,7 +169,6 @@ class GradeLevel(models.Model):
 
     def __str__(self):
         return self.grade_name
-
 class HeadMaster(models.Model):
     school = models.ForeignKey(SchoolData, on_delete=models.CASCADE)
     level = models.ForeignKey(SchoolLevel, default=1, on_delete=models.CASCADE)

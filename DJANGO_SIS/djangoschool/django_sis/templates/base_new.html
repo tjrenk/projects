@@ -277,10 +277,10 @@
                 {% endblock %}
             </div>
 
-    <form id="logout-form" class="hidden" method="post" action="/admin/logout/">
-        {% csrf_token %}
-        <button type="submit"></button>
-    </form>
+        <form id="logout-form" class="hidden" method="post" action="/admin/logout/">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{% csrf_token %}" />
+            <button type="submit"></button>
+        </form>
 
     <script src="/static_files/admin/js/vendor/jquery/jquery.min.js"></script>
     <script src="/static_files/admin/js/jquery.init.js"></script>

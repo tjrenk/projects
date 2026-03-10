@@ -108,18 +108,16 @@
                 name="{{ form.na_reason.html_name }}" 
                 value="{{ form.na_reason.value|default_if_none:'' }}"
                 class="form-control"
-                
-                {# === THE LOGIC === #}
-                {# We use the python variable we calculated in __init__ #}
-                {% if form.current_is_active %}
+                >
+                {% comment %} {% if form.current_is_active %}
                     readonly 
                     style="background-color: #e9ecef; cursor: not-allowed;"
                     placeholder="Active (Uncheck & Save to edit)"
                 {% else %}
                     style="background-color: #ffffff;"
                     placeholder="Enter reason..."
-                {% endif %}
-            >
+                {% endif %} {% endcomment %}
+            
             
             {% if form.na_reason.errors %}
                 <div class="text-danger small">{{ form.na_reason.errors }}</div>

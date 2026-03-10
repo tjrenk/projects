@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-i4rd4lfs2lmi2l8rsuxe(1$pa$7dh#7-o*i###tb)v86!20t@c
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["superdifficult-semitransparently-jamel.ngrok-free.dev", "127.0.0.1"]
+ALLOWED_HOSTS = ["superdifficult-semitransparently-jamel.ngrok-free.dev", "127.0.0.1", "0.0.0.0:8000"]
 
 INTERNAL_IPS = ["127.0.0.1",]
 
@@ -99,27 +99,43 @@ TEMPLATES = [
 WSGI_APPLICATION = "django_sis.wsgi.application"
 
 
+
+# SQLite3
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-     "default": {
-         "ENGINE": "django.db.backends.sqlite3",
-         "NAME": BASE_DIR / "django_sisdb.sqlite3",
-     }
- }
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "django_sisdb.sqlite3",
+    }
+}
+
+
+# MySQL, hosted locally with XAMPP
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'djangosis_test', # database name eg-django
+#         'USER':'root', # username as root
+#         'PASSWORD':'', # password keep empty
+#         'HOST':'localhost', # host is localhost
+#         'PORT':'3306', # you can find port in xampp control panel(mysql)
+# }
+# }
 
 # percobaan integrasi db postgresql di railway -nic
-#DATABASES = {
-#    "default": {
-#        "ENGINE": "django.db.backends.mysql",
-#        "NAME": "dbekumene_sis",
-#        "USER": "dbekumene_sisadmin",
-#        "PASSWORD": "kelegaan@217",
-#        "HOST": "db.ekumene.sch.id",
-#        "PORT": "3306",
-#    }
-#}
+# PostgreSQL, thru Railway
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": "railway",
+#         "USER": "postgres",
+#         "PASSWORD": "geiBpfyCEViGgvSBSEapSzmXKsmpywSS",
+#         "HOST": "ballast.proxy.rlwy.net",
+#         "PORT": "23615",
+#     }
+# }
 
 
 # Password validation

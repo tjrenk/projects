@@ -25,24 +25,34 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth.models import User
 from rest_framework import routers, serializers, viewsets
-from admission.models import Registration
+from admission.models import AcademicYear, Registration, SchoolData
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class RegSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Registration
         # fields = ['url', 'username', 'email', 'is_staff']
         # fields = ['url', 'first_name', 'middle_name', 'last_name', 'place_of_birth', 'date_of_birth', 'gender', 'form_no', 'nisn', 'prev_school', 'prev_nis', 'birth_order', 'church_name', 'current_address', 'current_district', 'current_region', 'current_city', 'current_province', 'contact_whatsapp', 'contact_mobile', 'contact_email', 'contact_preference', 'mother_name', 'mother_nik', 'mother_education', 'mother_occupation', 'mother_address_same2applicant', 'mother_address', 'mother_district', 'mother_region', 'mother_city', 'mother_province', 'mother_phone', 'mother_mobile', 'mother_whatsapp', 'mother_email', 'father_name', 'father_nik', 'father_education']
-        fields = ['url', 'first_name', 'middle_name', 'last_name']
+        fields = ['first_name', 'middle_name', 'last_name']
+
+class SchDataSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = SchoolData
+        fields = '__all__'
 
 # ViewSets define the view behavior.
-class UserViewSet(viewsets.ModelViewSet):
+class RegViewSet(viewsets.ModelViewSet):
     queryset = Registration.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = RegSerializer
+
+class SchDataViewSet(viewsets.ModelViewSet):
+    queryset = SchoolData.objects.all()
+    serializer_class = SchDataSerializer
 
 # Routers provide an easy way of automatically determining the URL conf.
 router = routers.DefaultRouter()
-router.register(r'users', UserViewSet)
+router.register(r'registrations', RegViewSet)
+router.register(r'school_data', SchDataViewSet)
 
 
 urlpatterns = [
