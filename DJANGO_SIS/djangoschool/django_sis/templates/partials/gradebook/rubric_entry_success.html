@@ -1,0 +1,32 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="alert alert-success mb-4">
+        <h4 class="font-bold mb-2">✓ Success!</h4>
+        <p>{{ message }}</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 p-4 bg-gray-100 rounded-lg mb-6">
+        <div>
+            <p class="text-sm text-gray-600"><strong>Student:</strong></p>
+            <p class="text-lg">
+                {% if student.registration_data %}
+                    {{ student.registration_data.first_name }} {{ student.registration_data.last_name }}
+                {% else %}
+                    {{ student }}
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <p class="text-sm text-gray-600"><strong>NIM:</strong></p>
+            <p class="text-lg">{{ student.id_number }}</p>
+        </div>
+    </div>
+
+    <div class="flex gap-2">
+        <a href="{% url 'rubric-entry' %}" class="btn btn-primary btn-sm">Back to Student List</a>
+        <a href="{% url 'gb-index' %}" class="btn btn-outline btn-sm">Dashboard</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% load slick_reporting_tags %}
+{% comment %} {% include “slick_reporting/js_resources.html” %} {% endcomment %}
+{% block content %}
+{% block extrajs %}
+
+<div>
+<table class="table table-zebra w-full">
+    <thead>
+        <tr>
+            {% for column in report.columns %}
+                <th>{{ column.header }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in report.data %}
+            <tr>
+                {% for cell in row %}
+                    <td>{{ cell }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% endblock %}
+{% endblock %}
