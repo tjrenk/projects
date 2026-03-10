@@ -1,0 +1,4 @@
+<option value="">Select Class</option>
+{% for cls in classes %}
+    <option value="{{ cls.id }}" {% if selected_kelas and cls.id|stringformat:"s" == selected_kelas %}selected{% endif %}>{{ cls }}</option>
+{% endfor %}
