@@ -45,6 +45,9 @@ urlpatterns = [
 
     # EXTRA REPORT
     path('extra-report/', views.ExtraReportWizard.as_view(), name='extra-report'),
+    path('get-period-extra/', views.get_period_extra, name='get-period-extra'),
+    path('get-level-extra/', views.get_level_extra, name='get-level-extra'),
+    path('get-kelas-extra/', views.get_kelas_extra, name='get-kelas-extra'),
 
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),

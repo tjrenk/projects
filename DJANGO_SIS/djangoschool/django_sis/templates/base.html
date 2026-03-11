@@ -1,4 +1,5 @@
 {% load django_htmx %}
+{% load static %}
 <!DOCTYPE html>
 <html data-use-i18n="1" data-theme="" class="custom-scrollbars" lang="en-us" dir="ltr">
 
@@ -67,7 +68,7 @@
         <div class="navbar bg-base-100">
             <div class="navbar-start">
                 <a class="flex flex-row h-16 items-center" href="{% url 'home' %}">
-                    <img loading="lazy" class="max-h-20 p-2 m-auto max-w-32" src="/static_files/images/logo_ecs1.png" alt="Logo" />
+                    <img loading="lazy" class="max-h-20 p-2 m-auto max-w-32" src="{% static 'images/logo_ecs1.png' %}" alt="Logo" />
                 </a>
             </div>
 

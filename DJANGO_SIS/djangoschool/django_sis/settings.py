@@ -185,7 +185,7 @@ DAISY_SETTINGS = {
     'SITE_TITLE': 'System Administration',  # The title of the site
     'SITE_HEADER': 'SIS Backend Admin',  # Header text displayed in the admin panel
     'INDEX_TITLE': 'Hi, welcome to SIS dashboard',  # The title for the index page of dashboard
-    'SITE_LOGO': '/static_files/admin/img/logo_echs.jpeg',  # Path to the logo image displayed in the sidebar
+    'SITE_LOGO': '/static_files/images/logo_ecs1.png',  # Path to the logo image displayed in the sidebar
     'EXTRA_STYLES': [],  # List of extra stylesheets to be loaded in base.html (optional)
     'EXTRA_SCRIPTS': [],  # List of extra script URLs to be loaded in base.html (optional)
     'LOAD_FULL_STYLES': True,  # If True, loads full DaisyUI components in the admin (useful if you have custom template overrides)

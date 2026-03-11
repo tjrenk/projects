@@ -1753,3 +1753,42 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = period
             context['selected_level'] = level
         return context
+
+
+
+def get_period_extra(request):
+    acayear_id = request.GET.get('academic_year')
+    selected_period = request.GET.get('period')
+    if acayear_id:
+        # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
+        periods = LearningPeriod.objects.all()
+    else:
+        periods = LearningPeriod.objects.none()
+    context = {
+        'periods': periods,
+        'selected_period': selected_period
+    }
+    return render(request, "partials/gradebook/reportextra_partials/period.html", context)
+
+def get_level_extra(request):
+    period_id = request.GET.get('period')
+    
+    if period_id:
+        levels = GradeLevel.objects.all()
+    else:
+        levels = GradeLevel.objects.none()
+        
+    context = {'levels': levels}
+    return render(request, "partials/gradebook/reportextra_partials/level.html", context)
+
+def get_kelas_extra(request):
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
+    selected_kelas = request.GET.get('0-kelas') or request.GET.get('1-kelas') or request.GET.get('kelas')
+    if teacher_id:
+        classes = Class.objects.filter(hometeacher_id=teacher_id)
+    else:        classes = Class.objects.none()
+    context = {
+        'kelas': classes,
+        'selected_kelas': selected_kelas
+    }
+    return render(request, "partials/gradebook/reportextra_partials/kelas.html", context)

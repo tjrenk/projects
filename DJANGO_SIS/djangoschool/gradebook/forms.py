@@ -1064,7 +1064,66 @@ class StudentListFormSetBase(BaseFormSet):
 
 # EXTRA REPORT FORM
 class ExtraReportForm(forms.Form):
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'extra-period-select'})
+    )
+
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'extra-level-select'})
+    )
+
     class Meta:
         model = StudentReportExtra
         fields = ['extra_type', 'extra_description', 'extra_score', 'extra_notes']
+        widgets = {
+            'extra_type': forms.Select(attrs={'class': 'form-select'}),
+            'extra_description': forms.TextInput(attrs={'class': 'form-control'}),
+            'extra_score': forms.NumberInput(attrs={'class': 'form-control'}),
+            'extra_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = self.data
+        initial = self.initial
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        level = data.get('0-level') or initial.get('level')
+        period = data.get('0-period') or initial.get('period')
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year=acayear)
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+
+        if period:
+            self.fields['level'].queryset = GradeLevel.objects.all()
+        else:
+            self.fields['level'].queryset = GradeLevel.objects.none()
+            
+        self.fields['academic_year'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#extra-period-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="1-period"]'
+            })
+        
+        self.fields['period'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-levels-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#extra-level-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '[name="1-level"]'
+            })
+        
+        self.fields['level'].widget.attrs['id'] = 'extra-level-select'
 
