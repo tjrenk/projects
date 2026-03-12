@@ -1740,6 +1740,7 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
     
     form_list = [
         ("0", ExtraReportForm),
+        ("1", ExtraReportFormStep2)
     ]
 
     def get_context_data(self, form, **kwargs):
@@ -1753,6 +1754,8 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = period
             context['selected_level'] = level
         return context
+    
+
 
 
 

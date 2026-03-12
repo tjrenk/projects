@@ -1078,7 +1078,9 @@ class ExtraReportForm(forms.Form):
         queryset=GradeLevel.objects.all(),
         widget=forms.Select(attrs={'class': 'form-select', 'id': 'extra-level-select'})
     )
+    
 
+class ExtraReportFormStep2(forms.ModelForm):
     class Meta:
         model = StudentReportExtra
         fields = ['extra_type', 'extra_description', 'extra_score', 'extra_notes']
