@@ -1706,6 +1706,202 @@ def student_behavior_grading(request, pk):
 
         # Save each indicator score
         for rubric in rubrics:
+            for description in rubric:
+                score_key = f'indicator_{description.id}'
+                score = request.POST.get(score_key)
+                if score:
+                    StudentBehaviourReport.objects.update_or_create(
+                        student=student,
+                        behaviour=behaviour,
+                        rubric=description,
+                        defaults={'score': int(score)}
+                    )
+
+        return render(request, 'partials/gradebook/rubric_entry_success.html', {
+            'student': student,
+            'message': f"Behavior grades saved for {student}!"
+        })
+
+    context = {
+        'student': student,
+        'academic_year': academic_year,
+        'period': period,
+        'level': level,
+        'rubrics': rubrics,
+        'score_choices': [(1, '1'), (2, '2'), (3, '3'), (4, '4')],
+    }
+    return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
+
+# pls github i need this
+
+# EXTRA REPORT FORM LOGIC
+class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
+    template_name = "partials/gradebook/report_extra.html"
+    
+    form_list = [
+        ("0", ExtraGradeItemForm),
+        ("1", StudentListFormSet)
+    ]
+
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+        
+        # if step == '0':
+        #     initial['academic_year'] = None
+        #     initial['period'] = None
+        #     initial['teacher'] = None
+        #     initial['subject'] = None
+        #     initial['course'] = None
+        #     initial['assignment_type'] = None
+
+
+        # Logika khusus untuk Step 2 (FormSet Siswa)
+        if step == '1':
+            # Ambil data dari Step 0 (RubricEntryForm)
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data and 'kelas' in step0_data:
+                kelas = step0_data['kelas']
+                
+                # Ambil semua siswa yang aktif di class tersebut
+                students = ClassMember.objects.filter(
+                    kelas=kelas, 
+                    is_active=True
+                ).select_related('student')
+                
+                # Siapkan initial data (list of dicts) untuk FormSet
+                initial_list = []
+                for member in students:
+                    initial_list.append({
+                        'student': member.student.id, # Untuk Hidden Field
+                        'is_active': member.is_active,
+                    })
+                return initial_list
+        
+        return initial
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '1':
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data and 'kelas' in step0_data:
+                kwargs['kelas'] = step0_data['kelas']
+            # Pass form_kwargs_list for each form in the formset
+            initial = self.get_form_initial(step)
+            kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
+        return kwargs
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        
+        if self.steps.current == '1':
+            data_step0 = self.get_cleaned_data_for_step('0')
+            if data_step0:
+                context['selected_kelas'] = data_step0.get('kelas')
+        
+        if self.steps.current == '0':
+            acayear = AcademicYear.objects.all()
+            period = LearningPeriod.objects.all().select_related('academic_year')
+            kelas = Class.objects.all()
+            level = GradeLevel.objects.all()
+            context['selected_acayear'] = acayear
+            context['selected_period'] = period
+            context['selected_kelas'] = kelas
+            context['selected_level'] = level
+                
+        return context
+
+    def done(self, form_list, **kwargs):
+        # Ambil data dari form yang sudah divalidasi
+        form_data_0 = form_list[0].cleaned_data
+        formset_data_1 = form_list[1]
+
+        # Create ReportcardBehaviour
+        behaviour = ReportcardBehaviour.objects.create(
+            academic_year=form_data_0['academic_year'],
+            period=form_data_0['period'],
+            level=form_data_0['level'],
+            is_mid=False
+        )
+
+        # Create StudentBehaviourReport for each student and rubric
+        for form in formset_data_1:
+            if form.is_valid() and form.cleaned_data:
+                student = form.cleaned_data['student']
+                for rubric in Rubric.objects.all():
+                    StudentBehaviourReport.objects.create(
+                        student=student,
+                        behaviour=behaviour,
+                        rubric=rubric,
+                        score=0
+                    )
+
+        return render(self.request, "partials/gradebook/finished_screen.html")
+    
+
+@login_required
+def student_extra_grading(request, pk):
+    """View for grading individual student behavior using rubrics and indicators"""
+    try:
+        student = Student.objects.select_related('registration_data').get(pk=pk)
+    except Student.DoesNotExist:
+        return HttpResponse("Student not found", status=404)
+
+    # Get data from the first step of the Rubric Entry form (from session)
+    wizard_key = 'wizard_rubric_entry_wizard' 
+    wizard_data = request.session.get(wizard_key, {})
+    step_data = wizard_data.get('step_data', {})
+    step0_data = step_data.get('0', {})
+
+    # Helper to extract PK from raw wizard session data
+    def get_pk_from_step0(key, fallback=None):
+        # 1. Add the step prefix to the key (e.g., '0-academic_year')
+        prefixed_key = f'0-{key}'
+        val = step0_data.get(prefixed_key)
+
+        # 2. Extract the string from the list if it's stored as a list
+        if isinstance(val, list) and val:
+            val = val[0]
+
+        # 3. Return the string ID if it exists
+        if val:
+            return val
+            
+        return fallback
+
+    academic_year_id = get_pk_from_step0('academic_year', request.GET.get('academic_year'))
+    period_id = get_pk_from_step0('period', request.GET.get('period'))
+    level_id = get_pk_from_step0('level', request.GET.get('level'))
+
+    academic_year = None
+    period = None
+    level = None
+    try:
+        if academic_year_id:
+            academic_year = AcademicYear.objects.get(pk=academic_year_id)
+        if period_id:
+            period = LearningPeriod.objects.get(pk=period_id)
+        if level_id:
+            level = GradeLevel.objects.get(pk=level_id)
+    except (AcademicYear.DoesNotExist, LearningPeriod.DoesNotExist, GradeLevel.DoesNotExist):
+        academic_year = period = level = None
+
+    # Get all rubrics for this academic year (both Spiritual and Social)
+    rubrics = Rubric.objects.all()
+
+    # Process form submission
+    if request.method == 'POST':
+        # Get or create ReportcardBehaviour
+        if not (academic_year and period and level):
+            return HttpResponse("Missing academic year, period, or level.", status=400)
+        behaviour, _ = ReportcardBehaviour.objects.get_or_create(
+            academic_year=academic_year,
+            period=period,
+            level=level,
+            is_mid=False
+        )
+
+        # Save each indicator score
+        for rubric in rubrics:
             for indicator in rubric.rubricindicator_set.all():
                 score_key = f'indicator_{indicator.id}'
                 score = request.POST.get(score_key)
@@ -1732,66 +1928,26 @@ def student_behavior_grading(request, pk):
     }
     return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
 
-# pls github i need this
-
-# EXTRA REPORT FORM LOGIC
-class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
-    template_name = "partials/gradebook/report_extra.html"
-    
-    form_list = [
-        ("0", ExtraReportForm),
-        ("1", ExtraReportFormStep2)
-    ]
-
-    def get_context_data(self, form, **kwargs):
-        context = super().get_context_data(form=form, **kwargs)
-        
-        if self.steps.current == '0':
-            acayear = AcademicYear.objects.all()
-            period = LearningPeriod.objects.all().select_related('academic_year')
-            level = GradeLevel.objects.all()
-            context['selected_acayear'] = acayear
-            context['selected_period'] = period
-            context['selected_level'] = level
-        return context
-    
-
-
-
-
-def get_period_extra(request):
-    acayear_id = request.GET.get('academic_year')
-    selected_period = request.GET.get('period')
-    if acayear_id:
-        # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
-        periods = LearningPeriod.objects.all()
-    else:
-        periods = LearningPeriod.objects.none()
-    context = {
-        'periods': periods,
-        'selected_period': selected_period
-    }
-    return render(request, "partials/gradebook/reportextra_partials/period.html", context)
-
-def get_level_extra(request):
-    period_id = request.GET.get('period')
-    
-    if period_id:
-        levels = GradeLevel.objects.all()
-    else:
-        levels = GradeLevel.objects.none()
-        
-    context = {'levels': levels}
-    return render(request, "partials/gradebook/reportextra_partials/level.html", context)
 
 def get_kelas_extra(request):
-    teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
-    selected_kelas = request.GET.get('0-kelas') or request.GET.get('1-kelas') or request.GET.get('kelas')
-    if teacher_id:
-        classes = Class.objects.filter(hometeacher_id=teacher_id)
-    else:        classes = Class.objects.none()
-    context = {
-        'kelas': classes,
-        'selected_kelas': selected_kelas
-    }
-    return render(request, "partials/gradebook/reportextra_partials/kelas.html", context)
+    class_id = request.GET.get('class_id')
+    if class_id:
+        kelas = Class.objects.filter(is_home_class=True, id=class_id)
+    else:
+        kelas = Class.objects.none()
+    
+    return render(request, "partials/gradebook/report_extra_partials/kelas.html", {'kelas': kelas})
+
+def get_period_extra(request):
+    ay_id = request.GET.get('academic_year_id')
+    if ay_id:
+        periods = LearningPeriod.objects.filter(academic_year_id=ay_id)
+    else:
+        periods = LearningPeriod.objects.none()
+    
+    return render(request, "partials/gradebook/report_extra_partials/period.html", {'periods': periods})
+
+def get_level_extra(request):
+    levels = GradeLevel.objects.all()
+    context = {'levels': levels}
+    return render(request, "partials/gradebook/report_extra_partials/level.html", context)

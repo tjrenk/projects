@@ -1,45 +1,255 @@
 {% extends "base_gradebook.html" %}
 
 {% block content %}
+<style>
+.sticky {
+    position: sticky;
+}
+</style>
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+<div>
+<div class="collapse-title text-xl font-medium">Extra Report Grade Form</div>
+</div>
+    {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
+    <div class="col-md-8 offset-md-2">
+    <fieldset class="module aligned   mb-4 overflow-visible">
+        {% comment %} <div class="card bg-primary text-white">
+            <h4 class="mb-2">Grade Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
+        </div> {% endcomment %}
+        {% comment %} <table>
+        <tr>
+        <td>
+        <p>Academic year: </p>
+        </td>
+        <td>
+        {{ form.academic_year }}
+        </td>
+        </tr>
+        <tr>
+        <td>
+        <p>Period: </p>
+        </td>
+        <td>
+        {{ form.period }}
+        </td>
+        </tr>
+        <tr>
+        <td>
+        <p>Teacher: </p>
+        </td>
+        <td>
+        {{ form.teacher }}
+        </td>
+        </tr>
+        </table> {% endcomment %}
 
-    <div class="container mt-4">
-        <div class="row justify-content-center">
-            <div class="main-content h-full max-md:p-3 p-5 pt-2 pb-0">
-                <div class="card bg-base-100 shadow-md lg:p-6 p-3">
-                    <div class="card-header">
-                        <h2 class="mb-0">Add Extra Report</h2>
-                    </div>
-                    <div class="card-body">
-                        <form method="post" class="mt-4">
-                            {% csrf_token %}
-                            {{ wizard.management_form }}
-                            {% if form.errors %}
-                                <div class="alert alert-danger">
-                                    <ul class="mb-0">
-                                        {% for field in form %}
-                                            {% for error in field.errors %}
-                                                <li>{{ error }}</li>
-                                            {% endfor %}
-                                        {% endfor %}
-                                        {% for error in form.non_field_errors %}
-                                            <li>{{ error }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            {% endif %}
-                            
-
-                            {{ form.as_p }}
-                            <button type="submit" class="btn btn-primary">
-                            {% if form_step == "0" %}
-                                Next
-                            {% else %}
-                            Submit</button>
-                            {% endif %}
-                        </form>
-                    </div>
-                </div>
+        <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: auto;">
+            {% if selected_course %}
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-book"></i> 
+                    <strong>Class:</strong> {{ selected_course }} 
+                </span>
+                {% if wizard.steps.current == '2' and assignment_head_data %}
+                <span class="badge bg-light text-dark border">
+                    Topic: {{ assignment_head_data.topic }} | Date: {{ assignment_head_data.date }}
+                </span>
+                {% endif %}
             </div>
+            {% endif %}
+
+            <form action="" method="post">
+                {% csrf_token %}
+                
+                {{ wizard.management_form }}
+                
+                {# === DEBUG: Show all form errors === #}
+                {% if wizard.form.errors %}
+                <div class="alert alert-danger mb-3">
+                    <strong>Form Errors (Step {{ wizard.steps.current }}):</strong>
+                    {{ wizard.form.errors }}
+                </div>
+                {% endif %}
+                
+                {# === STEP 1 (index '1'): Student List === #}
+                {% if wizard.steps.current == '1' %}
+                
+                    {{ wizard.form.management_form }}
+
+                    {% if wizard.form.forms %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered align-middle">
+                                <thead class="bg-base-200 rounded-md">
+                                    <tr>
+                                        <th style="width: 30%;">NISN</th>
+                                        <th style="width: 30%;">Name</th>
+                                        <th style="width: 40%;">Action</th>
+                                        <th style="width: 40%;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for form in wizard.form %}
+                                    <tr>
+  {% for hidden in form.hidden_fields %}
+    {{ hidden }}  {# This will now include the student ID #}
+{% endfor %}
+<td>
+    {{ form.student_nisn }}
+</td>
+<td>
+    {{ form.student_name }}
+</td>
+<td>
+    <a href="{% url 'student-behavior-grading' pk=form.student.value %}" class="btn btn-sm btn-outline-primary">Start</a>
+</td>
+
+
+
+                                        {% comment %} <td>
+                                            {{ form.na_reason }}
+                                            {% if form.na_reason.errors %}
+                                                <div class="text-danger small">{{ form.na_reason.errors }}</div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td class="text-center">
+                                            {{ form.is_active }}
+                                        </td> {% endcomment %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Submit button to complete setup -->
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">Complete Setup and Create Behavior Records</button>
+                        </div>
+
+                    {% else %}
+                        <div class="alert alert-warning d-flex justify-content-between align-items-center" style="margin-bottom: 200px">
+                            No students found within this course.
+                        </div>
+                    {% endif %}
+
+                {# === STEP 0: Regular Form === #}
+                {% else %}
+                    <div class="row">
+                        <div class="col-md-8 offset-md-2">
+                            {% comment %} <table class="table table-borderless"> {% endcomment %}
+                            <fieldset class="module aligned mb-4 overflow-visible">
+                                {% if wizard.steps.current == '0' %}
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                        <div class="mb-1 basis-full md:flex-1">
+                                            {{ wizard.form.academic_year.label }}
+                                            {{ wizard.form.academic_year }}
+                                            <div class="error">
+                                                {{ wizard.form.academic_year.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                        <div class="mb-1 basis-full md:flex-1">
+                                            {{ wizard.form.level.label }}
+                                            {{ wizard.form.level }}
+                                            <div class="error">
+                                                {{ wizard.form.level.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                        <div class="mb-1 basis-full md:flex-1">
+                                            {{ wizard.form.period.label }}
+                                            {{ wizard.form.period }}
+                                            <div class="error">
+                                                {{ wizard.form.period.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                        <div class="mb-1 basis-full md:flex-1">
+                                            {{ wizard.form.teacher.label }}
+                                            {{ wizard.form.teacher }}
+                                            <div class="error">
+                                                {{ wizard.form.teacher.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                        <div class="mb-1 basis-full md:flex-1">
+                                            {{ wizard.form.kelas.label }}
+                                            {{ wizard.form.kelas }}
+                                            <div class="error">
+                                                {{ wizard.form.kelas.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </fieldset>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% comment %} <hr class="my-4"> {% endcomment %}
+                
+                
+                {% comment %} <div class="d-flex justify-content-between"> {% endcomment %}
+                
+                    {% if wizard.steps.prev %}
+                    {% comment %} <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0"> {% endcomment %}
+                    {% comment %} <div class="text-start flex  gap-2"> {% endcomment %}
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
+                            &laquo; Back
+                        </button>
+                    {% else %}
+                        <div></div> 
+                    {% endif %}
+
+                    
+                        {% if wizard.steps.current == '2' %}
+                            {% if not assignment_head_data or not wizard.form.forms %}
+                                &nbsp;
+                            {% else %}
+                            <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                                Submit
+                            </button>
+                            {% endif %}
+                        {% else %}
+                        <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                            Next
+                        </button>
+                        {% endif %}
+                    
+                {% comment %} </div> {% endcomment %}
+                {% comment %} </div> {% endcomment %}
+                </div>
+                
+            </form>
         </div>
+        </div>
+        </div>
+    {% comment %} </div> {% endcomment %}
+    </fieldset>
+</div>
+</div>
+
+<style>
+    /* Agar input score tidak terlalu lebar di dalam tabel */
+    input[name$="-score"] {
+        width: 100px; 
+        display: inline-block;
+        form-control;
+    }
+    input[name$="-student_name"] {
+        border: none;
+        background-color: transparent;
+        font-weight: bold;
+        width: 100%;
+    }
+</style>
 
 {% endblock %}
