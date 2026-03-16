@@ -1,0 +1,4 @@
+<option value="">Select Grade Type</option>
+{% for extra_type in extra_types %}
+    <option value="{{ extra_type.0 }}" {% if selected_extra_type and extra_type.0 == selected_extra_type %}selected{% endif %}>{{ extra_type.1 }}</option>
+{% endfor %}

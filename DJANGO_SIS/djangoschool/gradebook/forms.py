@@ -1102,6 +1102,7 @@ class ExtraGradeItemForm(forms.ModelForm):
         period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
         kelas = data.get('0-kelas') or initial.get('kelas')
+        ext_type = data.get('0-extra_type') or initial.get('extra_type')
         
         # Period depends on Academic Year
         if acayear:
@@ -1156,6 +1157,11 @@ class ExtraGradeItemForm(forms.ModelForm):
 
         self.fields['kelas'].widget.attrs.update({
             'id': 'rubric-kelas-select',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['extra_type'].widget.attrs.update({
+            'id': 'extra-type-select',
             'class': 'custom-select mb-4',
         })
 

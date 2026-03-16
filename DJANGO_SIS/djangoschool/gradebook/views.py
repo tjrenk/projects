@@ -1951,3 +1951,8 @@ def get_level_extra(request):
     levels = GradeLevel.objects.all()
     context = {'levels': levels}
     return render(request, "partials/gradebook/report_extra_partials/level.html", context)
+
+def get_extra_type(request):
+    extra_types = StudentReportExtra.objects.all().values_list('extra_type', 'get_extra_type_display').distinct()
+    context = {'extra_types': extra_types}
+    return render(request, "partials/gradebook/reportextra_partials/extra_type.html", context)

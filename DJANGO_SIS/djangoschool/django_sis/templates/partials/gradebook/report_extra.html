@@ -188,6 +188,16 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                        <div class="mb-1 basis-full md:flex-1">
+                                            {{ wizard.form.extra_type.label }}
+                                            {{ wizard.form.extra_type }}
+                                            <div class="error">
+                                                {{ wizard.form.extra_type.errors }}
+                                            </div>                                            </div>
+                                        </div>
+                                    </div>
                                 {% endif %}
                             </fieldset>
                         </div>
