@@ -1,6 +1,6 @@
 from django.contrib import admin
 import decimal
-from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator, StudentReportcard, ReportcardGrade, GradeLevel
+from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator, StudentReportcard, ReportcardGrade, GradeLevel, StudentReportExtra
 from simple_history.admin import SimpleHistoryAdmin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
@@ -86,6 +86,14 @@ class GradeLevelAdmin(admin.ModelAdmin):
     list_display = ("grade_name", "school_level", "short_name")
     list_filter = ["school_level"]
 
+class StudentBehaviorAdmin(admin.ModelAdmin):
+    list_display = ("student", "behavior", "rubric", "score")
+    list_filter = ["student", "behavior", "rubric", "score"]
+
+class StudentReportExtraAdmin(admin.ModelAdmin):
+    list_display = ("reportcard", "extra_type", "extra_description", "extra_score", "extra_notes")
+    list_filter = ["reportcard", "extra_type", "extra_description", "extra_score", "extra_notes"]
+
 
 @staff_member_required
 def admin_statistics_view(request):
@@ -131,6 +139,8 @@ admin.site.register(Weighting, WeightingAdmin)
 admin.site.register(PassingGrade, PassingGradeAdmin)
 admin.site.register(GradeEntry, GradeEntryAdmin)
 admin.site.register(Rubric, RubricAdmin)
+admin.site.register(StudentReportcard, StudentReportcardAdmin)
+admin.site.register(StudentReportExtra, StudentReportExtraAdmin)
 # admin.site.register(RubricIndicator)
 # admin.site.register(StudentReportcard, StudentReportcardHistory)
 # admin.site.register(ReportcardGrade, ReportCardGradeHistory)

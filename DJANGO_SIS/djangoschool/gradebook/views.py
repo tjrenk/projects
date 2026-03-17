@@ -1,3 +1,5 @@
+from pyexpat.errors import messages
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
@@ -1692,6 +1694,30 @@ def student_behavior_grading(request, pk):
     # Get all rubrics for this academic year (both Spiritual and Social)
     rubrics = Rubric.objects.all()
 
+    behaviour = None
+    if academic_year and period and level:
+        behaviour = ReportcardBehaviour.objects.filter(
+            academic_year=academic_year,
+            period=period,
+            level=level,
+            is_mid=False
+        ).first()
+
+    # 2. Get all rubrics (convert to list so we can inject temporary attributes)
+    rubrics = list(Rubric.objects.all())
+
+    # 3. Create a dictionary of existing scores {rubric_id: score}
+    existing_scores = {}
+    if behaviour:
+        reports = StudentBehaviourReport.objects.filter(student=student, behaviour=behaviour)
+        for report in reports:
+            existing_scores[report.rubric_id] = report.score
+
+    # 4. Attach the existing score directly to each rubric object
+    for rubric in rubrics:
+        # This creates a temporary 'existing_score' attribute for the template
+        rubric.existing_score = existing_scores.get(rubric.id, None)
+
     # Process form submission
     if request.method == 'POST':
         # Get or create ReportcardBehaviour
@@ -1704,23 +1730,24 @@ def student_behavior_grading(request, pk):
             is_mid=False
         )
 
-        # Save each indicator score
+        # Save each rubric score based on Rubric.description
         for rubric in rubrics:
-            for description in rubric:
-                score_key = f'indicator_{description.id}'
-                score = request.POST.get(score_key)
-                if score:
-                    StudentBehaviourReport.objects.update_or_create(
-                        student=student,
-                        behaviour=behaviour,
-                        rubric=description,
-                        defaults={'score': int(score)}
-                    )
+            score_key = f'rubric_{rubric.id}'
+            score = request.POST.get(score_key)
+            if score:
+                try:
+                    saved_score = int(score)
+                except ValueError:
+                    continue
 
-        return render(request, 'partials/gradebook/rubric_entry_success.html', {
-            'student': student,
-            'message': f"Behavior grades saved for {student}!"
-        })
+                StudentBehaviourReport.objects.update_or_create(
+                    student=student,
+                    behaviour=behaviour,
+                    rubric=rubric,
+                    defaults={'score': saved_score}
+                )
+
+        return redirect('/gradebook/rubric-entry/?step=1')
 
     context = {
         'student': student,
@@ -1887,10 +1914,35 @@ def student_extra_grading(request, pk):
 
     # Get all rubrics for this academic year (both Spiritual and Social)
     rubrics = Rubric.objects.all()
+# 1. Fetch the Behaviour container if it already exists
+    behaviour = None
+    if academic_year and period and level:
+        behaviour = ReportcardBehaviour.objects.filter(
+            academic_year=academic_year,
+            period=period,
+            level=level,
+            is_mid=False
+        ).first()
 
+    # 2. Get all rubrics (convert to list so we can inject temporary attributes)
+    rubrics = list(Rubric.objects.all())
+
+    # 3. Create a dictionary of existing scores {rubric_id: score}
+    existing_scores = {}
+    if behaviour:
+        reports = StudentBehaviourReport.objects.filter(student=student, behaviour=behaviour)
+        for report in reports:
+            existing_scores[report.rubric_id] = report.score
+
+    # 4. Attach the existing score directly to each rubric object
+    for rubric in rubrics:
+        # This creates a temporary 'existing_score' attribute for the template
+        rubric.existing_score = existing_scores.get(rubric.id, None)
     # Process form submission
     if request.method == 'POST':
-        # Get or create ReportcardBehaviour
+
+        # formset = StudentListFormSet(request.POST, queryset=your_qs)
+ 
         if not (academic_year and period and level):
             return HttpResponse("Missing academic year, period, or level.", status=400)
         behaviour, _ = ReportcardBehaviour.objects.get_or_create(
@@ -1900,23 +1952,34 @@ def student_extra_grading(request, pk):
             is_mid=False
         )
 
-        # Save each indicator score
+        
+        # Save each rubric score based on Rubric.description
         for rubric in rubrics:
-            for indicator in rubric.rubricindicator_set.all():
-                score_key = f'indicator_{indicator.id}'
-                score = request.POST.get(score_key)
-                if score:
-                    StudentBehaviourReport.objects.update_or_create(
-                        student=student,
-                        behaviour=behaviour,
-                        rubric=indicator.rubric,
-                        defaults={'score': int(score)}
-                    )
+            score_key = f'rubric_{rubric.id}'
+            score = request.POST.get(score_key)
+            if score:
+                try:
+                    saved_score = int(score)
+                except ValueError:
+                    continue
 
-        return render(request, 'partials/gradebook/rubric_entry_success.html', {
-            'student': student,
-            'message': f"Behavior grades saved for {student}!"
-        })
+                StudentBehaviourReport.objects.update_or_create(
+                    student=student,
+                    behaviour=behaviour,
+                    rubric=rubric,
+                    defaults={'score': saved_score}
+                )
+
+        # return render(request, 'partials/gradebook/rubric_entry_success.html', {
+        #     'student': student,
+        #     'message': f"Behavior grades saved for {student}!"
+        # })
+        # 1. Add the success message to the session
+        messages.success(request, f"Behavior grades successfully saved for {student}!")
+        
+        # 2. Redirect back to the wizard. 
+        # (Replace 'rubric_entry_url_name' with the actual name of your wizard in urls.py)
+        return render(request, 'partials/gradebook/rubric_entry.html')
 
     context = {
         'student': student,

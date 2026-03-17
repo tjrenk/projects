@@ -906,7 +906,9 @@ class StudentListItemForm(forms.ModelForm):
         # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
         widget=PlainTextWidget
     )
-
+    
+    is_graded = forms.BooleanField(required=False, disabled=True)
+    
     class Meta:
         model = AssignmentDetail
         # YOU MUST INCLUDE 'student' HERE
@@ -984,6 +986,8 @@ class StudentListItemForm(forms.ModelForm):
 
 class StudentListForm(StudentListItemForm):
     """Uses AssignmentDetail model to track student rubric scores"""
+
+
     
     def __init__(self, *args, **kwargs):
         # Pop custom wizard kwargs
@@ -1064,9 +1068,9 @@ class StudentListFormSetBase(BaseFormSet):
 
 # EXTRA REPORT FORM
 EXTRA_GRADE_TYPE_CHOICES = [
-    ('extracurricular', 'Extracurricular'),
-    ('attitude', 'Attitude'),
-    ('other', 'Other'),
+    ("EK", "Ekstrakurikuler"),
+    ("PD", "Pengembangan Diri"),
+    ("P", "Prestasi"),
 ]
 class ExtraGradeItemForm(forms.ModelForm):
     teacher = forms.ModelChoiceField(
@@ -1086,7 +1090,9 @@ class ExtraGradeItemForm(forms.ModelForm):
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
-        
+    
+
+
     class Meta:
         model = ReportcardBehaviour
         fields = ['academic_year', 'period', 'level']
@@ -1177,6 +1183,8 @@ class ExtraGradeListForm(ExtraGradeItemForm):
         # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
         widget=PlainTextWidget
     )
+
+    is_graded = forms.BooleanField(required=False, disabled=True)
 
     class Meta:
         model = AssignmentDetail

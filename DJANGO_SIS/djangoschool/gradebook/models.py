@@ -20,6 +20,7 @@ EXTRA_CHOICES = [
 class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
+    is_activity = models.BooleanField(default=False)
     def __str__(self):
         return self.subject_name
 
