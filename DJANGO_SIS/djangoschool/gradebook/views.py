@@ -1607,31 +1607,28 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         return context
 
     def done(self, form_list, **kwargs):
-        # Ambil data dari form yang sudah divalidasi
         form_data_0 = form_list[0].cleaned_data
-        formset_data_1 = form_list[1]
 
-        # Create ReportcardBehaviour
-        behaviour = ReportcardBehaviour.objects.create(
+        # 1. Safely get or create the Behaviour container
+        # (Just in case they clicked 'Submit' without grading anyone yet)
+        behaviour, created = ReportcardBehaviour.objects.get_or_create(
             academic_year=form_data_0['academic_year'],
             period=form_data_0['period'],
             level=form_data_0['level'],
             is_mid=False
         )
 
-        # Create StudentBehaviourReport for each student and rubric
-        for form in formset_data_1:
-            if form.is_valid() and form.cleaned_data:
-                student = form.cleaned_data['student']
-                for rubric in Rubric.objects.all():
-                    StudentBehaviourReport.objects.create(
-                        student=student,
-                        behaviour=behaviour,
-                        rubric=rubric,
-                        score=0
-                    )
+        # 2. DO NOT create score=0 entries here if the individual
+        # grading view is already handling the database saves!
+        # We can just leave this empty, or use it to mark the class as "Finalized"
+        # if you have a status field on ReportcardBehaviour.
 
-        return render(self.request, "partials/gradebook/finished_screen.html")
+        # 3. Add a success message
+        messages.success(self.request, "Class behavior grading has been finalized!")
+
+        # 4. Redirect to wherever you want them to go next
+        # (e.g., the main gradebook index or a specific table)
+        return redirect('rubric-entry')
 
 
 def get_kelas_rubric(request):
@@ -1720,34 +1717,23 @@ def student_behavior_grading(request, pk):
 
     # Process form submission
     if request.method == 'POST':
-        # Get or create ReportcardBehaviour
-        if not (academic_year and period and level):
-            return HttpResponse("Missing academic year, period, or level.", status=400)
-        behaviour, _ = ReportcardBehaviour.objects.get_or_create(
-            academic_year=academic_year,
-            period=period,
-            level=level,
-            is_mid=False
-        )
+        # 1. Define the wizard's session key
+        # Format is usually 'wizard_[NAME_OF_VIEW_CLASS_LOWERCASE]'
+        wizard_key = 'wizard_rubric_entry_wizard'
 
-        # Save each rubric score based on Rubric.description
-        for rubric in rubrics:
-            score_key = f'rubric_{rubric.id}'
-            score = request.POST.get(score_key)
-            if score:
-                try:
-                    saved_score = int(score)
-                except ValueError:
-                    continue
+        # 2. Update the session to set the current step back to '1' (the second step)
+        if wizard_key in request.session:
+            data = request.session[wizard_key]
+            data['step'] = '1'  # This is the ID of your StudentListFormSet step
+            request.session[wizard_key] = data
+            request.session.modified = True
 
-                StudentBehaviourReport.objects.update_or_create(
-                    student=student,
-                    behaviour=behaviour,
-                    rubric=rubric,
-                    defaults={'score': saved_score}
-                )
+        # 3. Add success message
+        messages.success(request, f"Behavior grades successfully saved for {student}!")
 
-        return redirect('/gradebook/rubric-entry/?step=1')
+        # 4. Redirect back to the URL where the Wizard is hosted
+        # Use the 'name' from your urls.py for RubricEntryWizard.as_view()
+        return render('partials/gradebook/rubric_entry.html')
 
     context = {
         'student': student,
