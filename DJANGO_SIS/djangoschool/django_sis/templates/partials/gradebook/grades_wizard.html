@@ -1,0 +1,193 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<style>
+.sticky {
+    position: sticky;
+}
+</style>
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+<div>
+<div class="collapse-title text-xl font-medium">Grades Wizard</div>
+</div>
+    <div class="col-md-8 offset-md-2">
+    <fieldset class="module aligned   mb-4 overflow-visible">
+        <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: auto;">
+            {% if wizard.steps.current == '1' and selected_academic_year %}
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-book"></i>
+                    <strong>Selected:</strong>
+                    Academic Year: <strong>{{ selected_academic_year }}</strong>,
+                    Period: <strong>{{ selected_period }}</strong>,
+                    Level: <strong>{{ selected_level }}</strong>,
+                    Subject: <strong>{{ selected_subject }}</strong>,
+                    Is Mid: <strong>{{ selected_is_mid }}</strong>
+                </span>
+            </div>
+            {% endif %}
+
+        <form action="" method="post">
+            {% csrf_token %}
+
+            {{ wizard.management_form }}
+
+            {# === STEP 1 (index '1'): Tampilan TABEL untuk Input Grades === #}
+            {% if wizard.steps.current == '1' %}
+
+                {{ wizard.form.management_form }}
+
+                {% if wizard.form.forms %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered align-middle">
+                            <thead class="bg-base-200 rounded-md">
+                                <tr>
+                                    <th style="width: 30%;">Student Name</th>
+                                    <th style="width: 20%;">Subject</th>
+                                    <th style="width: 20%;">Final Score</th>
+                                    <th style="width: 20%;">Final Grade</th>
+                                    <th style="width: 30%;">Teacher Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for form in wizard.form %}
+                                <tr>
+{% for hidden in form.hidden_fields %}
+    {{ hidden }}
+{% endfor %}
+<td>
+    {{ form.student_name }}
+</td>
+<td>
+    {{ form.subject_name }}
+</td>
+<td>
+    {{ form.final_score }}
+    {% if form.final_score.errors %}
+        <div class="text-danger small">{{ form.final_score.errors }}</div>
+    {% endif %}
+</td>
+<td>
+    {{ form.final_grade }}
+    {% if form.final_grade.errors %}
+        <div class="text-danger small">{{ form.final_grade.errors }}</div>
+    {% endif %}
+</td>
+<td>
+    {{ form.teacher_notes }}
+    {% if form.teacher_notes.errors %}
+        <div class="text-danger small">{{ form.teacher_notes.errors }}</div>
+    {% endif %}
+</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning d-flex justify-content-between align-items-center" style="margin-bottom: 200px">
+                        No students found for the selected criteria.
+                    </div>
+                {% endif %}
+
+            {# === STEP 0 (index '0'): Tampilan FORM Biasa === #}
+            {% else %}
+                <div class="row">
+                {{ wizard.form.management_form }}
+                    <div class="col-md-8 offset-md-2">
+                        <fieldset class="module aligned   mb-4 overflow-visible">
+                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3   field-name ">
+                    <div class="mb-1 basis-full md:flex-1">
+                            {{ wizard.form.academic_year.label }}
+                            {{ wizard.form.academic_year }}
+                                <div class="error">
+                                    {{ wizard.form.academic_year.errors }}
+                                </div>
+                    </div>
+                    </div>
+
+                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                    <div class="mb-1 basis-full md:flex-1">
+                            {{ wizard.form.period.label }}
+                            {{ wizard.form.period }}
+                                <div class="error">
+                                    {{ wizard.form.period.errors }}
+                                </div>
+                    </div>
+                    </div>
+
+                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                    <div class="mb-1 basis-full md:flex-1">
+                            {{ wizard.form.level.label }}
+                            {{ wizard.form.level }}
+                                <div class="error">
+                                    {{ wizard.form.level.errors }}
+                                </div>
+                    </div>
+                    </div>
+
+                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                    <div class="mb-1 basis-full md:flex-1">
+                            {{ wizard.form.subject.label }}
+                            {{ wizard.form.subject }}
+                                <div class="error">
+                                    {{ wizard.form.subject.errors }}
+                                </div>
+                    </div>
+                    </div>
+
+                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                    <div class="mb-1 basis-full md:flex-1">
+                            {{ wizard.form.is_mid.label }}
+                            {{ wizard.form.is_mid }}
+                                <div class="error">
+                                    {{ wizard.form.is_mid.errors }}
+                                </div>
+                    </div>
+                    </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if wizard.steps.prev %}
+                <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
+                    &laquo; Back
+                </button>
+            {% else %}
+                <div></div>
+            {% endif %}
+
+                {% if wizard.steps.current == '1' %}
+                    <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                        Submit
+                    </button>
+                {% else %}
+                <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                    Next
+                </button>
+                {% endif %}
+
+        </form>
+    </div>
+    </div>
+    </div>
+</fieldset>
+</div>
+</div>
+
+<style>
+    /* Agar input score tidak terlalu lebar di dalam tabel */
+    input[name$="-final_score"] {
+        width: 100px;
+        display: inline-block;
+        form-control;
+    }
+    input[name$="-student_name"] {
+        border: none;
+        background-color: transparent;
+        font-weight: bold;
+        width: 100%;
+    }
+</style>
+
+{% endblock %}

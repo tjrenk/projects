@@ -55,43 +55,36 @@
                 </thead>
                 <tbody>
                     {% for rubric in rubrics %}
-                        {% for indicator in rubric.rubricindicator_set.all %}
-                            <tr class="indicator-row">
-                                <!-- Rubric Type (only show on first indicator of each rubric) -->
-                                {% if forloop.first %}
-                                    <td rowspan="{{ rubric.rubricindicator_set.count }}" class="font-semibold align-middle">
-                                        <span class="badge {% if rubric.type == 'Spiritual' %}badge-info{% else %}badge-success{% endif %}">
-                                            {{ rubric.get_type_display }}
-                                        </span>
-                                    </td>
-                                {% endif %}
-                                
-                                <!-- Indicator Text -->
-                                <td>
-                                    <p class="mb-0">{{ indicator.indicator_text }}</p>
-                                </td>
-                                
-                                <!-- Score Radio Buttons (1-4) -->
-                                <td>
-                                    <div class="flex gap-3">
-                                        {% for value, label in score_choices %}
-                                            <div class="score-radio form-check">
-                                                <input 
-                                                    type="radio" 
-                                                    class="form-check-input" 
-                                                    id="indicator_{{ indicator.id }}_{{ value }}"
-                                                    name="indicator_{{ indicator.id }}"
-                                                    value="{{ value }}"
-                                                >
-                                                <label class="form-check-label cursor-pointer" for="indicator_{{ indicator.id }}_{{ value }}">
-                                                    {{ label }}
-                                                </label>
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
+                        <tr class="indicator-row">
+                            <td class="font-semibold align-middle">
+                                <span class="badge {% if rubric.type == 'Spiritual' %}badge-info{% else %}badge-success{% endif %}">
+                                    {{ rubric.get_type_display }}
+                                </span>
+                            </td>
+
+                            <td>
+                                <p class="mb-0">{{ rubric.description }}</p>
+                            </td>
+
+                            <td>
+                                <div class="flex gap-3">
+                                    {% for value, label in score_choices %}
+                                        <div class="score-radio form-check">
+                                            <input
+                                                type="radio"
+                                                class="form-check-input"
+                                                id="rubric_{{ rubric.id }}_{{ value }}"
+                                                name="rubric_{{ rubric.id }}"
+                                                value="{{ value }}"
+                                            >
+                                            <label class="form-check-label cursor-pointer" for="rubric_{{ rubric.id }}_{{ value }}">
+                                                {{ label }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                        </tr>
                     {% empty %}
                         <tr>
                             <td colspan="3" class="text-center py-4 text-gray-500">
@@ -113,7 +106,7 @@
     </form>
 </div>
 
-<script>
+{% comment %} <script>
     // Optional: Add visual feedback when score is selected
     document.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', function() {
@@ -126,6 +119,6 @@
             this.closest('.form-check').classList.add('ring-2', 'ring-blue-500');
         });
     });
-</script>
+</script> {% endcomment %}
 
 {% endblock %}

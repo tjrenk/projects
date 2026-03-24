@@ -291,7 +291,9 @@
                     
                         {% if wizard.steps.current == '2' %}
                             {% if not assignment_head_data or not wizard.form.forms %}
-                                &nbsp;
+                            <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                                Submit
+                            </button>                                &nbsp;
                             {% else %}
                             <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
                                 Submit

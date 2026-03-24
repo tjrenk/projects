@@ -224,28 +224,15 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
         
-        if self.steps.current == '1':
-            data_step0 = self.get_cleaned_data_for_step('0')
-            if data_step0:
-                context['selected_course'] = data_step0.get('course')
+        # Get cleaned data from step 0 if available
+        step0_data = self.get_cleaned_data_for_step('0')
+        if step0_data:
+            context['selected_academic_year'] = step0_data.get('academic_year')
+            context['selected_period'] = step0_data.get('period')
+            context['selected_level'] = step0_data.get('level')
+            context['selected_subject'] = step0_data.get('subject')
+            context['selected_is_mid'] = step0_data.get('is_mid')
         
-        if self.steps.current == '0':
-            acayear = AcademicYear.objects.all()
-            period = LearningPeriod.objects.all().select_related('academic_year')
-            subject = Subject.objects.all()
-            level = GradeLevel.objects.all()
-            context['selected_acayear'] = acayear
-            context['selected_period'] = period
-            context['selected_subject'] = subject
-            context['selected_level'] = level
-        
-        # Kirim data head untuk display di step 3 (index '2')
-        if self.steps.current == '2':
-            data_step1 = self.get_cleaned_data_for_step('1')
-            if data_step1:
-                context['assignment_head_data'] = data_step1
-                context['max_score'] = data_step1.get('max_score')
-                
         return context
 
     def done(self, form_list, **kwargs):
@@ -279,6 +266,8 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
                 detail.teacher_notes = note_content
                 if detail.score > max_score:
                     return HttpResponse("Error: Score exceeds maximum allowed.")
+                elif formset_data_2['form-0-student'] is None:
+                    return HttpResponse("Error: No students selected.")
                 else:
                 # Student sudah ada di instance dari form clean (karena ModelForm)
                     details_to_create.append(detail)
@@ -570,7 +559,7 @@ def midterm_report_pdf(request, student_id=None):
         ('GRID', (0,0), (-1,-1), 0.5, '#000000'),
         ('BACKGROUND', (0,0), (-1,0), '#eeeeee'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
+        ('FONTSIZE', (0,0), (-1, -1), 8),
         ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
         ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman')
     ]))
@@ -619,7 +608,7 @@ def midterm_report_pdf(request, student_id=None):
     #     ('GRID', (0,0), (-1,-1), 0.5, '#000000'),
     #     ('BACKGROUND', (0,0), (-1,0), '#eeeeee'),
     #     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-    #     ('FONTSIZE', (0,0), (-1,-1), 8),
+    #     ('FONTSIZE', (0,0), (-1, -1), 8),
     #     ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
     #     ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman')
     # ]))
@@ -968,7 +957,8 @@ def get_assignment_types_ge(request):
         subject_id = course.subject_id
         # Get assignment types associated with the subject via Weighting table
         assignment_ids = Weighting.objects.filter(subject_id=subject_id).values_list('assignment_id', flat=True).distinct()
-        types = AssignmentType.objects.filter(id__in=assignment_ids)
+        # types = AssignmentType.objects.filter(id__in=assignment_ids)
+        types = AssignmentType.objects.all()
     else:
         types = AssignmentType.objects.none()
         
@@ -1477,6 +1467,7 @@ def tc_del(request, pk):
 
 
 
+
 @login_required
 def toggle_na_reason(request):
     form_index = request.GET.get('form_index', '0')
@@ -1518,8 +1509,6 @@ def toggle_na_reason(request):
         >
         '''
     return HttpResponse(input_html.strip())
-
-
 
 
 # Create FormSet for Step 1 (Student List)
@@ -1729,11 +1718,11 @@ def student_behavior_grading(request, pk):
             request.session.modified = True
 
         # 3. Add success message
-        messages.success(request, f"Behavior grades successfully saved for {student}!")
+        # messages.success(request, f"Behavior grades successfully saved for {student}!")
 
         # 4. Redirect back to the URL where the Wizard is hosted
         # Use the 'name' from your urls.py for RubricEntryWizard.as_view()
-        return render('partials/gradebook/rubric_entry.html')
+        return render(request, 'partials/gradebook/rubric_entry.html')
 
     context = {
         'student': student,
@@ -1744,6 +1733,7 @@ def student_behavior_grading(request, pk):
         'score_choices': [(1, '1'), (2, '2'), (3, '3'), (4, '4')],
     }
     return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
+
 
 # pls github i need this
 
@@ -1900,7 +1890,8 @@ def student_extra_grading(request, pk):
 
     # Get all rubrics for this academic year (both Spiritual and Social)
     rubrics = Rubric.objects.all()
-# 1. Fetch the Behaviour container if it already exists
+
+    # 1. Fetch the Behaviour container if it already exists
     behaviour = None
     if academic_year and period and level:
         behaviour = ReportcardBehaviour.objects.filter(
@@ -2007,3 +1998,139 @@ def get_extra_type(request):
     return render(request, "partials/gradebook/reportextra_partials/extra_type.html", context)
 
 # test
+
+
+
+
+# Grades List Entry
+    
+
+class GradesWizard(LoginRequiredMixin, SessionWizardView):
+    template_name = "partials/gradebook/grades_wizard.html"
+
+    form_list = [
+        ("0", GradesSelectionForm),
+        ("1", ReportCardGradeFormset),
+    ]
+
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+
+        if step == '1':
+            # Get data from step 0
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data:
+                academic_year = step0_data.get('academic_year')
+                period = step0_data.get('period')
+                level = step0_data.get('level')
+                subject = step0_data.get('subject')
+                is_mid = step0_data.get('is_mid')
+
+                # Get students based on subject through courses
+                if subject and academic_year:
+                    # Get courses for this subject in this academic year
+                    courses = Course.objects.filter(
+                        subject=subject,
+                        academic_year=academic_year
+                    )
+                    # Get students enrolled in these courses (active only)
+                    students = Student.objects.filter(
+                        coursemember__course__in=courses,
+                        coursemember__is_active=True
+                    ).distinct().order_by('id')
+                    
+                    # For each student, create initial data
+                    initial_list = []
+                    for student in students:
+                        initial_list.append({
+                            'student_name': str(student),
+                            'subject': subject.id if subject else None,
+                            'subject_name': subject.subject_name if subject else '',
+                            # Add other initials if needed
+                        })
+                    return initial_list
+        return initial
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '1':
+            # For formset step, we need to pass initial data properly
+            initial = self.get_form_initial(step)
+            if initial:
+                kwargs['initial'] = initial
+        return kwargs
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        
+        # Get cleaned data from step 0 if available
+        step0_data = self.get_cleaned_data_for_step('0')
+        if step0_data:
+            context['selected_academic_year'] = step0_data.get('academic_year')
+            context['selected_period'] = step0_data.get('period')
+            context['selected_level'] = step0_data.get('level')
+            context['selected_subject'] = step0_data.get('subject')
+            context['selected_is_mid'] = step0_data.get('is_mid')
+        
+        return context
+
+    def done(self, form_list, **kwargs):
+        # Process the forms
+        step0_data = form_list[0].cleaned_data
+        step1_forms = form_list[1]
+
+        academic_year = step0_data['academic_year']
+        period = step0_data['period']
+        level = step0_data['level']
+        subject = step0_data['subject']
+        is_mid = step0_data['is_mid']
+
+        # Get students based on subject through courses
+        courses = Course.objects.filter(
+            subject=subject,
+            academic_year=academic_year
+        )
+        students = list(Student.objects.filter(
+            coursemember__course__in=courses,
+            coursemember__is_active=True
+        ).distinct().order_by('id'))
+
+        # Create StudentReportcard for each student if not exists
+        reportcards = {}
+        for student in students:
+            reportcard, created = StudentReportcard.objects.get_or_create(
+                academic_year=academic_year,
+                period=period,
+                level=level,
+                student=student,
+                defaults={'is_mid': is_mid}
+            )
+            reportcards[student.id] = reportcard
+
+        # Save the grades - assume order matches
+        for form, student in zip(step1_forms, students):
+            if form.is_valid() and form.cleaned_data:
+                reportcard = reportcards[student.id]
+                ReportcardGrade.objects.update_or_create(
+                    reportcard=reportcard,
+                    subject=subject,
+                    defaults={
+                        'final_score': form.cleaned_data.get('final_score'),
+                        'final_grade': form.cleaned_data.get('final_grade'),
+                        'teacher_notes': form.cleaned_data.get('teacher_notes'),
+                    }
+                )
+
+        return HttpResponseRedirect('/gradebook/')
+
+
+def get_period_grades(request):
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    if acayear_id:
+        periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
+    else:
+        periods = LearningPeriod.objects.none()
+    context = {
+        'periods': periods,
+    }
+    return render(request, "partials/gradebook/gradeentry_partials/period.html", context)

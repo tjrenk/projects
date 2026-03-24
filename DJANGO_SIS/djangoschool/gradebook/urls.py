@@ -50,8 +50,12 @@ urlpatterns = [
     path('get-kelas-extra/', views.get_kelas_extra, name='get-kelas-extra'),
     path('get-extra-type/', views.get_extra_type, name='get-extra-type'),
 
+    # GRADES WIZARD
+    path('grades-wizard/', views.GradesWizard.as_view(), name='grades-wizard'),
+
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
     # path("grade-entry", views.grade_entry, name="grade-entry"),
+    path('get-period-grades/', views.get_period_grades, name='get_period_grades'),
     ]

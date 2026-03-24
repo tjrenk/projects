@@ -607,11 +607,11 @@ class ReportCardGradeForm(forms.ModelForm):
         self.fields['subject'].widget.attrs['class'] = 'form-control bg-light'
 
         self.fields['final_score'].widget.attrs.pop('disabled', None)
-        self.fields['final_score'].widget.attrs['readonly'] = True
-        self.fields['final_score'].widget.attrs['class'] = 'form-control bg-light'
+        # self.fields['final_score'].widget.attrs['readonly'] = True
+        self.fields['final_score'].widget.attrs['class'] = 'form-control'
 
-        self.fields['final_grade'].disabled = True
-        self.fields['final_grade'].widget.attrs['readonly'] = True
+        self.fields['final_grade'].disabled = False
+        # self.fields['final_grade'].widget.attrs['readonly'] = True
         # self.fields['final_grade'].widget.attrs['class'] = 'form-control bg-light'
 
         # Populate subject_name for display if initial data exists
@@ -637,16 +637,13 @@ class ReportCardGradeForm(forms.ModelForm):
             'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
         }
         exclude = ('reportcard',)
-        
 
+
+# Formset for ReportCardGradeForm
 ReportCardGradeFormset = formset_factory(ReportCardGradeForm, extra=0)
-# ReportCardGradeFormset = modelformset_factory(
-#     ReportcardGrade,  # Use the Model
-#     form=ReportCardGradeForm, # Use your custom form
-#     extra=0
-# )
 
-class ReportCardFilterForm(BaseReportForm):
+
+class RequestLogForm(BaseReportForm, forms.Form):
     subject_name = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
@@ -718,6 +715,11 @@ class ReportCardFilterForm(BaseReportForm):
             'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
         }
         exclude = ('reportcard',)
+
+
+# Formset for ReportCardGradeForm
+ReportCardGradeFormset = formset_factory(ReportCardGradeForm, extra=0)
+
 
 class RequestLogForm(BaseReportForm, forms.Form):
 
@@ -1291,3 +1293,164 @@ class StudentListExtraGFormSetBase(BaseFormSet):
         for i, form_kwargs in enumerate(self.form_kwargs_list):
             if i < len(self.forms):
                 self.forms[i].form_index = form_kwargs.get('form_index', i)
+
+
+
+
+class StudentsExamGradesEntry(forms.ModelForm):
+    subject = forms.ModelChoiceField(
+        queryset=Subject.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput()
+    )
+
+
+    class Meta:
+        model = ReportcardBehaviour
+        fields = ['academic_year', 'period', 'level']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        data = self.data
+        initial = self.initial
+
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        level = data.get('0-level') or initial.get('level')
+        period = data.get('0-period') or initial.get('period')
+        subject = data.get('0-subject') or initial.get('subject')
+        is_mid = data.get('0-is_mid') or initial.get('is_mid')
+
+        # Period depends on Academic Year
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+
+        # Teacher depends on Period
+        if period:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        else:
+            self.fields['teacher'].queryset = Teacher.objects.none()
+
+        # Kelas depends on Teacher (FK relationship in admission.models.Class)
+        # if teacher:
+        #     self.fields['kelas'].queryset = Teacher.objects.all()
+        # else:
+        #     self.fields['kelas'].queryset = Teacher.objects.none()
+
+        # HTMX Attributes for dynamic cascading
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'rubric-acayear-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-period-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'id': 'rubric-period-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-teachers-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-teacher-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'rubric-level-select',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['teacher'].widget.attrs.update({
+            'id': 'rubric-teacher-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-kelas-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-kelas-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['kelas'].widget.attrs.update({
+            'id': 'rubric-kelas-select',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['extra_type'].widget.attrs.update({
+            'id': 'extra-type-select',
+            'class': 'custom-select mb-4',
+        })
+
+
+
+
+class GradesSelectionForm(forms.ModelForm):
+    subject = forms.ModelChoiceField(
+        queryset=Subject.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
+    class Meta:
+        model = StudentReportcard
+        fields = ['academic_year', 'period', 'level']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        data = self.data
+        initial = self.initial
+
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        level = data.get('0-level') or initial.get('level')
+        period = data.get('0-period') or initial.get('period')
+        subject = data.get('0-subject') or initial.get('subject')
+        is_mid = data.get('0-is_mid') or initial.get('is_mid')
+
+        # Period depends on Academic Year
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+
+        # Level can be all, but perhaps filter if needed
+        self.fields['level'].queryset = GradeLevel.objects.all()
+
+        # HTMX Attributes for dynamic cascading
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'grades-acayear-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-grades/',
+            'hx-trigger': 'change',
+            'hx-target': '#grades-period-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'id': 'grades-period-select',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['subject'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['is_mid'].widget.attrs.update({
+            'class': 'form-check-input',
+        })
+
