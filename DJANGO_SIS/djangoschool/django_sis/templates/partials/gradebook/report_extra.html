@@ -78,6 +78,9 @@
 
                     {% if wizard.form.forms %}
                         <div class="table-responsive">
+                            <div class="alert alert-warning">
+    Seleksi penilaian jenis aktivitas adalah "{{ selected_extra_type }}"
+</div>
                             <table class="table table-hover table-bordered align-middle">
                                 <thead class="bg-base-200 rounded-md">
                                     <tr>
@@ -100,7 +103,19 @@
     {{ form.student_name }}
 </td>
 <td>
-    <a href="{% url 'student-behavior-grading' pk=form.student.value %}" class="btn btn-sm btn-outline-primary">Start</a>
+    {% if selected_extra_type == "EK" %}
+
+        <a href="{% url 'report_extrac' pk=form.initial.student %}" class="btn btn-sm btn-outline-primary">
+            Start Extracurricular
+        </a>
+
+    {% else %}
+
+        <a href="{% url 'report_other' pk=form.initial.student %}" class="btn btn-sm btn-outline-secondary">
+            Start Other
+        </a>
+
+    {% endif %}
 </td>
 
 

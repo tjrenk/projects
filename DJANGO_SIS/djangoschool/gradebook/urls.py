@@ -45,6 +45,8 @@ urlpatterns = [
 
     # EXTRA REPORT
     path('extra-report/', views.ExtraReportWizard.as_view(), name='extra-report'),
+    path('report_extrac/<int:pk>',views.student_act_extra_grading, name='report_extrac'),
+    path('report_other/<int:pk>',views.student_act_other_grading, name='report_other'),
     path('get-period-extra/', views.get_period_extra, name='get-period-extra'),
     path('get-level-extra/', views.get_level_extra, name='get-level-extra'),
     path('get-kelas-extra/', views.get_kelas_extra, name='get-kelas-extra'),

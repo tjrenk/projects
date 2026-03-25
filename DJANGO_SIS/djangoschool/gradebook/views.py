@@ -1795,11 +1795,27 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        
+
         if self.steps.current == '1':
-            data_step0 = self.get_cleaned_data_for_step('0')
+            data_step0 = self.get_cleaned_data_for_step('0') or {}
+
+            # Grab the raw, unadulterated POST data from Step 0
+            raw_step0_data = self.storage.get_step_data('0') or {}
+
             if data_step0:
                 context['selected_kelas'] = data_step0.get('kelas')
+
+            # Try cleaned data first, but if it's None, bypass it and use the raw data
+            # (Raw data keys always use the step number as a prefix, hence '0-extra_type')
+            extra_val = data_step0.get('extra_type')
+            if not extra_val:
+                extra_val = raw_step0_data.get('0-extra_type')
+
+            context['selected_extra_type'] = extra_val
+
+            # --- DEBUG INFO: Send the full dictionaries to the template ---
+            context['debug_cleaned'] = data_step0
+            context['debug_raw'] = raw_step0_data
         
         if self.steps.current == '0':
             acayear = AcademicYear.objects.all()
@@ -1842,7 +1858,7 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
     
 
 @login_required
-def student_extra_grading(request, pk):
+def student_act_extra_grading(request, pk):
     """View for grading individual student behavior using rubrics and indicators"""
     try:
         student = Student.objects.select_related('registration_data').get(pk=pk)
@@ -1911,52 +1927,59 @@ def student_extra_grading(request, pk):
         for report in reports:
             existing_scores[report.rubric_id] = report.score
 
-    # 4. Attach the existing score directly to each rubric object
-    for rubric in rubrics:
-        # This creates a temporary 'existing_score' attribute for the template
-        rubric.existing_score = existing_scores.get(rubric.id, None)
-    # Process form submission
-    if request.method == 'POST':
-
-        # formset = StudentListFormSet(request.POST, queryset=your_qs)
- 
-        if not (academic_year and period and level):
-            return HttpResponse("Missing academic year, period, or level.", status=400)
-        behaviour, _ = ReportcardBehaviour.objects.get_or_create(
-            academic_year=academic_year,
-            period=period,
-            level=level,
-            is_mid=False
-        )
-
-        
-        # Save each rubric score based on Rubric.description
+        # 4. Attach the existing score directly to each rubric object
         for rubric in rubrics:
-            score_key = f'rubric_{rubric.id}'
-            score = request.POST.get(score_key)
-            if score:
-                try:
-                    saved_score = int(score)
-                except ValueError:
-                    continue
+            # This creates a temporary 'existing_score' attribute for the template
+            rubric.existing_score = existing_scores.get(rubric.id, None)
 
-                StudentBehaviourReport.objects.update_or_create(
-                    student=student,
-                    behaviour=behaviour,
-                    rubric=rubric,
-                    defaults={'score': saved_score}
+        # Process form submission
+        if request.method == 'POST':
+            # --- NEW SAVING LOGIC START ---
+
+            # 1. Ensure the ReportcardBehaviour container exists
+            if academic_year and period and level:
+                behaviour, created = ReportcardBehaviour.objects.get_or_create(
+                    academic_year=academic_year,
+                    period=period,
+                    level=level,
+                    is_mid=False
                 )
 
-        # return render(request, 'partials/gradebook/rubric_entry_success.html', {
-        #     'student': student,
-        #     'message': f"Behavior grades saved for {student}!"
-        # })
-        # 1. Add the success message to the session
+                # 2. Loop through rubrics and save the submitted scores
+                for rubric in rubrics:
+                    # Look for the input name we define in the HTML (e.g., 'rubric_1', 'rubric_2')
+                    score_val = request.POST.get(f'rubric_{rubric.id}')
+
+                    if score_val:  # Only save if a value was actually typed in
+                        try:
+                            score_int = int(score_val)
+                            # Save or update the individual student's score
+                            StudentBehaviourReport.objects.update_or_create(
+                                student=student,
+                                behaviour=behaviour,
+                                rubric=rubric,
+                                defaults={'score': score_int}
+                            )
+                        except ValueError:
+                            # Ignore if they somehow bypassed frontend validation and submitted text
+                            pass
+                            # --- NEW SAVING LOGIC END ---
+
+        # 3. Define the wizard's session key
+        wizard_key = 'wizard_rubric_entry_wizard'
+
+        # 4. Update the session to set the current step back to '1'
+        if wizard_key in request.session:
+            data = request.session[wizard_key]
+            data['step'] = '1'
+            request.session[wizard_key] = data
+            request.session.modified = True
+
+        # 5. Add success message
         messages.success(request, f"Behavior grades successfully saved for {student}!")
-        
-        # 2. Redirect back to the wizard. 
-        # (Replace 'rubric_entry_url_name' with the actual name of your wizard in urls.py)
-        return render(request, 'partials/gradebook/rubric_entry.html')
+
+        # 6. Redirect back to the Wizard instead of rendering a raw partial
+        return redirect('rubric-entry')
 
     context = {
         'student': student,
@@ -1964,9 +1987,142 @@ def student_extra_grading(request, pk):
         'period': period,
         'level': level,
         'rubrics': rubrics,
-        'score_choices': [(1, '1'), (2, '2'), (3, '3'), (4, '4')],
+        # 'score_choices' is no longer needed since we are using a textbox
     }
-    return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
+    return render(request, 'partials/gradebook/report_extra_extrac_grade.html', context)
+
+def student_act_other_grading(request, pk):
+    """View for grading individual student behavior using rubrics and indicators"""
+    try:
+        student = Student.objects.select_related('registration_data').get(pk=pk)
+    except Student.DoesNotExist:
+        return HttpResponse("Student not found", status=404)
+
+    # Get data from the first step of the Rubric Entry form (from session)
+    wizard_key = 'wizard_rubric_entry_wizard'
+    wizard_data = request.session.get(wizard_key, {})
+    step_data = wizard_data.get('step_data', {})
+    step0_data = step_data.get('0', {})
+
+    # Helper to extract PK from raw wizard session data
+    def get_pk_from_step0(key, fallback=None):
+        # 1. Add the step prefix to the key (e.g., '0-academic_year')
+        prefixed_key = f'0-{key}'
+        val = step0_data.get(prefixed_key)
+
+        # 2. Extract the string from the list if it's stored as a list
+        if isinstance(val, list) and val:
+            val = val[0]
+
+        # 3. Return the string ID if it exists
+        if val:
+            return val
+
+        return fallback
+
+    academic_year_id = get_pk_from_step0('academic_year', request.GET.get('academic_year'))
+    period_id = get_pk_from_step0('period', request.GET.get('period'))
+    level_id = get_pk_from_step0('level', request.GET.get('level'))
+
+    academic_year = None
+    period = None
+    level = None
+    try:
+        if academic_year_id:
+            academic_year = AcademicYear.objects.get(pk=academic_year_id)
+        if period_id:
+            period = LearningPeriod.objects.get(pk=period_id)
+        if level_id:
+            level = GradeLevel.objects.get(pk=level_id)
+    except (AcademicYear.DoesNotExist, LearningPeriod.DoesNotExist, GradeLevel.DoesNotExist):
+        academic_year = period = level = None
+
+    # Get all rubrics for this academic year (both Spiritual and Social)
+    rubrics = Rubric.objects.all()
+
+    # 1. Fetch the Behaviour container if it already exists
+    behaviour = None
+    if academic_year and period and level:
+        behaviour = ReportcardBehaviour.objects.filter(
+            academic_year=academic_year,
+            period=period,
+            level=level,
+            is_mid=False
+        ).first()
+
+    # 2. Get all rubrics (convert to list so we can inject temporary attributes)
+    rubrics = list(Rubric.objects.all())
+
+    # 3. Create a dictionary of existing scores {rubric_id: score}
+    existing_scores = {}
+    if behaviour:
+        reports = StudentBehaviourReport.objects.filter(student=student, behaviour=behaviour)
+        for report in reports:
+            existing_scores[report.rubric_id] = report.score
+
+        # 4. Attach the existing score directly to each rubric object
+        for rubric in rubrics:
+            # This creates a temporary 'existing_score' attribute for the template
+            rubric.existing_score = existing_scores.get(rubric.id, None)
+
+        # Process form submission
+        if request.method == 'POST':
+            # --- NEW SAVING LOGIC START ---
+
+            # 1. Ensure the ReportcardBehaviour container exists
+            if academic_year and period and level:
+                behaviour, created = ReportcardBehaviour.objects.get_or_create(
+                    academic_year=academic_year,
+                    period=period,
+                    level=level,
+                    is_mid=False
+                )
+
+                # 2. Loop through rubrics and save the submitted scores
+                for rubric in rubrics:
+                    # Look for the input name we define in the HTML (e.g., 'rubric_1', 'rubric_2')
+                    score_val = request.POST.get(f'rubric_{rubric.id}')
+
+                    if score_val:  # Only save if a value was actually typed in
+                        try:
+                            score_int = int(score_val)
+                            # Save or update the individual student's score
+                            StudentBehaviourReport.objects.update_or_create(
+                                student=student,
+                                behaviour=behaviour,
+                                rubric=rubric,
+                                defaults={'score': score_int}
+                            )
+                        except ValueError:
+                            # Ignore if they somehow bypassed frontend validation and submitted text
+                            pass
+                            # --- NEW SAVING LOGIC END ---
+
+            # 3. Define the wizard's session key
+            wizard_key = 'wizard_rubric_entry_wizard'
+
+            # 4. Update the session to set the current step back to '1'
+            if wizard_key in request.session:
+                data = request.session[wizard_key]
+                data['step'] = '1'
+                request.session[wizard_key] = data
+                request.session.modified = True
+
+            # 5. Add success message
+            messages.success(request, f"Behavior grades successfully saved for {student}!")
+
+            # 6. Redirect back to the Wizard instead of rendering a raw partial
+            return redirect('rubric-entry')
+
+    context = {
+        'student': student,
+        'academic_year': academic_year,
+        'period': period,
+        'level': level,
+        'rubrics': rubrics,
+        # 'score_choices' is no longer needed since we are using a textbox
+    }
+    return render(request, 'partials/gradebook/report_extra_other_grade.html', context)
 
 
 def get_kelas_extra(request):
@@ -1996,9 +2152,6 @@ def get_extra_type(request):
     extra_types = StudentReportExtra.objects.all().values_list('extra_type', 'get_extra_type_display').distinct()
     context = {'extra_types': extra_types}
     return render(request, "partials/gradebook/reportextra_partials/extra_type.html", context)
-
-# test
-
 
 
 
