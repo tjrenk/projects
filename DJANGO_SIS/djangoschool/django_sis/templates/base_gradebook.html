@@ -88,6 +88,11 @@
             </div>
 
             <div class="navbar-end">
+                        {% if user.is_authenticated %}
+            <h1><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
+        {% else %}
+            &nbsp;
+        {% endif %}
                 <div class="dropdown dropdown-bottom dropdown-end">
                     <div tabindex="0" role="button" class="btn btn-ghost btn-sm m-1">
                         Theme
@@ -141,8 +146,8 @@
                                 <li><a href="{% url 'student-attendance' %}">Student Attendance</a></li>
                                 <li><a href="{% url 'report-card' %}">Add Notes</a></li>
                                 <li><a href="{% url 'rubric-entry' %}">Rubric Entry</a></li>
-                                <li><a href="{% url 'extra-report' %}">Extra Report</a></li>
-                                <li><a href="{% url 'grades-wizard' %}">Grades List</a></li>
+                                <li><a href="{% url 'extra-report' %}">Activity Entry</a></li>
+                                <li><a href="{% url 'extra-info' %}">Extra Activity Entry</a></li>
                             </ul>
                         </details>
                     </li>
@@ -154,6 +159,7 @@
                                 <li><a href="{% url 'grade-entry-table' %}">Students' Grade</a></li>
                                 <li><a href="{% url 'report-card-table' %}">Teacher's Notes</a></li>
                                 <li><a href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
+                                <li><a href="{% url 'grades-wizard' %}">Grades List</a></li>
                             </ul>
                         </details>
                     </li>

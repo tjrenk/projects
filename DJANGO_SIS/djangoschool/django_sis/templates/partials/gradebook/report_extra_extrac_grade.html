@@ -48,25 +48,19 @@
             <table class="table table-bordered align-middle">
                 <thead class="bg-base-200">
                     <tr>
-                        <th style="width: 20%;">Rubric Type</th>
-                        <th style="width: 40%;">Indicator</th>
+                        <th style="width: 40%;">Activity</th>
                         <th style="width: 40%;">Score (1-4)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for rubric in rubrics %}
+                    {% for activity in activities %}
                         <tr class="indicator-row">
-                            <td class="font-semibold align-middle">
-                                <span class="badge {% if rubric.type == 'Spiritual' %}badge-info{% else %}badge-success{% endif %}">
-                                    {{ rubric.get_type_display }}
-                                </span>
-                            </td>
 
                             <td>
-                                <p class="mb-0">{{ rubric.description }}</p>
+                                <p class="mb-0">{{ activity.subject_name }}</p>
                             </td>
 
-                            <td>
+                            {% comment %}<td>
                                             <input
                                                 type="number"
                                                 class="input input-bordered input-sm w-20"
@@ -79,6 +73,7 @@
                                                 required
                                             >
                             </td>
+                            {% endcomment %}
                         </tr>
                     {% empty %}
                         <tr>

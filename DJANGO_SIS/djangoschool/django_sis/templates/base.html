@@ -79,6 +79,11 @@
             </div>
 
             <div class="navbar-end">
+                                        {% if user.is_authenticated %}
+            <h1><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
+        {% else %}
+            &nbsp;
+        {% endif %}
                 <div class="dropdown dropdown-bottom dropdown-end">
                     <div tabindex="0" role="button" class="btn btn-ghost btn-sm m-1">
                         Theme

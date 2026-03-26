@@ -121,6 +121,7 @@ class AbstractClass(models.Model):
 
 class Class(AbstractClass):
     is_home_class = models.BooleanField(default=False)
+    is_activity = models.BooleanField(default=False)
     def __str__(self):
         return self.name
 

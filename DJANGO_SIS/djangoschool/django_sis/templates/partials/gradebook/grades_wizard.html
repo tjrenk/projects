@@ -44,9 +44,7 @@
                                 <tr>
                                     <th style="width: 30%;">Student Name</th>
                                     <th style="width: 20%;">Subject</th>
-                                    <th style="width: 20%;">Final Score</th>
                                     <th style="width: 20%;">Final Grade</th>
-                                    <th style="width: 30%;">Teacher Notes</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -65,18 +63,6 @@
     {{ form.final_score }}
     {% if form.final_score.errors %}
         <div class="text-danger small">{{ form.final_score.errors }}</div>
-    {% endif %}
-</td>
-<td>
-    {{ form.final_grade }}
-    {% if form.final_grade.errors %}
-        <div class="text-danger small">{{ form.final_grade.errors }}</div>
-    {% endif %}
-</td>
-<td>
-    {{ form.teacher_notes }}
-    {% if form.teacher_notes.errors %}
-        <div class="text-danger small">{{ form.teacher_notes.errors }}</div>
     {% endif %}
 </td>
                                 </tr>

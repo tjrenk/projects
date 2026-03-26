@@ -48,22 +48,25 @@
             <table class="table table-bordered align-middle">
                 <thead class="bg-base-200">
                     <tr>
-                        <th style="width: 20%;">Rubric Type</th>
-                        <th style="width: 40%;">Indicator</th>
+                        <th style="width: 40%;">Activity</th>
                         <th style="width: 40%;">Score (1-4)</th>
                     </tr>
                 </thead>
                 <tbody>
+                {% comment %}
                     {% for rubric in rubrics %}
+                {% endcomment %}
+                {% comment %}
                         <tr class="indicator-row">
                             <td class="font-semibold align-middle">
                                 <span class="badge {% if rubric.type == 'Spiritual' %}badge-info{% else %}badge-success{% endif %}">
                                     {{ rubric.get_type_display }}
                                 </span>
                             </td>
+                            {% endcomment %}
 
                             <td>
-                                <p class="mb-0">{{ rubric.description }}</p>
+                                <input type="text" class="input input-bordered">
                             </td>
 
                             <td>
@@ -80,13 +83,18 @@
                                             >
                             </td>
                         </tr>
+                {% comment %}
                     {% empty %}
+
                         <tr>
                             <td colspan="3" class="text-center py-4 text-gray-500">
                                 No rubrics available for the selected academic year.
                             </td>
                         </tr>
+                {% endcomment %}
+                {% comment %}
                     {% endfor %}
+                {% endcomment %}
                 </tbody>
             </table>
         </div>

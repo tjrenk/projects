@@ -52,6 +52,9 @@ urlpatterns = [
     path('get-kelas-extra/', views.get_kelas_extra, name='get-kelas-extra'),
     path('get-extra-type/', views.get_extra_type, name='get-extra-type'),
 
+    # EXTRA INFO
+    path('extra-info/', views.ExtraInfoWizard.as_view(), name='extra-info'),
+
     # GRADES WIZARD
     path('grades-wizard/', views.GradesWizard.as_view(), name='grades-wizard'),
 
