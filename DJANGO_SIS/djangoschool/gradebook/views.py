@@ -2449,3 +2449,4 @@ def get_extra_type_info(request):
     extra_types = StudentReportExtra.objects.all().values_list('extra_type', 'get_extra_type_display').distinct()
     context = {'extra_types': extra_types}
     return render(request, "partials/gradebook/extrainfo_partials/extra_type.html", context)
+# a

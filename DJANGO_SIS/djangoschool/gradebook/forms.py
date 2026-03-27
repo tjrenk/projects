@@ -1513,7 +1513,7 @@ class ExtraInfoItemForm(forms.ModelForm):
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
-
+# a
         # Teacher depends on Period
         if period:
             self.fields['teacher'].queryset = Teacher.objects.all()
