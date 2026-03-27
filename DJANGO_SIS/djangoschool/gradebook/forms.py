@@ -1467,6 +1467,10 @@ class GradesSelectionForm(forms.ModelForm):
             'class': 'form-check-input',
         })
 
+EXTRA_INFO_TYPE_CHOICES = [
+    ("PD", "Pengembangan Diri"),
+    ("P", "Prestasi"),
+]
 
 class ExtraInfoItemForm(forms.ModelForm):
     teacher = forms.ModelChoiceField(
@@ -1482,7 +1486,7 @@ class ExtraInfoItemForm(forms.ModelForm):
     )
 
     extra_type = forms.ChoiceField(
-        choices=EXTRA_GRADE_TYPE_CHOICES,
+        choices=EXTRA_INFO_TYPE_CHOICES,
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
@@ -1518,7 +1522,7 @@ class ExtraInfoItemForm(forms.ModelForm):
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
-            self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher, is_home_class=True).distinct()
+            self.fields['kelas'].queryset = Class.objects.all()
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 

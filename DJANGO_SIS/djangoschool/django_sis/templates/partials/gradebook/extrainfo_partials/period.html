@@ -1,0 +1,4 @@
+<option value="">Select Period</option>
+{% for period in periods %}
+    <option value="{{ period.id }}" {% if selected_period and period.id|stringformat:"s" == selected_period %}selected{% endif %}>{{ period }}</option>
+{% endfor %}

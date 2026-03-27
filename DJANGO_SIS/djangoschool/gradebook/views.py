@@ -2417,3 +2417,35 @@ class ExtraInfoWizard(LoginRequiredMixin, SessionWizardView):
                     )
 
         return render(self.request, "partials/gradebook/finished_screen.html")
+
+
+def get_kelas_extra_info(request):
+    class_id = request.GET.get('class_id')
+    if class_id:
+        kelas = Class.objects.filter(is_activity=True)
+    else:
+        kelas = Class.objects.none()
+
+    return render(request, "partials/gradebook/extrainfo_partials/kelas.html", {'kelas': kelas})
+
+
+def get_period_extra_info(request):
+    ay_id = request.GET.get('academic_year_id')
+    if ay_id:
+        periods = LearningPeriod.objects.filter(academic_year_id=ay_id)
+    else:
+        periods = LearningPeriod.objects.none()
+
+    return render(request, "partials/gradebook/extrainfo_partials/period.html", {'periods': periods})
+
+
+def get_level_extra_info(request):
+    levels = GradeLevel.objects.all()
+    context = {'levels': levels}
+    return render(request, "partials/gradebook/extrainfo_partials/level.html", context)
+
+
+def get_extra_type_info(request):
+    extra_types = StudentReportExtra.objects.all().values_list('extra_type', 'get_extra_type_display').distinct()
+    context = {'extra_types': extra_types}
+    return render(request, "partials/gradebook/extrainfo_partials/extra_type.html", context)

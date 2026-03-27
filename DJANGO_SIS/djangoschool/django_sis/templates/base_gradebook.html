@@ -83,13 +83,13 @@
                 </a>
             </div>
 
-            <div class="sticky max-lg:fixed navbar-center max-sm:hidden">
+            <div class="navbar-center max-sm:hidden">
                 <a class="btn btn-ghost text-xl" href="{% url 'gb-index' %}">Gradebook</a>
             </div>
 
             <div class="navbar-end">
                         {% if user.is_authenticated %}
-            <h1><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
+            <p style="font-size: 10px;"><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></p>
         {% else %}
             &nbsp;
         {% endif %}
