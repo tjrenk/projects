@@ -8,7 +8,7 @@
 </style>
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
 <div>
-<div class="collapse-title text-xl font-medium">Extra Report Grade Form</div>
+<div class="collapse-title text-xl font-medium">Extracurricular Grade Entry Form</div>
 </div>
     {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
     <div class="col-md-8 offset-md-2">
@@ -78,9 +78,6 @@
 {% comment %} a {% endcomment %}
                     {% if wizard.form.forms %}
                         <div class="table-responsive">
-                            <div class="alert alert-warning">
-    Seleksi penilaian jenis aktivitas adalah "{{ selected_extra_type }}"
-</div>
                             <table class="table table-hover table-bordered align-middle">
                                 <thead class="bg-base-200 rounded-md">
                                     <tr>
@@ -103,19 +100,9 @@
     {{ form.student_name }}
 </td>
 <td>
-    {% if selected_extra_type == "EK" %}
-
         <a href="{% url 'report_extrac' pk=form.initial.student %}" class="btn btn-sm btn-outline-primary">
             Start Extracurricular
         </a>
-
-    {% else %}
-
-        <a href="{% url 'report_other' pk=form.initial.student %}" class="btn btn-sm btn-outline-secondary">
-            Start Other
-        </a>
-
-    {% endif %}
 </td>
 
 
@@ -206,10 +193,10 @@
 
                                     <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                         <div class="mb-1 basis-full md:flex-1">
-                                            {{ wizard.form.extra_type.label }}
-                                            {{ wizard.form.extra_type }}
+                                            {{ wizard.form.act_subj.label }}
+                                            {{ wizard.form.act_subj }}
                                             <div class="error">
-                                                {{ wizard.form.extra_type.errors }}
+                                                {{ wizard.form.act_subj.errors }}
                                             </div>                                            </div>
                                         </div>
                                     </div>

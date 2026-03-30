@@ -30,6 +30,7 @@ from django.db.models.functions import Ceil
 
 register = template.Library()
 
+
 def gb_index(request):
     ge = GradeEntry.objects.all()
     ah = AssignmentHead.objects.all()
@@ -39,13 +40,16 @@ def gb_index(request):
     ad_ahfilter = AssignmentDetail.objects.select_related('assignment_head', 'assignment_head__course', 'student')
 
     # sort by midterms
-    midterms = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Midterm').select_related('assignment_head', 'assignment_head__course', 'student')
+    midterms = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Midterm').select_related(
+        'assignment_head', 'assignment_head__course', 'student')
 
     # sort by quizzes
-    quizzes = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Quiz').select_related('assignment_head', 'assignment_head__course', 'student')
+    quizzes = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Quiz').select_related(
+        'assignment_head', 'assignment_head__course', 'student')
 
     # sort by finals
-    finals = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Finals').select_related('assignment_head', 'assignment_head__course', 'student')
+    finals = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Finals').select_related(
+        'assignment_head', 'assignment_head__course', 'student')
 
     pnation = Paginator(attendance_qs, 15)
     page = request.GET.get('page')
@@ -68,8 +72,10 @@ def gb_index(request):
         'request': request,
     })
 
+
 def logout_view(request):
     logout(request)
+
 
 @login_required
 def get_courses(request):
@@ -79,50 +85,55 @@ def get_courses(request):
         return JsonResponse(list(courses), safe=False)
     return JsonResponse([], safe=False)
 
+
 def teacher_list(request):
     return HttpResponse("pass")
 
+
 def course_list(request):
     return HttpResponse("pass")
+
 
 @login_required
 def grade_entry(request):
     entry = GradeEntry.objects.get(pk=3)
     form = GradeEntryForm(instance=entry)
-    context = {'form': form }
+    context = {'form': form}
     return render(request, "partials/gradebook/entry.html", context)
+
 
 def get_period(request):
     pass
 
+
 def logout_view(request):
     logout(request)
 
+
 @login_required
-def attendance(request): # musti di cek ini kefilter berdasarkan guru apa kgk list siswany
+def attendance(request):  # musti di cek ini kefilter berdasarkan guru apa kgk list siswany
     # cannot unpack non-iterable ForwardManyToOneDescriptor object
     # current_teacher = get_object_or_404(Teacher, user=request.user)
     # filtered_students = Teacher.objects.filter(current_teacher)
     if request.method == 'POST':
-        user=request.user
+        user = request.user
         # homeroom_check = Class.objects.filter(teacher__user=user, is_home_class=True).first()
-            # if a user has a teacher relationship / if in the teacher model the logged in user matches with a data in the Teacher model
+        # if a user has a teacher relationship / if in the teacher model the logged in user matches with a data in the Teacher model
         # if homeroom_check:
         form = AttendanceForm(request.POST, user=request.user)
         # teach_form = TeacherForm(request.POST)
-        
+
         if form.is_valid():
             form.save()
-    
+
     # if not hasattr(request.user, 'teacher'):
     #     return redirect('gb-index')
-            
+
     form = AttendanceForm(user=request.user)
     # teach_form = TeacherForm()
 
     # if 'student' in form.fields:
     #     form.fields['student'].queryset = filtered_students
-
 
     context = {
         'form': form,
@@ -130,6 +141,7 @@ def attendance(request): # musti di cek ini kefilter berdasarkan guru apa kgk li
     }
 
     return render(request, 'partials/gradebook/attendance.html', context)
+
 
 @register.inclusion_tag('partials/gradebook/attendance_list.html', takes_context=True)
 def attendance_list(request):
@@ -145,6 +157,7 @@ def attendance_list(request):
     }
 
     return render(request, 'partials/gradebook/attendance_list.html', context)
+
 
 def attendance_list_admin(request):
     attendance = StudentAttendance.objects.all()
@@ -164,11 +177,11 @@ def attendance_list_admin(request):
 class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
     # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
     template_name = "partials/gradebook/grade_entry.html"
-    
+
     form_list = [
         ("0", GradeEntryForm),
         ("1", AssignmentHeadForm),
-        ("2", AssignmentDetailFormSet), # Step 3 pakai FormSet
+        ("2", AssignmentDetailFormSet),  # Step 3 pakai FormSet
     ]
 
     # def get_template_names(self):
@@ -176,7 +189,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
-        
+
         # if step == '0':
         #     initial['academic_year'] = None
         #     initial['period'] = None
@@ -185,29 +198,28 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         #     initial['course'] = None
         #     initial['assignment_type'] = None
 
-
         # Logika khusus untuk Step 3 (FormSet Siswa)
         if step == '2':
             # Ambil data dari Step 0 (GradeEntry)
             step0_data = self.get_cleaned_data_for_step('0')
             if step0_data and 'course' in step0_data:
                 course = step0_data['course']
-                
+
                 # Ambil semua siswa yang aktif di course tersebut
                 students = CourseMember.objects.filter(
-                    course=course, 
+                    course=course,
                     is_active=True
                 ).select_related('student')
-                
+
                 # Siapkan initial data (list of dicts) untuk FormSet
                 initial_list = []
                 for member in students:
                     initial_list.append({
-                        'student': member.student.id, # Untuk Hidden Field
+                        'student': member.student.id,  # Untuk Hidden Field
                         'is_active': member.is_active,
                     })
                 return initial_list
-        
+
         return initial
 
     def get_form_kwargs(self, step=None):
@@ -223,7 +235,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        
+
         # Get cleaned data from step 0 if available
         step0_data = self.get_cleaned_data_for_step('0')
         if step0_data:
@@ -232,14 +244,14 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             context['selected_level'] = step0_data.get('level')
             context['selected_subject'] = step0_data.get('subject')
             context['selected_is_mid'] = step0_data.get('is_mid')
-        
+
         return context
 
     def done(self, form_list, **kwargs):
         # Ambil data dari form yang sudah divalidasi
-        form_data_0 = form_list[0].cleaned_data # GradeEntry
-        form_data_1 = form_list[1].cleaned_data # AssignmentHead
-        formset_data_2 = form_list[2] # AssignmentDetailFormSet (ini formset object)
+        form_data_0 = form_list[0].cleaned_data  # GradeEntry
+        form_data_1 = form_list[1].cleaned_data  # AssignmentHead
+        formset_data_2 = form_list[2]  # AssignmentDetailFormSet (ini formset object)
 
         # 1. Simpan GradeEntry (jika masih diperlukan sebagai log)
         # grade_entry_instance = form_list[0].save()
@@ -247,11 +259,11 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         # 2. Buat dan Simpan AssignmentHead
         # Kita gabungkan data dari Step 0 dan Step 1
         assignment_head = AssignmentHead(
-            assignment=form_data_0['assignment_type'], # Dari Step 0
-            course=form_data_0['course'],              # Dari Step 0
-            date=form_data_1['date'],                  # Dari Step 1
-            topic=form_data_1['topic'],                # Dari Step 1
-            max_score=form_data_1['max_score']         # Dari Step 1
+            assignment=form_data_0['assignment_type'],  # Dari Step 0
+            course=form_data_0['course'],  # Dari Step 0
+            date=form_data_1['date'],  # Dari Step 1
+            topic=form_data_1['topic'],  # Dari Step 1
+            max_score=form_data_1['max_score']  # Dari Step 1
         )
         assignment_head.save()
 
@@ -259,30 +271,29 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         details_to_create = []
         max_score = assignment_head.max_score
         for form in formset_data_2:
-            if form.is_valid() and form.cleaned_data: # Pastikan form valid dan tidak kosong
+            if form.is_valid() and form.cleaned_data:  # Pastikan form valid dan tidak kosong
                 note_content = form.cleaned_data.get('teacher_notes')
                 detail = form.save(commit=False)
-                detail.assignment_head = assignment_head # Link ke Head yang baru dibuat
+                detail.assignment_head = assignment_head  # Link ke Head yang baru dibuat
                 detail.teacher_notes = note_content
                 if detail.score > max_score:
                     return HttpResponse("Error: Score exceeds maximum allowed.")
                 elif formset_data_2['form-0-student'] is None:
                     return HttpResponse("Error: No students selected.")
                 else:
-                # Student sudah ada di instance dari form clean (karena ModelForm)
+                    # Student sudah ada di instance dari form clean (karena ModelForm)
                     details_to_create.append(detail)
-        
+
         # Bulk create untuk performa lebih cepat
         AssignmentDetail.objects.bulk_create(details_to_create)
 
-        
         return render(self.request, "partials/gradebook/finished_screen.html")
-    
-def midterm_report(request):
 
-    # all_users = User.objects.filter(groups=1).order_by('-angkatan').all() # semuanya kecuali 
+
+def midterm_report(request):
+    # all_users = User.objects.filter(groups=1).order_by('-angkatan').all() # semuanya kecuali
     all_students = Student.objects.all()
-    
+
     # This will be the final list we send to the template.
     # student_list = [] 
     # user_rekap_list_by_prodi = [] 
@@ -294,7 +305,7 @@ def midterm_report(request):
     #     aktivitas_points = Aktivitas.objects.filter(user=u, status="approved").aggregate(
     #         total=Sum(F('aturan_merit__poin') * F('kuantitas'), default=0)
     #     )['total']
-        
+
     #     # Calculate total 'Pelanggaran' points for this specific user.
     #     pelanggaran_points = Pelanggaran.objects.filter(user=u).aggregate(
     #         total=Sum(F('aturan_demerit__poin') * F('kuantitas'), default=0)
@@ -304,7 +315,7 @@ def midterm_report(request):
 
     #     # Calculate the final total points, starting with a base of 100.
     #     total_points = (aktivitas_points or 0) - (pelanggaran_points or 0) + modal_poin
-        
+
     #     # Append a dictionary with this user's complete data to our list.
     #     user_rekap_list.append({
     #         'user_obj': u,
@@ -326,7 +337,6 @@ def midterm_report(request):
     # if request.headers.get('HX-Request'):
     #     return render(request, 'partials/rekap_table.html', context)
 
-
     return render(request, "partials/gradebook/generate_report.html", context)
 
 
@@ -334,7 +344,6 @@ def midterm_report_pdf(request, student_id=None):
     buf = io.BytesIO()
     # student_id = Student.id
 
-    
     header_data = []
     # If user_id provided, limit to that user's records and set filename accordingly
     if student_id:
@@ -342,7 +351,7 @@ def midterm_report_pdf(request, student_id=None):
         class_obj = get_object_or_404(Class, id=student_id)
         lperiod_obj = get_object_or_404(LearningPeriod, id=student_id)
         filename = f'ekupoint_report_table_{stud_obj}.pdf'
-        
+
         header_data = [
             ['Nama: ', stud_obj.registration_data.first_name],
             ['NIS: ', stud_obj.id_number],
@@ -365,28 +374,29 @@ def midterm_report_pdf(request, student_id=None):
         parent=styles['Normal'],
         alignment=TA_CENTER,
         fontName='Times-Roman'
-)
-    
+    )
+
     center_style_small = ParagraphStyle(
         'Center',
         parent=styles['Normal'],
         alignment=TA_CENTER,
         fontSize=8,
         fontName='Times-Roman'
-)
+    )
 
     title_style = ParagraphStyle(
-        'TitleStyle',             # A name for the style
+        'TitleStyle',  # A name for the style
         parent=styles['Heading3'],  # Base it on the default "Heading1"
-        fontSize=20,                # "Really big" size
-        alignment=TA_CENTER,        # Center the text
-        fontName='Times-Bold'   # Make sure it's bold
+        fontSize=20,  # "Really big" size
+        alignment=TA_CENTER,  # Center the text
+        fontName='Times-Bold'  # Make sure it's bold
     )
 
     heading_style = ParagraphStyle(
-        'HeadingStyle',             # A name for the style
-        parent=styles['Heading3'],  # Base it on the default "Heading1"              # "Really big" size        # Center the text
-        fontName='Times-Bold'   # Make sure it's bold
+        'HeadingStyle',  # A name for the style
+        parent=styles['Heading3'],
+        # Base it on the default "Heading1"              # "Really big" size        # Center the text
+        fontName='Times-Bold'  # Make sure it's bold
     )
 
     times_nr = ParagraphStyle(
@@ -415,7 +425,7 @@ def midterm_report_pdf(request, student_id=None):
     )
 
     separator.add(line)
-    
+
     # # kopsurat versi gambar
     # kop_surat = os.path.join(settings.BASE_DIR, 'media/ekupoint/kopsurat.jpg')
 
@@ -425,7 +435,7 @@ def midterm_report_pdf(request, student_id=None):
     # setting gambar
     # kopsur = Image(kop_surat)
     # logo_stte = Image(logo, width=120, height=90)
-    
+
     # kopsurat yang diambil dari dokumen2 lain; kalo mau dipake tinggal di uncomment
     # flowables.append(kopsur)
 
@@ -473,7 +483,7 @@ def midterm_report_pdf(request, student_id=None):
     # flowables.append(kopsurat_table)
     # flowables.append(separator)
     # flowables.append(Spacer(1, 24))
-    
+
     # judul ("EKUPOINT REPORT")
     flowables.append(header)
     # flowables.append(Spacer(1, 12))
@@ -490,7 +500,7 @@ def midterm_report_pdf(request, student_id=None):
     # title_data = [
     #         ["EKUPOINT REPORT", ""]
     #     ]
-    
+
     # title_table = Table(title_data, colWidths=[100, 740])
 
     # title_table.setStyle(TableStyle([
@@ -500,22 +510,21 @@ def midterm_report_pdf(request, student_id=None):
     #         ('ALIGN', (1, 0), (1, -1), 'LEFT'), # Align values (col 1) to the left
     #         ('FONTNAME', (0, 0), (0, -1), 'Times-Bold'), # Make labels bold
     #     ]))
-    
+
     # table format, biar rapi
     # if student_id:
-
 
     header_table = Table(header_data, colWidths=[100, 300])
 
     header_table.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 0.5, "#FFFFFF"), # No grid
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),  # Align labels (col 0) to the left
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'), # Align values (col 1) to the left
-            ('FONTNAME', (0, 0), (0, -1), 'Times-Bold'), # Make labels bold
-            ('FONTNAME', (1, 0), (1, -1), 'Times-Roman')
-        ]))
-    
+        ('GRID', (0, 0), (-1, -1), 0.5, "#FFFFFF"),  # No grid
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),  # Align labels (col 0) to the left
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),  # Align values (col 1) to the left
+        ('FONTNAME', (0, 0), (0, -1), 'Times-Bold'),  # Make labels bold
+        ('FONTNAME', (1, 0), (1, -1), 'Times-Roman')
+    ]))
+
     # data2 mahasiswa
     flowables.append(header_table)
     separator.add(line)
@@ -529,37 +538,35 @@ def midterm_report_pdf(request, student_id=None):
 
     # Aktivitas table
     styles = getSampleStyleSheet()
-    small = ParagraphStyle('small', parent=styles['Normal'], fontSize=8, leading=10, fontName='Times-Roman', splitLongWords=1, wordWrap='LTR')
+    small = ParagraphStyle('small', parent=styles['Normal'], fontSize=8, leading=10, fontName='Times-Roman',
+                           splitLongWords=1, wordWrap='LTR')
     # headers_aktivitas = ["Aktivitas", "Jenis", "Lingkup", "Poin", "Kuantitas", "Keterangan", "File", "Status", "Tanggal"]
     headers_nilai = ["Mata Pelajaran", "KKM", "Nilai", "Predikat"]
     # aktivitas_total = contactdata.aggregate(
     #     total=Sum(F('aturan_merit__poin') * F('kuantitas'))
     # )['total'] or 0
-    
 
     # pelanggaran_total = pelanggaran.aggregate(
     #     total=Sum(F('aturan_demerit__poin') * F('kuantitas'))
     # )['total'] or 0
     data_nilai = [headers_nilai]
 
-    
     for obj in rpcard_to_print:
-        
         data_row = [
             obj.subject,
             obj.final_score,
             obj.final_grade,
             obj.teacher_notes
-            
+
         ]
         data_nilai.append(data_row)
 
     table_aktivitas = Table(data_nilai, repeatRows=1)
     table_aktivitas.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, '#000000'),
-        ('BACKGROUND', (0,0), (-1,0), '#eeeeee'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('FONTSIZE', (0,0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, '#000000'),
+        ('BACKGROUND', (0, 0), (-1, 0), '#eeeeee'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
         ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman')
     ]))
@@ -670,7 +677,7 @@ def midterm_report_pdf(request, student_id=None):
 class ReportCardForm(LoginRequiredMixin, SessionWizardView):
     # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
     template_name = "partials/gradebook/report_card.html"
-    
+
     form_list = [
         ("0", StudentReportcardForm),
         ("1", CourseByTeacher),
@@ -689,8 +696,6 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
 
-
-        
         # Logika khusus untuk Step 3 (FormSet Siswa)
         if step == '2':
             # Ambil data dari Step 0 (GradeEntry)
@@ -698,7 +703,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             if step0_data and 'subject' in step0_data:
                 subject = step0_data['subject']
                 course = step0_data.get('course')
-                
+
                 if course:
                     # Ambil semua siswa yang aktif di course tersebut
                     students = CourseMember.objects.filter(
@@ -710,7 +715,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     students = CourseMember.objects.filter(
                         course__in=courses
                     ).select_related('student')
-                
+
                 # Siapkan initial data (list of dicts) untuk FormSet
                 initial_list = []
                 for member in students:
@@ -719,12 +724,12 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                         'subject': subject.id,  # Subject ID from step 1
                     })
                 return initial_list
-        
+
         return initial
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        
+
         if self.steps.current != '0':
             data_step0 = self.get_cleaned_data_for_step('1')
             if data_step0:
@@ -742,19 +747,19 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_level'] = level
             context['selected_subject'] = subject
             context['selected_course'] = course
-        
+
         # Kirim data head untuk display di step 3 (index '2')
         if self.steps.current == '2':
             data_step1 = self.get_cleaned_data_for_step('1')
             if data_step1:
                 context['assignment_head_data'] = data_step1
-                
+
         return context
 
     def done(self, form_list, **kwargs):
         # Ambil data dari form yang sudah divalidasi
-        form_data_0 = form_list[0].cleaned_data # StudentReportcardForm (academic_year, period, is_mid, level)
-        form_data_1 = form_list[1].cleaned_data # CourseByTeacher (course, subject)
+        form_data_0 = form_list[0].cleaned_data  # StudentReportcardForm (academic_year, period, is_mid, level)
+        form_data_1 = form_list[1].cleaned_data  # CourseByTeacher (course, subject)
 
         # Get the course and subject from step 1
         course = form_data_1['course']
@@ -778,17 +783,17 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
 
         # 3. Simpan ReportcardGrade (Looping FormSet)
         details_to_create = []
-        
+
         print("\n--- DEBUG: Starting FormSet Loop ---")
-        
+
         formset = form_list[2]  # ReportCardGradeFormset
-        
+
         # Zip the formset forms with the students (assuming order matches initial_list)
         for i, (form, member) in enumerate(zip(formset.forms, students_in_course)):
-            
+
             # Re-validate the form here to force errors to populate the form object
             is_valid = form.is_valid()
-            
+
             print(f"DEBUG: Form Index {i}: Valid? {is_valid}")
 
             if is_valid and form.cleaned_data:
@@ -798,7 +803,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                 # Extract the subject from this form's cleaned_data
                 # subject_obj = form.cleaned_data.get('subject')
                 subject_obj = subject  # Use the subject from step 1 directly
-                
+
                 # Check if the subject object is None
                 if not subject_obj:
                     print(f"!!! CRITICAL FAIL: Form {i} cleaned_data['subject'] is missing or None.")
@@ -815,20 +820,18 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     # Ensure PK is None for new objects to let the DB assign it
                     detail.pk = None
                     details_to_create.append(detail)
-            
+
             else:
                 # Print form errors if not valid
                 print(f"DEBUG: Form {i} Errors: {form.errors}")
-                
+
             print(f"--- DEBUG: Total forms added to bulk_create: {len(details_to_create)} ---\n")
-        
+
         # Bulk-create any new grade rows (do not attempt to bulk_create existing PKs)
         if details_to_create:
             ReportcardGrade.objects.bulk_create(details_to_create)
-            
-        return render(self.request, "partials/gradebook/finished_screen_teachercomm.html")
-    
 
+        return render(self.request, "partials/gradebook/finished_screen_teachercomm.html")
 
 
 # Grade Entry dynamic fields
@@ -836,27 +839,29 @@ def get_levels_ge(request):
     # Check for the variable name sent by the 'academic_year' field
     # (Django form fields usually send '0-academic_year')
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
-    
+
     if acayear_id:
         # Load levels only if a year is selected
         levels = GradeLevel.objects.all()
     else:
         levels = GradeLevel.objects.none()
-        
+
     context = {'levels': levels}
     # Use your existing folder structure
     return render(request, "partials/gradebook/gradeentry_partials/level.html", context)
 
+
 def get_teachers(request):
     period_id = request.GET.get('0-period') or request.GET.get('period')
-    
+
     if period_id:
         teachers = Teacher.objects.all()
     else:
         teachers = Teacher.objects.none()
-    
+
     # Use 'items' or 'teachers' consistently with your partial template
     return render(request, "partials/gradebook/gradeentry_partials/teacher.html", {'teachers': teachers})
+
 
 def get_courses(request):
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
@@ -871,9 +876,11 @@ def get_courses(request):
     }
     return render(request, "partials/gradebook/course_list.html", context)
 
+
 def get_period_ge(request):
     # acayear_id = AcademicYear.objects.first().id
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get('academic_year')
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get(
+        'academic_year')
     selected_period = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
     if acayear_id:
         periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
@@ -885,12 +892,12 @@ def get_period_ge(request):
     # }
     # return render(request, "partials/gradebook/gradeentry_partials/period.html", context)
 
-        # Render period HTML as before
+    # Render period HTML as before
     html = render_to_string("partials/gradebook/gradeentry_partials/period.html", {
         'periods': periods,
         'selected_period': selected_period
     })
-    
+
     # Also render level HTML for OOB update (populated if academic_year is set)
     level_queryset = GradeLevel.objects.all() if acayear_id else GradeLevel.objects.none()
     selected_level = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
@@ -898,7 +905,7 @@ def get_period_ge(request):
         'levels': level_queryset,
         'selected_level': selected_level
     })
-    
+
     # Return period HTML + OOB update for level
     return HttpResponse(html + f'<div hx-swap-oob="#level-select-ge">{level_html}</div>')
 
@@ -950,30 +957,28 @@ def get_courses_ge(request):
 def get_assignment_types_ge(request):
     # Check for the course ID
     course_id = request.GET.get('0-course') or request.GET.get('course')
-    
+
     if course_id:
         # Get the subject from the course
         course = Course.objects.get(id=course_id)
         subject_id = course.subject_id
         # Get assignment types associated with the subject via Weighting table
-        assignment_ids = Weighting.objects.filter(subject_id=subject_id).values_list('assignment_id', flat=True).distinct()
+        assignment_ids = Weighting.objects.filter(subject_id=subject_id).values_list('assignment_id',
+                                                                                     flat=True).distinct()
         # types = AssignmentType.objects.filter(id__in=assignment_ids)
         types = AssignmentType.objects.all()
     else:
         types = AssignmentType.objects.none()
-        
-    context = {'assignment_types': types} # Make sure this key matches your template loop
+
+    context = {'assignment_types': types}  # Make sure this key matches your template loop
     return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", context)
-
-
-
-
 
 
 # Report Card / Teacher Notes dynamic fields
 def get_period_reportcard(request):
     # acayear_id = AcademicYear.objects.first().id
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get('academic_year')
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get(
+        'academic_year')
     selected_period = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
     if acayear_id:
         periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
@@ -985,29 +990,27 @@ def get_period_reportcard(request):
     }
     return render(request, "partials/gradebook/reportcard_partials/period.html", context)
 
+
 def get_level_reportcard(request):
     # Check for the variable name sent by the 'academic_year' field
     # (Django form fields usually send '0-academic_year')
     period_id = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
-    
+
     if period_id:
         # Load levels only if a period is selected
         levels = GradeLevel.objects.all()
     else:
         levels = GradeLevel.objects.none()
-        
+
     context = {'levels': levels}
     # Use your existing folder structure
     return render(request, "partials/gradebook/reportcard_partials/level.html", context)
 
 
-
-
-
 @login_required
 def toggle_na_reason(request):
     form_index = request.GET.get('form_index', '0')
-    
+
     # Find the na_reason field name from the request
     na_reason_keys = [k for k in request.GET.keys() if k.endswith('-na_reason')]
     if na_reason_keys:
@@ -1016,12 +1019,12 @@ def toggle_na_reason(request):
     else:
         na_reason_name = f'2-{form_index}-na_reason'
         na_reason_value = request.GET.get(na_reason_name, '')
-    
+
     # Get the is_active value
     is_active_name = na_reason_name.replace('-na_reason', '-is_active')
     is_active_value = request.GET.get(is_active_name, '')
     is_active = is_active_value == 'on'
-    
+
     if is_active:
         input_html = f'''
         <input id="na_reason_input_{form_index}"
@@ -1062,7 +1065,7 @@ class ScoreField(ComputationField):
     # mau ditotalin apa kgk
     is_summable = False
 
-    @classmethod # ----> msh blm ngerti ini buat apaan
+    @classmethod  # ----> msh blm ngerti ini buat apaan
     def get_crosstab_field_verbose_name(cls, model, id):
         """
         This runs for EVERY dynamic column.
@@ -1074,15 +1077,12 @@ class ScoreField(ComputationField):
         # Fetch the subject name directly
         # Note: 'model' here is automatically passed as the Subject model class
         subject = Subject.objects.get(pk=id)
-            # Use short_name if available, else subject_name
+        # Use short_name if available, else subject_name
         return subject.short_name
-
-
 
 
 class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/report.html"
-
 
     report_title = "Report Card Ledger"
 
@@ -1093,7 +1093,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     form_class = RequestLogForm
 
     # date_field = "reportcard__period__date_end"
-    
+
     # di grup dari apa
     # NOTE: hanya value dari ini saja yg akan keliatan di kolom, gtau knp
     group_by = "reportcard__student__registration_data__first_name"
@@ -1111,7 +1111,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     # isi kolom
     crosstab_columns = [ScoreField]
     # total (utk skrg ga ada ngapa2in ini var)
-    crosstab_compute_remainder = False 
+    crosstab_compute_remainder = False
 
     # 3. What goes inside the cells? (The Score)
     # crosstab_columns = [
@@ -1123,8 +1123,6 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     #     )
     # ]
 
-
-
     # logic filter dari forms.py diulangi lagi disini
     def get_crosstab_ids(self):
         """
@@ -1134,7 +1132,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         ay_id = self.request.GET.get('academic_year')
         period_id = self.request.GET.get('period')
         # Checkbox often comes as 'on' or 'true' or just present
-        is_mid = self.request.GET.get('is_mid') 
+        is_mid = self.request.GET.get('is_mid')
 
         # --- SCENARIO 1: NOT FILTERED (Default View) ---
         if not ay_id and not period_id:
@@ -1156,14 +1154,11 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         # distinct() ensures we don't get duplicate IDs
         # values_list('subject_id', flat=True) returns a list of IDs like [1, 2, 5]
         subject_ids = qs.values_list('subject_id', flat=True).distinct().order_by('subject_id')
-        
+
         return list(subject_ids)
 
     def get_crosstab_compute_remainder(self):
         return False
-
-
-
 
     export_actions = ["export_pdf"]
 
@@ -1173,7 +1168,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
         # 2. Create a buffer to hold the PDF data
         buffer = io.BytesIO()
-        
+
         # Use Landscape A4 because crosstabs tend to be wide
         doc = SimpleDocTemplate(buffer, pagesize=(800, 600))
         elements = []
@@ -1181,9 +1176,9 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         # 3. Prepare the Data for the Table
         # report_data['columns'] holds the definitions. 
         # report_data['data'] holds the list of dictionaries (rows).
-        
+
         columns = report_data['columns']
-        
+
         # A. Create the Header Row
         # We extract 'verbose_name' to show "Biology" instead of "subject_1"
         headers = [col['verbose_name'] for col in columns]
@@ -1196,8 +1191,8 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
             for col in columns:
                 # Use the column 'name' (id) to fetch value from the record dictionary
                 key = col['name']
-                value = record.get(key, "-") # Default to "-" if empty
-                row.append(str(value))       # Ensure it's a string
+                value = record.get(key, "-")  # Default to "-" if empty
+                row.append(str(value))  # Ensure it's a string
             table_data.append(row)
 
         # 4. Create and Style the Table
@@ -1206,13 +1201,13 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
         # Add styling: Grid, Bold Header, Alternating Row Colors
         style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),       # Header background
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Header background
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),  # Header text color
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),              # Center align all text
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),    # Header font
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),             # Header padding
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),     # Default row background
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),        # Add grid lines
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Center align all text
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),  # Header padding
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),  # Default row background
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Add grid lines
         ])
         table.setStyle(style)
 
@@ -1228,7 +1223,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         pdf = buffer.getvalue()
         buffer.close()
         response.write(pdf)
-        
+
         return response
 
     export_pdf.title = ("Export PDF")
@@ -1242,11 +1237,10 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     export_csv.css_class = "btn btn-success"
 
     filters = [
-        "reportcard__student__id_number", 
-        "reportcard__student__registration_data__first_name", 
+        "reportcard__student__id_number",
+        "reportcard__student__registration_data__first_name",
         "reportcard__student__registration_data__last_name"
     ]
-
 
 
 @login_required
@@ -1266,13 +1260,10 @@ def ge_table(request):
         'pnation_ah': pnation_ah
     }
 
-
-
     return render(request, 'partials/gradebook/grade_entry_table.html', context)
 
 
 from .models import AssignmentDetail, CourseMember
-
 
 
 # INGET YA ID ASSIGNMENTDETAIL != ID ASSIGNMENTHEAD PANTES DRTD NGACO MULU QUERYSETNYA
@@ -1286,7 +1277,7 @@ def ge_edit(request, pk):
     # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
     # This fixes the issue where only 1 student shows up.
     active_members = CourseMember.objects.filter(course=current_course, is_active=True)
-    
+
     for member in active_members:
         # Create a blank row (score=0) if it doesn't exist yet
         AssignmentDetail.objects.get_or_create(
@@ -1303,13 +1294,13 @@ def ge_edit(request, pk):
     # We order by student ID (or name if available) to keep the list stable
     queryset = AssignmentDetail.objects.filter(
         assignment_head=parent_head
-    ).order_by('student__id') 
+    ).order_by('student__id')
 
     # 4. Define the Formset
     AssignmentFormSet = modelformset_factory(
         AssignmentDetail,
         fields=('score', 'na_reason', 'is_active'),
-        extra=0, # We don't want blank extra rows, we just want the students
+        extra=0,  # We don't want blank extra rows, we just want the students
         # widgets={
         #     'score': forms.NumberInput(attrs={'class': 'form-control'}),
         #     'na_reason': forms.TextInput(attrs={'class': 'form-control'}),
@@ -1321,7 +1312,7 @@ def ge_edit(request, pk):
         formset = AssignmentFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
-            return redirect('grade-entry-table') # Make sure this URL name is correct in urls.py
+            return redirect('grade-entry-table')  # Make sure this URL name is correct in urls.py
     else:
         formset = AssignmentFormSet(queryset=queryset)
 
@@ -1349,6 +1340,7 @@ def ge_edit(request, pk):
         'title': f'Edit Grades: {parent_head.topic}',
     })
 
+
 def ge_del(request, pk):
     ahead = get_object_or_404(AssignmentHead, pk=pk)
     if request.method == 'POST':
@@ -1361,6 +1353,7 @@ def ge_del(request, pk):
     #     'form': form,
     # }
     return render(request, 'partials/gradebook/grade_entry_delconf.html')
+
 
 @login_required
 def tc_table(request):
@@ -1377,6 +1370,7 @@ def tc_table(request):
 
     return render(request, 'partials/gradebook/report_card_table.html', context)
 
+
 @login_required
 def tc_edit(request, pk):
     # 1. Get the reference detail to find the 'Head' assignment
@@ -1387,7 +1381,7 @@ def tc_edit(request, pk):
     # # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
     # # This fixes the issue where only 1 student shows up.
     # active_members = CourseMember.objects.filter(course=current_subject.id, is_active=True)
-    
+
     # for member in active_members:
     #     # Create a blank row (score=0) if it doesn't exist yet
     #     ReportcardGrade.objects.get_or_create(
@@ -1413,12 +1407,12 @@ def tc_edit(request, pk):
             # Include all fields you plan to use in the factory
             fields = ('subject', 'final_score', 'final_grade', 'teacher_notes')
             widgets = {
-            'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-            'subject': forms.HiddenInput(),
-            'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
-            'final_grade': forms.Select(attrs={'class': 'form-select'}),
-            'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-        }
+                'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+                'subject': forms.HiddenInput(),
+                'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
+                'final_grade': forms.Select(attrs={'class': 'form-select'}),
+                'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+            }
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -1440,17 +1434,17 @@ def tc_edit(request, pk):
         formset = ReportCardGradeFormset(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
-            return redirect('report-card-table') # Make sure this URL name is correct in urls.py
+            return redirect('report-card-table')  # Make sure this URL name is correct in urls.py
         else:
             print(formset.errors)
     else:
         formset = ReportCardGradeFormset(queryset=queryset)
 
-
     return render(request, 'partials/gradebook/report_card_edit.html', {
         'formset': formset,
         'parent_head': parent_head
     })
+
 
 def tc_del(request, pk):
     src = get_object_or_404(StudentReportcard, pk=pk)
@@ -1466,12 +1460,10 @@ def tc_del(request, pk):
     return render(request, 'partials/gradebook/grade_entry_delconf.html')
 
 
-
-
 @login_required
 def toggle_na_reason(request):
     form_index = request.GET.get('form_index', '0')
-    
+
     # Find the na_reason field name from the request
     na_reason_keys = [k for k in request.GET.keys() if k.endswith('-na_reason')]
     if na_reason_keys:
@@ -1480,12 +1472,12 @@ def toggle_na_reason(request):
     else:
         na_reason_name = f'2-{form_index}-na_reason'
         na_reason_value = request.GET.get(na_reason_name, '')
-    
+
     # Get the is_active value
     is_active_name = na_reason_name.replace('-na_reason', '-is_active')
     is_active_value = request.GET.get(is_active_name, '')
     is_active = is_active_value == 'on'
-    
+
     if is_active:
         input_html = f'''
         <input id="na_reason_input_{form_index}"
@@ -1519,7 +1511,7 @@ StudentListFormSet = formset_factory(StudentListForm, formset=StudentListFormSet
 class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
     # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
     template_name = "partials/gradebook/rubric_entry.html"
-    
+
     form_list = [
         ("0", RubricEntryForm),
         ("1", StudentListFormSet)
@@ -1589,12 +1581,12 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        
+
         if self.steps.current == '1':
             data_step0 = self.get_cleaned_data_for_step('0')
             if data_step0:
                 context['selected_kelas'] = data_step0.get('kelas')
-        
+
         if self.steps.current == '0':
             acayear = AcademicYear.objects.all()
             period = LearningPeriod.objects.all().select_related('academic_year')
@@ -1604,7 +1596,7 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = period
             context['selected_kelas'] = kelas
             context['selected_level'] = level
-                
+
         return context
 
     def done(self, form_list, **kwargs):
@@ -1638,7 +1630,7 @@ def get_kelas_rubric(request):
         kelas = Class.objects.filter(is_home_class=True, id=class_id)
     else:
         kelas = Class.objects.none()
-    
+
     return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", {'kelas': kelas})
 
 
@@ -1651,7 +1643,7 @@ def student_behavior_grading(request, pk):
         return HttpResponse("Student not found", status=404)
 
     # Get data from the first step of the Rubric Entry form (from session)
-    wizard_key = 'wizard_rubric_entry_wizard' 
+    wizard_key = 'wizard_rubric_entry_wizard'
     wizard_data = request.session.get(wizard_key, {})
     step_data = wizard_data.get('step_data', {})
     step0_data = step_data.get('0', {})
@@ -1669,7 +1661,7 @@ def student_behavior_grading(request, pk):
         # 3. Return the string ID if it exists
         if val:
             return val
-            
+
         return fallback
 
     academic_year_id = get_pk_from_step0('academic_year', request.GET.get('academic_year'))
@@ -1752,7 +1744,7 @@ def student_behavior_grading(request, pk):
 # EXTRA REPORT FORM LOGIC
 class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/gradebook/report_extra.html"
-    
+
     form_list = [
         ("0", ExtraGradeItemForm),
         ("1", StudentListFormSet)
@@ -1760,7 +1752,7 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
-        
+
         # if step == '0':
         #     initial['academic_year'] = None
         #     initial['period'] = None
@@ -1769,29 +1761,28 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
         #     initial['course'] = None
         #     initial['assignment_type'] = None
 
-
         # Logika khusus untuk Step 2 (FormSet Siswa)
         if step == '1':
             # Ambil data dari Step 0 (RubricEntryForm)
             step0_data = self.get_cleaned_data_for_step('0')
             if step0_data and 'kelas' in step0_data:
                 kelas = step0_data['kelas']
-                
+
                 # Ambil semua siswa yang aktif di class tersebut
                 students = ClassMember.objects.filter(
-                    kelas=kelas, 
+                    kelas=kelas,
                     is_active=True
                 ).select_related('student')
-                
+
                 # Siapkan initial data (list of dicts) untuk FormSet
                 initial_list = []
                 for member in students:
                     initial_list.append({
-                        'student': member.student.id, # Untuk Hidden Field
+                        'student': member.student.id,  # Untuk Hidden Field
                         'is_active': member.is_active,
                     })
                 return initial_list
-        
+
         return initial
 
     def get_form_kwargs(self, step=None):
@@ -1828,7 +1819,7 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
             # --- DEBUG INFO: Send the full dictionaries to the template ---
             context['debug_cleaned'] = data_step0
             context['debug_raw'] = raw_step0_data
-        
+
         if self.steps.current == '0':
             acayear = AcademicYear.objects.all()
             period = LearningPeriod.objects.all().select_related('academic_year')
@@ -1838,7 +1829,7 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = period
             context['selected_kelas'] = kelas
             context['selected_level'] = level
-                
+
         return context
 
     def done(self, form_list, **kwargs):
@@ -1867,7 +1858,7 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
                     )
 
         return render(self.request, "partials/gradebook/finished_screen.html")
-    
+
 
 @login_required
 def student_act_extra_grading(request, pk):
@@ -1878,7 +1869,7 @@ def student_act_extra_grading(request, pk):
         return HttpResponse("Student not found", status=404)
 
     # Get data from the first step of the Rubric Entry form (from session)
-    wizard_key = 'wizard_rubric_entry_wizard' 
+    wizard_key = 'wizard_rubric_entry_wizard'
     wizard_data = request.session.get(wizard_key, {})
     step_data = wizard_data.get('step_data', {})
     step0_data = step_data.get('0', {})
@@ -1896,7 +1887,7 @@ def student_act_extra_grading(request, pk):
         # 3. Return the string ID if it exists
         if val:
             return val
-            
+
         return fallback
 
     academic_year_id = get_pk_from_step0('academic_year', request.GET.get('academic_year'))
@@ -1972,10 +1963,10 @@ def student_act_extra_grading(request, pk):
                 #                 rubric=rubric,
                 #                 defaults={'score': score_int}
                 #             )
-                        # except ValueError:
-                        #     # Ignore if they somehow bypassed frontend validation and submitted text
-                        #     pass
-                            # --- NEW SAVING LOGIC END ---
+                # except ValueError:
+                #     # Ignore if they somehow bypassed frontend validation and submitted text
+                #     pass
+                # --- NEW SAVING LOGIC END ---
 
         # 3. Define the wizard's session key
         wizard_key = 'wizard_rubric_entry_wizard'
@@ -2002,6 +1993,7 @@ def student_act_extra_grading(request, pk):
         # 'score_choices' is no longer needed since we are using a textbox
     }
     return render(request, 'partials/gradebook/report_extra_extrac_grade.html', context)
+
 
 def student_act_other_grading(request, pk):
     """View for grading individual student behavior using rubrics and indicators"""
@@ -2140,11 +2132,12 @@ def student_act_other_grading(request, pk):
 def get_kelas_extra(request):
     class_id = request.GET.get('class_id')
     if class_id:
-        kelas = Class.objects.filter(is_activity=True)
+        kelas = Class.objects.all().filter(is_activity=True).distinct().filter(id=class_id)
     else:
         kelas = Class.objects.none()
-    
-    return render(request, "partials/gradebook/report_extra_partials/kelas.html", {'kelas': kelas})
+
+    return render(request, "partials/gradebook/reportextra_partials/kelas.html", {'kelas': kelas})
+
 
 def get_period_extra(request):
     ay_id = request.GET.get('academic_year_id')
@@ -2152,23 +2145,24 @@ def get_period_extra(request):
         periods = LearningPeriod.objects.filter(academic_year_id=ay_id)
     else:
         periods = LearningPeriod.objects.none()
-    
-    return render(request, "partials/gradebook/report_extra_partials/period.html", {'periods': periods})
+
+    return render(request, "partials/gradebook/reportextra_partials/period.html", {'periods': periods})
+
 
 def get_level_extra(request):
     levels = GradeLevel.objects.all()
     context = {'levels': levels}
-    return render(request, "partials/gradebook/report_extra_partials/level.html", context)
+    return render(request, "partials/gradebook/reportextra_partials/level.html", context)
+
 
 def get_extra_type(request):
-    extra_types = StudentReportExtra.objects.all().values_list('extra_type', 'get_extra_type_display').distinct()
-    context = {'extra_types': extra_types}
+    extra_type = Subject.objects.filter(is_activity=True)
+    context = {'extra_type': extra_type}
     return render(request, "partials/gradebook/reportextra_partials/extra_type.html", context)
 
 
-
 # Grades List Entry
-    
+
 
 class GradesWizard(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/gradebook/grades_wizard.html"
@@ -2203,7 +2197,7 @@ class GradesWizard(LoginRequiredMixin, SessionWizardView):
                         coursemember__course__in=courses,
                         coursemember__is_active=True
                     ).distinct().order_by('id')
-                    
+
                     # For each student, create initial data
                     initial_list = []
                     for student in students:
@@ -2227,7 +2221,7 @@ class GradesWizard(LoginRequiredMixin, SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        
+
         # Get cleaned data from step 0 if available
         step0_data = self.get_cleaned_data_for_step('0')
         if step0_data:
@@ -2236,7 +2230,7 @@ class GradesWizard(LoginRequiredMixin, SessionWizardView):
             context['selected_level'] = step0_data.get('level')
             context['selected_subject'] = step0_data.get('subject')
             context['selected_is_mid'] = step0_data.get('is_mid')
-        
+
         return context
 
     def done(self, form_list, **kwargs):
@@ -2445,8 +2439,8 @@ def get_level_extra_info(request):
     return render(request, "partials/gradebook/extrainfo_partials/level.html", context)
 
 
-def get_extra_type_info(request):
-    extra_types = StudentReportExtra.objects.all().values_list('extra_type', 'get_extra_type_display').distinct()
-    context = {'extra_types': extra_types}
-    return render(request, "partials/gradebook/extrainfo_partials/extra_type.html", context)
+def get_act_subj(request):
+    act_subj = Subject.objects.all().filter(is_activity=True)
+    context = {'act_subj': act_subj}
+    return render(request, "partials/gradebook/extrainfo_partials/act_subj.html", context)
 # a

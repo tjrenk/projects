@@ -1095,13 +1095,13 @@ class ExtraGradeItemForm(forms.ModelForm):
     )
     
     kelas = forms.ModelChoiceField(
-        queryset=Class.objects.none(),
+        queryset=Class.objects.filter(is_activity=True),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
 
-    extra_type = forms.ChoiceField(
-        choices=EXTRA_GRADE_TYPE_CHOICES,
+    act_subj = forms.ModelChoiceField(
+        queryset=Subject.objects.filter(is_activity=True),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
@@ -1123,7 +1123,7 @@ class ExtraGradeItemForm(forms.ModelForm):
         period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
         kelas = data.get('0-kelas') or initial.get('kelas')
-        ext_type = data.get('0-extra_type') or initial.get('extra_type')
+        act_subj = data.get('0-act_subj') or initial.get('act_subj')
         
         # Period depends on Academic Year
         if acayear:
@@ -1139,7 +1139,7 @@ class ExtraGradeItemForm(forms.ModelForm):
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
-            self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher, is_activity=True).distinct()
+            self.fields['kelas'].queryset = Class.objects.all()
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
@@ -1181,7 +1181,7 @@ class ExtraGradeItemForm(forms.ModelForm):
             'class': 'custom-select mb-4',
         })
 
-        self.fields['extra_type'].widget.attrs.update({
+        self.fields['act_subj'].widget.attrs.update({
             'id': 'extra-type-select',
             'class': 'custom-select mb-4',
         })
@@ -1487,7 +1487,6 @@ class ExtraInfoItemForm(forms.ModelForm):
 
     extra_type = forms.ChoiceField(
         choices=EXTRA_INFO_TYPE_CHOICES,
-        required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
 

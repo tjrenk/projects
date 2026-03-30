@@ -54,6 +54,7 @@ urlpatterns = [
 
     # EXTRA INFO
     path('extra-info/', views.ExtraInfoWizard.as_view(), name='extra-info'),
+    path('get-act-subj/', views.get_act_subj, name='get-act-subj'),
 
     # GRADES WIZARD
     path('grades-wizard/', views.GradesWizard.as_view(), name='grades-wizard'),
