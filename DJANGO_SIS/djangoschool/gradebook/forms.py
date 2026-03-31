@@ -773,7 +773,7 @@ class RequestLogForm(BaseReportForm, forms.Form):
             self.fields['level'].queryset = GradeLevel.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
-            self.fields['level'].queryset = GradeLevel.objects.none()
+            # self.fields['level'].queryset = GradeLevel.objects.none()
 
 
         # self.fields["start_date"].widget.is_hidden = True
@@ -1147,20 +1147,20 @@ class ExtraGradeItemForm(forms.ModelForm):
         self.fields['academic_year'].widget.attrs.update({
             'id': 'rubric-acayear-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-period-ge/',
+            'hx-get': '/gradebook/get-period-extra/',
             'hx-trigger': 'change',
             'hx-target': '#rubric-period-select',
             'hx-swap': 'innerHTML',
         })
 
-        self.fields['period'].widget.attrs.update({
-            'id': 'rubric-period-select',
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-teachers-ge/',
-            'hx-trigger': 'change',
-            'hx-target': '#rubric-teacher-select',
-            'hx-swap': 'innerHTML',
-        })
+        # self.fields['period'].widget.attrs.update({
+        #     'id': 'rubric-period-select',
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-teachers-extra/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#rubric-teacher-select',
+        #     'hx-swap': 'innerHTML',
+        # })
 
         self.fields['level'].widget.attrs.update({
             'id': 'rubric-level-select',
@@ -1170,7 +1170,7 @@ class ExtraGradeItemForm(forms.ModelForm):
         self.fields['teacher'].widget.attrs.update({
             'id': 'rubric-teacher-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-kelas-ge/',
+            'hx-get': '/gradebook/get-kelas-extra/',
             'hx-trigger': 'change',
             'hx-target': '#rubric-kelas-select',
             'hx-swap': 'innerHTML',
