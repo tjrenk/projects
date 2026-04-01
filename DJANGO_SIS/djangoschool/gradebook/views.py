@@ -1908,7 +1908,7 @@ def student_act_extra_grading(request, pk):
         academic_year = period = level = None
 
     # Get all rubrics for this academic year (both Spiritual and Social)
-    activities = Subject.objects.filter(is_activity=True, course__coursemember__student=student).distinct()
+    activities = Subject.objects.filter(is_activity=True)
 
     # 1. Fetch the Behaviour container if it already exists
     behaviour = None
@@ -1921,7 +1921,7 @@ def student_act_extra_grading(request, pk):
         ).first()
 
     # 2. Get all rubrics (convert to list so we can inject temporary attributes)
-    activities = list(Subject.objects.filter(is_activity=True, course__coursemember__student=student).distinct())
+    activities = list(Subject.objects.filter(is_activity=True))
 
     # 3. Create a dictionary of existing scores {rubric_id: score}
     existing_scores = {}
@@ -2142,7 +2142,7 @@ def get_kelas_extra(request):
 def get_period_extra(request):
     ay_id = request.GET.get('academic_year_id')
     if ay_id:
-        periods = LearningPeriod.objects.all()
+        periods = LearningPeriod.objects.filter(academic_year_id=ay_id)
     else:
         periods = LearningPeriod.objects.none()
 
