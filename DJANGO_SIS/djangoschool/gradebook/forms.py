@@ -1656,3 +1656,32 @@ class ExtraInfoListForm(ExtraInfoItemForm):
         return cleaned_data
 
 
+
+
+class TotalGradesForm(forms.ModelForm):
+    subject = forms.ModelChoiceField(
+        queryset=Subject.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.none(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+
+class TotalGradesTestList(TotalGradesForm):
+    def __init__(self, *args, **kwargs):
+        kelas = kwargs.pop('kelas', None)
+        form_kwargs_list = kwargs.pop('form_kwargs_list', None)
+        # Call parent init with remaining kwargs
+        super().__init__(*args, **kwargs)
+
+

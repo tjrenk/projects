@@ -2444,3 +2444,122 @@ def get_act_subj(request):
     context = {'act_subj': act_subj}
     return render(request, "partials/gradebook/extrainfo_partials/act_subj.html", context)
 # a
+
+
+class TotalGrading(LoginRequiredMixin, SessionWizardView):
+    template = "partials/gradebook/total_grade.html"
+
+    form_list = [
+        ("0", ExtraGradeItemForm),
+        ("1", StudentListFormSet)
+    ]
+
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+
+        # if step == '0':
+        #     initial['academic_year'] = None
+        #     initial['period'] = None
+        #     initial['teacher'] = None
+        #     initial['subject'] = None
+        #     initial['course'] = None
+        #     initial['assignment_type'] = None
+
+        # Logika khusus untuk Step 2 (FormSet Siswa)
+        if step == '1':
+            # Ambil data dari Step 0 (RubricEntryForm)
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data and 'kelas' in step0_data:
+                kelas = step0_data['kelas']
+
+                # Ambil semua siswa yang aktif di class tersebut
+                students = ClassMember.objects.filter(
+                    kelas=kelas,
+                    is_active=True
+                ).select_related('student')
+
+                # Siapkan initial data (list of dicts) untuk FormSet
+                initial_list = []
+                for member in students:
+                    initial_list.append({
+                        'student': member.student.id,  # Untuk Hidden Field
+                        'is_active': member.is_active,
+                    })
+                return initial_list
+
+        return initial
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '1':
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data and 'kelas' in step0_data:
+                kwargs['kelas'] = step0_data['kelas']
+            # Pass form_kwargs_list for each form in the formset
+            initial = self.get_form_initial(step)
+            kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
+        return kwargs
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+
+        if self.steps.current == '1':
+            data_step0 = self.get_cleaned_data_for_step('0') or {}
+
+            # Grab the raw, unadulterated POST data from Step 0
+            raw_step0_data = self.storage.get_step_data('0') or {}
+
+            if data_step0:
+                context['selected_kelas'] = data_step0.get('kelas')
+
+            # Try cleaned data first, but if it's None, bypass it and use the raw data
+            # (Raw data keys always use the step number as a prefix, hence '0-extra_type')
+            extra_val = data_step0.get('extra_type')
+            if not extra_val:
+                extra_val = raw_step0_data.get('0-extra_type')
+
+            context['selected_extra_type'] = extra_val
+
+            # --- DEBUG INFO: Send the full dictionaries to the template ---
+            context['debug_cleaned'] = data_step0
+            context['debug_raw'] = raw_step0_data
+
+        if self.steps.current == '0':
+            acayear = AcademicYear.objects.all()
+            period = LearningPeriod.objects.all().select_related('academic_year')
+            kelas = Class.objects.all()
+            level = GradeLevel.objects.all()
+            context['selected_acayear'] = acayear
+            context['selected_period'] = period
+            context['selected_kelas'] = kelas
+            context['selected_level'] = level
+
+        return context
+
+    def done(self, form_list, **kwargs):
+        # Ambil data dari form yang sudah divalidasi
+        form_data_0 = form_list[0].cleaned_data
+        formset_data_1 = form_list[1]
+
+        # Create ReportcardBehaviour
+        behaviour = ReportcardBehaviour.objects.create(
+            academic_year=form_data_0['academic_year'],
+            period=form_data_0['period'],
+            level=form_data_0['level'],
+            is_mid=False
+        )
+
+        # Create StudentBehaviourReport for each student and rubric
+        for form in formset_data_1:
+            if form.is_valid() and form.cleaned_data:
+                student = form.cleaned_data['student']
+                for rubric in Rubric.objects.all():
+                    StudentBehaviourReport.objects.create(
+                        student=student,
+                        behaviour=behaviour,
+                        rubric=rubric,
+                        score=0
+                    )
+
+        return render(self.request, "partials/gradebook/finished_screen.html")
+

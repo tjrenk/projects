@@ -59,6 +59,9 @@ urlpatterns = [
     # GRADES WIZARD
     path('grades-wizard/', views.GradesWizard.as_view(), name='grades-wizard'),
 
+    # TOTAL GRADES
+    path('total_grade/', views.TotalGrading.as_view(), name='total_grade'),
+
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
