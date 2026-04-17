@@ -1,7 +1,6 @@
 {% extends "base_gradebook.html" %}
 
 {% block content %}
-{% comment %} a {% endcomment %}
 <style>
 .sticky {
     position: sticky;
@@ -9,7 +8,7 @@
 </style>
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
 <div>
-<div class="collapse-title text-xl font-medium">Achievements Report Grade Form</div>
+<div class="collapse-title text-xl font-medium">Total Grade Entry</div>
 </div>
     {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
     <div class="col-md-8 offset-md-2">
@@ -20,7 +19,7 @@
         {% comment %} <table>
         <tr>
         <td>
-        <p>Academic year: </p>
+        <p>Subject: </p>
         </td>
         <td>
         {{ form.academic_year }}
@@ -79,61 +78,51 @@
 
                     {% if wizard.form.forms %}
                         <div class="table-responsive">
-                            <div class="alert alert-warning">
-    Seleksi penilaian jenis aktivitas adalah "{{ selected_extra_type }}"
-</div>
                             <table class="table table-hover table-bordered align-middle">
-                                <thead class="bg-base-200 rounded-md">
-                                    <tr>
-                                        <th style="width: 30%;">NISN</th>
-                                        <th style="width: 30%;">Name</th>
-                                        <th style="width: 40%;">Action</th>
-                                        <th style="width: 40%;">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for form in wizard.form %}
-                                    <tr>
-  {% for hidden in form.hidden_fields %}
-    {{ hidden }}  {# This will now include the student ID #}
-{% endfor %}
-<td>
-    {{ form.student_nisn }}
-</td>
-<td>
-    {{ form.student_name }}
-</td>
-<td>
-    {% if selected_extra_type == "EK" %}
+<thead class="bg-base-200 rounded-md">
+    <tr>
+        <th style="width: 25%;">NISN</th>
+        <th style="width: 35%;">Name</th>
+        <th style="width: 20%;">Status</th>
+        <th style="width: 20%;">Action</th>
+    </tr>
+</thead>
+<tbody>
+    {% for form in wizard.form %}
+    <tr>
+        {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+        {% endfor %}
+        <td>
+            {{ form.student_nisn }}
+        </td>
+        <td>
+            {{ form.student_name }}
+        </td>
 
-        <a href="{% url 'report_extrac' pk=form.initial.student %}" class="btn btn-sm btn-outline-primary">
-            Start Extracurricular
-        </a>
+        <td>
+            {% if form.initial.is_graded %}
+                <span class="badge badge-success text-white">Graded</span>
+            {% else %}
+                <span class="badge badge-warning">Pending</span>
+            {% endif %}
 
-    {% else %}
+            <div class="hidden">{{ form.is_graded }}</div>
+        </td>
 
-        <a href="{% url 'report_other' pk=form.initial.student %}" class="btn btn-sm btn-outline-secondary">
-            Start Other
-        </a>
-
-    {% endif %}
-</td>
-
-
-
-                                        {% comment %} <td>
-                                            {{ form.na_reason }}
-                                            {% if form.na_reason.errors %}
-                                                <div class="text-danger small">{{ form.na_reason.errors }}</div>
-                                            {% endif %}
-                                        </td>
-
-                                        <td class="text-center">
-                                            {{ form.is_active }}
-                                        </td> {% endcomment %}
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
+        <td>
+            <a href="{% url 'student-behavior-grading' pk=form.student.value %}"
+               class="btn btn-sm {% if form.initial.is_graded %}btn-outline btn-secondary{% else %}btn-outline btn-primary{% endif %}">
+                {% if form.initial.is_graded %}
+                    Edit
+                {% else %}
+                    Start
+                {% endif %}
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
                             </table>
                         </div>
 
@@ -157,20 +146,20 @@
                                 {% if wizard.steps.current == '0' %}
                                     <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                         <div class="mb-1 basis-full md:flex-1">
-                                            {{ wizard.form.academic_year.label }}
-                                            {{ wizard.form.academic_year }}
+                                            {{ wizard.form.subject.label }}
+                                            {{ wizard.form.subject }}
                                             <div class="error">
-                                                {{ wizard.form.academic_year.errors }}
+                                                {{ wizard.form.subject.errors }}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                         <div class="mb-1 basis-full md:flex-1">
-                                            {{ wizard.form.level.label }}
-                                            {{ wizard.form.level }}
+                                            {{ wizard.form.academic_year.label }}
+                                            {{ wizard.form.academic_year }}
                                             <div class="error">
-                                                {{ wizard.form.level.errors }}
+                                                {{ wizard.form.academic_year.errors }}
                                             </div>
                                         </div>
                                     </div>
@@ -185,33 +174,14 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                        <div class="mb-1 basis-full md:flex-1">
-                                            {{ wizard.form.teacher.label }}
-                                            {{ wizard.form.teacher }}
-                                            <div class="error">
-                                                {{ wizard.form.teacher.errors }}
-                                            </div>
-                                        </div>
-                                    </div>
 
                                     <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                         <div class="mb-1 basis-full md:flex-1">
-                                            {{ wizard.form.kelas.label }}
-                                            {{ wizard.form.kelas }}
+                                            {{ wizard.form.is_mid.label }}
+                                            {{ wizard.form.is_mid }}
                                             <div class="error">
-                                                {{ wizard.form.kelas.errors }}
+                                                {{ wizard.form.is_mid.errors }}
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                        <div class="mb-1 basis-full md:flex-1">
-                                            {{ wizard.form.extra_type.label }}
-                                            {{ wizard.form.extra_type }}
-                                            <div class="error">
-                                                {{ wizard.form.extra_type.errors }}
-                                            </div>                                            </div>
                                         </div>
                                     </div>
                                 {% endif %}

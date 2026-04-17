@@ -61,6 +61,9 @@ urlpatterns = [
 
     # TOTAL GRADES
     path('total_grade/', views.TotalGrading.as_view(), name='total_grade'),
+    path('get-subject-tgrade/', views.get_subject_totalg, name='get-subject-tgrade'),
+    path('get-academic_year-tgrade/', views.get_academic_year_totalg, name='get-academic_year-tgrade'),
+    # path('get-period-tgrade/', views.get_period_totalg, name='get-period_tgrade'),
 
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),

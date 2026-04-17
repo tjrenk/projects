@@ -2447,43 +2447,56 @@ def get_act_subj(request):
 
 
 class TotalGrading(LoginRequiredMixin, SessionWizardView):
-    template = "partials/gradebook/total_grade.html"
+    template_name = "partials/gradebook/total_grade.html"
 
     form_list = [
-        ("0", ExtraGradeItemForm),
+        ("0", TotalGradesForm),
         ("1", StudentListFormSet)
     ]
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
 
-        # if step == '0':
-        #     initial['academic_year'] = None
-        #     initial['period'] = None
-        #     initial['teacher'] = None
-        #     initial['subject'] = None
-        #     initial['course'] = None
-        #     initial['assignment_type'] = None
-
-        # Logika khusus untuk Step 2 (FormSet Siswa)
         if step == '1':
-            # Ambil data dari Step 0 (RubricEntryForm)
             step0_data = self.get_cleaned_data_for_step('0')
             if step0_data and 'kelas' in step0_data:
                 kelas = step0_data['kelas']
+                academic_year = step0_data.get('academic_year')
+                period = step0_data.get('period')
+                level = step0_data.get('level')
 
-                # Ambil semua siswa yang aktif di class tersebut
+                # 1. Check the DB to see who is already graded
+                graded_student_ids = []
+                if academic_year and period and level:
+                    # Find the grading container for this term
+                    behaviour = ReportcardBehaviour.objects.filter(
+                        academic_year=academic_year,
+                        period=period,
+                        level=level,
+                        is_mid=False
+                    ).first()
+
+                    if behaviour:
+                        # Extract a flat list of student IDs that have at least one score
+                        graded_student_ids = list(StudentBehaviourReport.objects.filter(
+                            behaviour=behaviour
+                        ).values_list('student_id', flat=True).distinct())
+
+                # 2. Get all students active in this class
                 students = ClassMember.objects.filter(
                     kelas=kelas,
                     is_active=True
                 ).select_related('student')
 
-                # Siapkan initial data (list of dicts) untuk FormSet
+                # 3. Populate initial data for the FormSet
                 initial_list = []
                 for member in students:
+                    student_id = member.student.id
                     initial_list.append({
-                        'student': member.student.id,  # Untuk Hidden Field
+                        'student': student_id,
                         'is_active': member.is_active,
+                        # The Magic Switch: True if they are in the graded list
+                        'is_graded': student_id in graded_student_ids,
                     })
                 return initial_list
 
@@ -2504,25 +2517,9 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
         context = super().get_context_data(form=form, **kwargs)
 
         if self.steps.current == '1':
-            data_step0 = self.get_cleaned_data_for_step('0') or {}
-
-            # Grab the raw, unadulterated POST data from Step 0
-            raw_step0_data = self.storage.get_step_data('0') or {}
-
+            data_step0 = self.get_cleaned_data_for_step('0')
             if data_step0:
                 context['selected_kelas'] = data_step0.get('kelas')
-
-            # Try cleaned data first, but if it's None, bypass it and use the raw data
-            # (Raw data keys always use the step number as a prefix, hence '0-extra_type')
-            extra_val = data_step0.get('extra_type')
-            if not extra_val:
-                extra_val = raw_step0_data.get('0-extra_type')
-
-            context['selected_extra_type'] = extra_val
-
-            # --- DEBUG INFO: Send the full dictionaries to the template ---
-            context['debug_cleaned'] = data_step0
-            context['debug_raw'] = raw_step0_data
 
         if self.steps.current == '0':
             acayear = AcademicYear.objects.all()
@@ -2537,29 +2534,50 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
         return context
 
     def done(self, form_list, **kwargs):
-        # Ambil data dari form yang sudah divalidasi
         form_data_0 = form_list[0].cleaned_data
-        formset_data_1 = form_list[1]
 
-        # Create ReportcardBehaviour
-        behaviour = ReportcardBehaviour.objects.create(
+        # 1. Safely get or create the Behaviour container
+        # (Just in case they clicked 'Submit' without grading anyone yet)
+        behaviour, created = ReportcardBehaviour.objects.get_or_create(
             academic_year=form_data_0['academic_year'],
             period=form_data_0['period'],
             level=form_data_0['level'],
             is_mid=False
         )
 
-        # Create StudentBehaviourReport for each student and rubric
-        for form in formset_data_1:
-            if form.is_valid() and form.cleaned_data:
-                student = form.cleaned_data['student']
-                for rubric in Rubric.objects.all():
-                    StudentBehaviourReport.objects.create(
-                        student=student,
-                        behaviour=behaviour,
-                        rubric=rubric,
-                        score=0
-                    )
+        # 2. DO NOT create score=0 entries here if the individual
+        # grading view is already handling the database saves!
+        # We can just leave this empty, or use it to mark the class as "Finalized"
+        # if you have a status field on ReportcardBehaviour.
 
-        return render(self.request, "partials/gradebook/finished_screen.html")
+        # 3. Add a success message
+        messages.success(self.request, "Class behavior grading has been finalized!")
 
+        # 4. Redirect to wherever you want them to go next
+        # (e.g., the main gradebook index or a specific table)
+        return redirect('rubric-entry')
+
+def get_subject_totalg(request):
+    subject_id = request.GET.get('subject_id')
+    if subject_id:
+        subject = Subject.objects.all()
+    else:
+        subject = Subject.objects.none()
+
+    return render(request, "partials/gradebook/totalgrade_partials/subject.html", {'subject': subject})
+
+
+def get_academic_year_totalg(request):
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    if acayear_id:
+        periods = LearningPeriod.objects.filter(academic_year_id=ay_id)
+    else:
+        periods = LearningPeriod.objects.none()
+
+    return render(request, "partials/gradebook/totalgrade_partials/academic_year.html", {'periods': periods})
+
+
+# def get_period_extra_info(request):
+#     period = GradeLevel.objects.all()
+#     context = {'levels': levels}
+#     return render(request, "partials/gradebook/extrainfo_partials/level.html", context)

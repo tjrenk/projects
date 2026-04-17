@@ -1666,7 +1666,7 @@ class TotalGradesForm(forms.ModelForm):
     )
 
     academic_year = forms.ModelChoiceField(
-        queryset=AcademicYear.objects.all(),
+        queryset=AcademicYear.objects.none(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
@@ -1677,11 +1677,153 @@ class TotalGradesForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
 
-class TotalGradesTestList(TotalGradesForm):
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
+    class Meta:
+        model = ReportcardBehaviour
+        fields = ['subject', 'academic_year', 'period']
+
     def __init__(self, *args, **kwargs):
-        kelas = kwargs.pop('kelas', None)
-        form_kwargs_list = kwargs.pop('form_kwargs_list', None)
-        # Call parent init with remaining kwargs
         super().__init__(*args, **kwargs)
+
+        data = self.data
+        initial = self.initial
+
+        subject = data.get('0-subject') or initial.get('subject')
+        acayear = data.get('0-acayear') or initial.get('acayear')
+        period = data.get('0-period') or initial.get('period')
+        is_mid = data.get('0-is_mid') or initial.get('is_mid')
+
+        # Period depends on Academic Year
+        if subject:
+            self.fields['acayear'].queryset = AcademicYear.objects.all()
+        else:
+            self.fields['acayear'].queryset = AcademicYear.objects.none()
+
+        # Teacher depends on Period
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.all()
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+
+
+
+        # HTMX Attributes for dynamic cascading
+        self.fields['subject'].widget.attrs.update({
+            'id': 'rubric-period-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-academic_year-tgrade/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-teacher-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'rubric-acayear-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-tgrade/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-period-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'id': 'rubric-period-select',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['is_mid'].widget.attrs.update({
+            'id': 'rubric-level-select',
+            'class': 'form-check-input',
+        })
+
+class TotalGradesTestList(TotalGradesForm):
+    student_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
+    )
+
+    student_nisn = forms.CharField(
+        required=False,
+        # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
+        widget=PlainTextWidget
+    )
+
+    is_graded = forms.BooleanField(required=False, disabled=True)
+
+    class Meta:
+        model = AssignmentDetail
+        # YOU MUST INCLUDE 'student' HERE
+        fields = ['student', 'score']
+        widgets = {
+            'student': forms.HiddenInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        student_obj = kwargs.pop('student', None)
+        super().__init__(*args, **kwargs)
+
+        # 1. SETUP STUDENT NAME (Keep your existing logic)
+        student_obj = None
+        if self.instance and hasattr(self.instance, 'student'):
+            student_obj = self.instance.student
+        elif self.initial.get('student'):
+            from admission.models import Student
+            try:
+                student_obj = Student.objects.get(pk=self.initial['student'])
+            except Student.DoesNotExist:
+                pass
+
+        if student_obj:
+            self.fields['student_name'].initial = str(student_obj)
+
+        # 2. DETERMINE IS_ACTIVE STATUS (The Fix)
+        # Default to True (active) unless we find otherwise
+        if self.is_bound:
+            # CASE A: User clicked Save/Next. Look at POST data.
+            # We construct the HTML name of the checkbox: "{prefix}-is_active"
+            checkbox_name = f"{self.prefix}-is_active"
+
+            # In HTML, an unchecked box sends NO data. A checked box sends data.
+            # So, if the key exists in self.data, it is True. If missing, it is False.
+            self.current_is_active = checkbox_name in self.data
+        else:
+            # CASE B: First page load. Look at Database/Initial.
+            if self.instance and self.instance.pk:
+                self.current_is_active = self.instance.is_active
+            else:
+                self.current_is_active = self.initial.get('is_active', True)
+
+        # 3. Calculate the Name
+        if student_obj:
+            # Access the related Registration table
+            # We use getattr in case the relationship is missing (prevents crash)
+            reg_data = getattr(student_obj, 'registration_data', None)
+
+            if reg_data:
+                first = reg_data.first_name or ""
+                middle = reg_data.middle_name or ""
+                last = reg_data.last_name or ""
+
+                # Logic: If middle name exists, add it with spaces
+                full_name = f"{first} {middle} {last}".strip()
+
+                # Assign to the readonly field
+                self.fields['student_name'].initial = full_name
+            self.fields['student_nisn'].initial = student_obj.nisn
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_active = cleaned_data.get('is_active')
+        na_reason = cleaned_data.get('na_reason')
+
+        # Logic: If inactive (False) AND reason is empty, raise error
+        if is_active is False and not na_reason:
+            self.add_error('na_reason', "Reason is required when item is inactive.")
+
+        return cleaned_data
 
 
