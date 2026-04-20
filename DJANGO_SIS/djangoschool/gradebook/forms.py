@@ -1693,21 +1693,25 @@ class TotalGradesForm(forms.ModelForm):
         initial = self.initial
 
         subject = data.get('0-subject') or initial.get('subject')
-        acayear = data.get('0-acayear') or initial.get('acayear')
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
         period = data.get('0-period') or initial.get('period')
         is_mid = data.get('0-is_mid') or initial.get('is_mid')
 
         # Period depends on Academic Year
-        if subject:
-            self.fields['acayear'].queryset = AcademicYear.objects.all()
-        else:
-            self.fields['acayear'].queryset = AcademicYear.objects.none()
+        # if subject:
+        #     self.fields['academic_year'].queryset = AcademicYear.objects.all()
+        # else:
+        #     self.fields['academic_year'].queryset = AcademicYear.objects.none()
+
+        self.fields['academic_year'].queryset = AcademicYear.objects.all()
 
         # Teacher depends on Period
-        if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.all()
-        else:
-            self.fields['period'].queryset = LearningPeriod.objects.none()
+        # if acayear:
+        #     self.fields['period'].queryset = LearningPeriod.objects.all()
+        # else:
+        #     self.fields['period'].queryset = LearningPeriod.objects.none()
+
+        self.fields['period'].queryset = LearningPeriod.objects.all()
 
 
 
@@ -1715,19 +1719,19 @@ class TotalGradesForm(forms.ModelForm):
         self.fields['subject'].widget.attrs.update({
             'id': 'rubric-period-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-academic_year-tgrade/',
-            'hx-trigger': 'change',
-            'hx-target': '#rubric-teacher-select',
-            'hx-swap': 'innerHTML',
+            # 'hx-get': '/gradebook/get-academic_year-tgrade/',
+            # 'hx-trigger': 'change',
+            # 'hx-target': '#rubric-teacher-select',
+            # 'hx-swap': 'innerHTML',
         })
 
         self.fields['academic_year'].widget.attrs.update({
             'id': 'rubric-acayear-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-period-tgrade/',
-            'hx-trigger': 'change',
-            'hx-target': '#rubric-period-select',
-            'hx-swap': 'innerHTML',
+            # 'hx-get': '/gradebook/get-period-tgrade/',
+            # 'hx-trigger': 'change',
+            # 'hx-target': '#rubric-period-select',
+            # 'hx-swap': 'innerHTML',
         })
 
         self.fields['period'].widget.attrs.update({

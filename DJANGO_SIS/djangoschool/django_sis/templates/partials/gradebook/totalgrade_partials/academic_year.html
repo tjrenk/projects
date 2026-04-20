@@ -1,4 +1,4 @@
 <option value="">Select Academic Year</option>
 {% for year in ac_years %}
-    <option value="{{ year.id }}" {% if selected_course and course.id|stringformat:"s" == selected_course %}selected{% endif %}>{{ course }}</option>
+    <option value="{{ year.id }}" {% if selected_subject and subject.id|stringformat:"s" == selected_subject %}selected{% endif %}>{{ subject }}</option>
 {% endfor %}

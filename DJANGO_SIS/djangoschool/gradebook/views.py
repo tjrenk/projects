@@ -2280,7 +2280,8 @@ class GradesWizard(LoginRequiredMixin, SessionWizardView):
                     }
                 )
 
-        return HttpResponseRedirect('/gradebook/')
+        messages.success(self.request, "Grades have been successfully saved!")
+        return redirect('grades-wizard')
 
 
 def get_period_grades(request):
@@ -2461,18 +2462,18 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
             step0_data = self.get_cleaned_data_for_step('0')
             if step0_data and 'kelas' in step0_data:
                 kelas = step0_data['kelas']
+                subject = step0_data.get('subject')
                 academic_year = step0_data.get('academic_year')
                 period = step0_data.get('period')
-                level = step0_data.get('level')
 
                 # 1. Check the DB to see who is already graded
                 graded_student_ids = []
-                if academic_year and period and level:
+                if academic_year and period and subject:
                     # Find the grading container for this term
                     behaviour = ReportcardBehaviour.objects.filter(
                         academic_year=academic_year,
                         period=period,
-                        level=level,
+                        subject=subject,
                         is_mid=False
                     ).first()
 
@@ -2569,15 +2570,16 @@ def get_subject_totalg(request):
 
 def get_academic_year_totalg(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
-    if acayear_id:
-        periods = LearningPeriod.objects.filter(academic_year_id=ay_id)
+    selected_subject = request.GET.get('0-subject') or request.GET.get('subject')
+    if selected_subject:
+        acayear_id = AcademicYear.objects.all()
     else:
-        periods = LearningPeriod.objects.none()
+        acayear_id = AcademicYear.objects.none()
 
     return render(request, "partials/gradebook/totalgrade_partials/academic_year.html", {'periods': periods})
 
 
-# def get_period_extra_info(request):
-#     period = GradeLevel.objects.all()
-#     context = {'levels': levels}
-#     return render(request, "partials/gradebook/extrainfo_partials/level.html", context)
+def get_period_tgrade(request):
+    period = LearningPeriod.objects.all()
+    context = {'period': period}
+    return render(request, "partials/gradebook/totalgrade_partials/period.html", context)
