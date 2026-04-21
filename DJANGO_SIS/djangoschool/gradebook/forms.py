@@ -36,11 +36,30 @@ class GradeEntryForm(forms.ModelForm):
         fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_type"]
         
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        # 1. FIX: Must check for the wizard prefix '0-'
         data = self.data
         initial = self.initial
+
+        # Default Logic for Logged-in Teacher
+        if user and not self.is_bound:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+            if teacher_obj:
+                self.initial['teacher'] = teacher_obj.id
+                
+                # Filter and potentially default Subject
+                teacher_subjects = Subject.objects.filter(course__teacher=teacher_obj).distinct()
+                if teacher_subjects.count() == 1:
+                    self.initial['subject'] = teacher_subjects.first().id
+
+            # Default to the most recent Academic Year and Period
+            curr_ay = AcademicYear.objects.order_by('-id').first()
+            if curr_ay:
+                self.initial['academic_year'] = curr_ay.id
+                curr_period = LearningPeriod.objects.filter(academic_year=curr_ay).order_by('-id').first()
+                if curr_period:
+                    self.initial['period'] = curr_period.id
         
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
@@ -63,7 +82,7 @@ class GradeEntryForm(forms.ModelForm):
 
         # 3. Logic: Teacher depends on Period
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.all()
+            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
@@ -531,23 +550,49 @@ class CourseByTeacher(forms.ModelForm):
         fields = ["subject", "course"]
         
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        
+        teacher_obj = None
+        if user:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+
         data = self.data
         initial = self.initial
         
-        # data.get must use the wizard prefix '1-', whatever that means
-        # kalo nggak ntar nggak bisa ke langkah 3
-        course = data.get('1-course') or initial.get('course')
-        subject = data.get('1-subject') or initial.get('subject')
-        if subject:
-            self.fields['course'].queryset = Course.objects.filter(subject_id=subject)
+        # Get currently selected/initial subject ID
+        # Using '1-' prefix for Wizard step 1
+        subject_id = data.get('1-subject') or initial.get('subject')
+
+        if teacher_obj:
+            # 1. Filter Subjects: Only subjects taught by this teacher
+            subj_qs = Subject.objects.filter(course__teacher=teacher_obj).distinct()
+            self.fields['subject'].queryset = subj_qs
+
+            # Default Subject: If only 1 subject exists and no data is bound yet
+            if not self.is_bound and subj_qs.count() == 1:
+                self.initial['subject'] = subj_qs.first().id
+                subject_id = self.initial['subject']
+
+            # 2. Filter Courses: Only courses taught by this teacher for the chosen subject
+            if subject_id:
+                course_qs = Course.objects.filter(teacher=teacher_obj, subject_id=subject_id)
+                self.fields['course'].queryset = course_qs
+                
+                # Default Course: If only 1 course exists for this subject
+                if not self.is_bound and course_qs.count() == 1:
+                    self.initial['course'] = course_qs.first().id
+            else:
+                self.fields['course'].queryset = Course.objects.none()
         else:
-            self.fields['course'].queryset = Course.objects.none()
+            # Fallback for admins or if no teacher profile is linked
+            if subject_id:
+                self.fields['course'].queryset = Course.objects.filter(subject_id=subject_id)
+            else:
+                self.fields['course'].queryset = Course.objects.none()
 
-        
-
-        
         self.fields['course'].required = False
+        
         self.fields['subject'].widget.attrs.update({
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-courses/',
@@ -841,10 +886,24 @@ class RubricEntryForm(forms.ModelForm):
         fields = ['academic_year', 'period', 'level']
     
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
         data = self.data
         initial = self.initial
+
+        # Default Logic
+        if user and not self.is_bound:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+            if teacher_obj:
+                self.initial['teacher'] = teacher_obj.id
+                
+            curr_ay = AcademicYear.objects.order_by('-id').first()
+            if curr_ay:
+                self.initial['academic_year'] = curr_ay.id
+                curr_period = LearningPeriod.objects.filter(academic_year=curr_ay).order_by('-id').first()
+                if curr_period:
+                    self.initial['period'] = curr_period.id
         
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
@@ -860,7 +919,7 @@ class RubricEntryForm(forms.ModelForm):
 
         # Teacher depends on Period
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.all()
+            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
@@ -1133,7 +1192,7 @@ class ExtraGradeItemForm(forms.ModelForm):
 
         # Teacher depends on Period
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.all()
+            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
@@ -1666,13 +1725,13 @@ class TotalGradesForm(forms.ModelForm):
     )
 
     academic_year = forms.ModelChoiceField(
-        queryset=AcademicYear.objects.none(),
+        queryset=AcademicYear.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
 
     period = forms.ModelChoiceField(
-        queryset=LearningPeriod.objects.none(),
+        queryset=LearningPeriod.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
@@ -1687,31 +1746,52 @@ class TotalGradesForm(forms.ModelForm):
         fields = ['subject', 'academic_year', 'period']
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
 
         data = self.data
         initial = self.initial
+
+        if user and not self.is_bound:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+            if teacher_obj:
+                self.initial['teacher'] = teacher_obj.id
+
+                # Filter and potentially default Subject
+                teacher_subjects = Subject.objects.filter(course__teacher=teacher_obj).distinct()
+                if teacher_subjects.count() == 1:
+                    self.initial['subject'] = teacher_subjects.first().id
+
+            # Default to the most recent Academic Year and Period
+            curr_ay = AcademicYear.objects.order_by('-id').first()
+            if curr_ay:
+                self.initial['academic_year'] = curr_ay.id
+                curr_period = LearningPeriod.objects.filter(academic_year=curr_ay).order_by('-id').first()
+                if curr_period:
+                    self.initial['period'] = curr_period.id
+
 
         subject = data.get('0-subject') or initial.get('subject')
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         period = data.get('0-period') or initial.get('period')
         is_mid = data.get('0-is_mid') or initial.get('is_mid')
 
-        # Period depends on Academic Year
-        # if subject:
-        #     self.fields['academic_year'].queryset = AcademicYear.objects.all()
-        # else:
-        #     self.fields['academic_year'].queryset = AcademicYear.objects.none()
+        self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=user).all()
 
-        self.fields['academic_year'].queryset = AcademicYear.objects.all()
+        # Period depends on Academic Year
+        if subject:
+            self.fields['academic_year'].queryset = AcademicYear.objects.all()
+        else:
+            self.fields['academic_year'].queryset = AcademicYear.objects.all()
+
 
         # Teacher depends on Period
-        # if acayear:
-        #     self.fields['period'].queryset = LearningPeriod.objects.all()
-        # else:
-        #     self.fields['period'].queryset = LearningPeriod.objects.none()
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.all()
 
-        self.fields['period'].queryset = LearningPeriod.objects.all()
 
 
 
@@ -1719,19 +1799,19 @@ class TotalGradesForm(forms.ModelForm):
         self.fields['subject'].widget.attrs.update({
             'id': 'rubric-period-select',
             'class': 'custom-select mb-4',
-            # 'hx-get': '/gradebook/get-academic_year-tgrade/',
-            # 'hx-trigger': 'change',
-            # 'hx-target': '#rubric-teacher-select',
-            # 'hx-swap': 'innerHTML',
+            'hx-get': '/gradebook/get-academic_year-tgrade/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-teacher-select',
+            'hx-swap': 'innerHTML',
         })
 
         self.fields['academic_year'].widget.attrs.update({
             'id': 'rubric-acayear-select',
             'class': 'custom-select mb-4',
-            # 'hx-get': '/gradebook/get-period-tgrade/',
-            # 'hx-trigger': 'change',
-            # 'hx-target': '#rubric-period-select',
-            # 'hx-swap': 'innerHTML',
+            'hx-get': '/gradebook/get-period-tgrade/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-period-select',
+            'hx-swap': 'innerHTML',
         })
 
         self.fields['period'].widget.attrs.update({
@@ -1829,5 +1909,3 @@ class TotalGradesTestList(TotalGradesForm):
             self.add_error('na_reason', "Reason is required when item is inactive.")
 
         return cleaned_data
-
-

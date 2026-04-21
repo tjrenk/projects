@@ -97,7 +97,7 @@ def course_list(request):
 @login_required
 def grade_entry(request):
     entry = GradeEntry.objects.get(pk=3)
-    form = GradeEntryForm(instance=entry)
+    form = GradeEntryForm(instance=entry, user=request.user)
     context = {'form': form}
     return render(request, "partials/gradebook/entry.html", context)
 
@@ -224,6 +224,8 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
     def get_form_kwargs(self, step=None):
         kwargs = super().get_form_kwargs(step)
+        if step == '0':
+            kwargs['user'] = self.request.user
         if step == '2':
             step1_data = self.get_cleaned_data_for_step('1')
             if step1_data and 'max_score' in step1_data:
@@ -683,6 +685,13 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         ("1", CourseByTeacher),
         ("2", ReportCardGradeFormset),
     ]
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        # Pass the logged-in user to the second step (CourseByTeacher form)
+        if step == '1':
+            kwargs['user'] = self.request.user
+        return kwargs
 
     # def get_template_names(self):
     #     return [self.templates[self.steps.current]]
@@ -1570,6 +1579,8 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 
     def get_form_kwargs(self, step=None):
         kwargs = super().get_form_kwargs(step)
+        if step == '0':
+            kwargs['user'] = self.request.user
         if step == '1':
             step0_data = self.get_cleaned_data_for_step('0')
             if step0_data and 'kelas' in step0_data:
@@ -2452,7 +2463,7 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
 
     form_list = [
         ("0", TotalGradesForm),
-        ("1", StudentListFormSet)
+        ("1", TotalGradesTestList)
     ]
 
     def get_form_initial(self, step):
@@ -2460,44 +2471,44 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
 
         if step == '1':
             step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data and 'kelas' in step0_data:
-                kelas = step0_data['kelas']
+            if step0_data:
                 subject = step0_data.get('subject')
                 academic_year = step0_data.get('academic_year')
                 period = step0_data.get('period')
 
                 # 1. Check the DB to see who is already graded
-                graded_student_ids = []
-                if academic_year and period and subject:
-                    # Find the grading container for this term
-                    behaviour = ReportcardBehaviour.objects.filter(
-                        academic_year=academic_year,
-                        period=period,
-                        subject=subject,
-                        is_mid=False
-                    ).first()
-
-                    if behaviour:
-                        # Extract a flat list of student IDs that have at least one score
-                        graded_student_ids = list(StudentBehaviourReport.objects.filter(
-                            behaviour=behaviour
-                        ).values_list('student_id', flat=True).distinct())
+                # graded_student_ids = []
+                # if academic_year and period and subject:
+                #     # Find the grading container for this term
+                #     behaviour = ReportcardBehaviour.objects.filter(
+                #         academic_year=academic_year,
+                #         period=period,
+                #         subject=subject,
+                #         is_mid=False
+                #     ).first()
+                #
+                #     if behaviour:
+                #         # Extract a flat list of student IDs that have at least one score
+                #         graded_student_ids = list(StudentBehaviourReport.objects.filter(
+                #             behaviour=behaviour
+                #         ).values_list('student_id', flat=True).distinct())
 
                 # 2. Get all students active in this class
-                students = ClassMember.objects.filter(
-                    kelas=kelas,
-                    is_active=True
-                ).select_related('student')
+                student_rc = StudentReportcard.objects.filter(
+                    period=period,
+                    # is_active=True
+                ).select_related('period')
 
                 # 3. Populate initial data for the FormSet
                 initial_list = []
-                for member in students:
-                    student_id = member.student.id
+                for rc in student_rc:
+                    student_rc_id = rc.id
+                    period_id = rc.period.id
                     initial_list.append({
-                        'student': student_id,
-                        'is_active': member.is_active,
-                        # The Magic Switch: True if they are in the graded list
-                        'is_graded': student_id in graded_student_ids,
+                        'period': period_id
+                        # 'is_active': member.is_active,
+                        # # The Magic Switch: True if they are in the graded list
+                        # 'is_graded': student_id in graded_student_ids,
                     })
                 return initial_list
 
@@ -2507,8 +2518,8 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
         kwargs = super().get_form_kwargs(step)
         if step == '1':
             step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data and 'kelas' in step0_data:
-                kwargs['kelas'] = step0_data['kelas']
+            if step0_data and 'period' in step0_data:
+                kwargs['period'] = step0_data['period']
             # Pass form_kwargs_list for each form in the formset
             initial = self.get_form_initial(step)
             kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
@@ -2520,17 +2531,15 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
         if self.steps.current == '1':
             data_step0 = self.get_cleaned_data_for_step('0')
             if data_step0:
-                context['selected_kelas'] = data_step0.get('kelas')
+                context['selected_period'] = data_step0.get('period')
 
         if self.steps.current == '0':
             acayear = AcademicYear.objects.all()
             period = LearningPeriod.objects.all().select_related('academic_year')
-            kelas = Class.objects.all()
-            level = GradeLevel.objects.all()
+            subject = Subject.objects.all()
             context['selected_acayear'] = acayear
             context['selected_period'] = period
-            context['selected_kelas'] = kelas
-            context['selected_level'] = level
+            context['selected_subject'] = subject
 
         return context
 
@@ -2542,7 +2551,7 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
         behaviour, created = ReportcardBehaviour.objects.get_or_create(
             academic_year=form_data_0['academic_year'],
             period=form_data_0['period'],
-            level=form_data_0['level'],
+            subject=form_data_0['subject'],
             is_mid=False
         )
 
