@@ -83,7 +83,7 @@
     <tr>
         <th style="width: 25%;">NISN</th>
         <th style="width: 35%;">Name</th>
-        <th style="width: 20%;">Status</th>
+<!--        <th style="width: 20%;">Status</th>-->
         <th style="width: 20%;">Action</th>
     </tr>
 </thead>
@@ -100,18 +100,18 @@
             {{ form.student_name }}
         </td>
 
-        <td>
-            {% if form.initial.is_graded %}
-                <span class="badge badge-success text-white">Graded</span>
-            {% else %}
-                <span class="badge badge-warning">Pending</span>
-            {% endif %}
+<!--        <td>-->
+<!--            {% if form.initial.is_graded %}-->
+<!--                <span class="badge badge-success text-white">Graded</span>-->
+<!--            {% else %}-->
+<!--                <span class="badge badge-warning">Pending</span>-->
+<!--            {% endif %}-->
 
-            <div class="hidden">{{ form.is_graded }}</div>
-        </td>
+<!--            <div class="hidden">{{ form.is_graded }}</div>-->
+<!--        </td>-->
 
         <td>
-            <a href="{% url 'student-behavior-grading' pk=form.student.value %}"
+            <a href="#"
                class="btn btn-sm {% if form.initial.is_graded %}btn-outline btn-secondary{% else %}btn-outline btn-primary{% endif %}">
                 {% if form.initial.is_graded %}
                     Edit
@@ -127,13 +127,13 @@
                         </div>
 
                         <!-- Submit button to complete setup -->
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-primary">Complete Setup and Create Behavior Records</button>
-                        </div>
+<!--                        <div class="mt-4">-->
+<!--                            <button type="submit" class="btn btn-primary">Complete Setup and Create Behavior Records</button>-->
+<!--                        </div>-->
 
                     {% else %}
                         <div class="alert alert-warning d-flex justify-content-between align-items-center" style="margin-bottom: 200px">
-                            No students found within this course.
+                            No student grade data found within this course.
                         </div>
                     {% endif %}
 

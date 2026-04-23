@@ -1777,7 +1777,7 @@ class TotalGradesForm(forms.ModelForm):
         period = data.get('0-period') or initial.get('period')
         is_mid = data.get('0-is_mid') or initial.get('is_mid')
 
-        self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=user).all()
+        self.fields['subject'].queryset = Subject.objects.all()
 
         # Period depends on Academic Year
         if subject:
@@ -1788,7 +1788,7 @@ class TotalGradesForm(forms.ModelForm):
 
         # Teacher depends on Period
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+            self.fields['period'].queryset = LearningPeriod.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.all()
 
@@ -1797,7 +1797,7 @@ class TotalGradesForm(forms.ModelForm):
 
         # HTMX Attributes for dynamic cascading
         self.fields['subject'].widget.attrs.update({
-            'id': 'rubric-period-select',
+            'id': 'rubric-subject-select',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-academic_year-tgrade/',
             'hx-trigger': 'change',
@@ -1808,10 +1808,10 @@ class TotalGradesForm(forms.ModelForm):
         self.fields['academic_year'].widget.attrs.update({
             'id': 'rubric-acayear-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-period-tgrade/',
-            'hx-trigger': 'change',
-            'hx-target': '#rubric-period-select',
-            'hx-swap': 'innerHTML',
+            # 'hx-get': '/gradebook/get-period-tgrade/',
+            # 'hx-trigger': 'change',
+            # 'hx-target': '#rubric-period-select',
+            # 'hx-swap': 'innerHTML',
         })
 
         self.fields['period'].widget.attrs.update({
@@ -1909,3 +1909,6 @@ class TotalGradesTestList(TotalGradesForm):
             self.add_error('na_reason', "Reason is required when item is inactive.")
 
         return cleaned_data
+
+# FormSet for Total Grading Step 1
+TotalGradesFormSet = formset_factory(TotalGradesTestList, formset=StudentListFormSetBase, extra=0)

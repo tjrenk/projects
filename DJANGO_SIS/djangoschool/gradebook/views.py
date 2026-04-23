@@ -2463,7 +2463,7 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
 
     form_list = [
         ("0", TotalGradesForm),
-        ("1", TotalGradesTestList)
+        ("1", TotalGradesFormSet)
     ]
 
     def get_form_initial(self, step):
@@ -2472,44 +2472,22 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
         if step == '1':
             step0_data = self.get_cleaned_data_for_step('0')
             if step0_data:
-                subject = step0_data.get('subject')
-                academic_year = step0_data.get('academic_year')
                 period = step0_data.get('period')
-
-                # 1. Check the DB to see who is already graded
-                # graded_student_ids = []
-                # if academic_year and period and subject:
-                #     # Find the grading container for this term
-                #     behaviour = ReportcardBehaviour.objects.filter(
-                #         academic_year=academic_year,
-                #         period=period,
-                #         subject=subject,
-                #         is_mid=False
-                #     ).first()
-                #
-                #     if behaviour:
-                #         # Extract a flat list of student IDs that have at least one score
-                #         graded_student_ids = list(StudentBehaviourReport.objects.filter(
-                #             behaviour=behaviour
-                #         ).values_list('student_id', flat=True).distinct())
-
-                # 2. Get all students active in this class
+                
+                # Query StudentReportcard filtered by the selected period
                 student_rc = StudentReportcard.objects.filter(
-                    period=period,
-                    # is_active=True
-                ).select_related('period')
+                    period=period
+                ).select_related('student', 'student__registration_data')
 
-                # 3. Populate initial data for the FormSet
                 initial_list = []
                 for rc in student_rc:
-                    student_rc_id = rc.id
-                    period_id = rc.period.id
                     initial_list.append({
-                        'period': period_id
-                        # 'is_active': member.is_active,
-                        # # The Magic Switch: True if they are in the graded list
-                        # 'is_graded': student_id in graded_student_ids,
+                        'student': rc.student.id,
+                        # The student_name and student_nisn fields in TotalGradesTestList
+                        # will be populated by the form's __init__ logic using this ID
                     })
+                
+                # Ensure we return the list for the formset
                 return initial_list
 
         return initial
@@ -2517,12 +2495,14 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
     def get_form_kwargs(self, step=None):
         kwargs = super().get_form_kwargs(step)
         if step == '1':
-            step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data and 'period' in step0_data:
-                kwargs['period'] = step0_data['period']
             # Pass form_kwargs_list for each form in the formset
             initial = self.get_form_initial(step)
             kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
+            # Pass the current user to each individual form in the formset
+            kwargs['form_kwargs'] = {'user': self.request.user}
+        
+        if step == '0':
+            kwargs['user'] = self.request.user
         return kwargs
 
     def get_context_data(self, form, **kwargs):
