@@ -1212,14 +1212,14 @@ class ExtraGradeItemForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
         })
 
-        # self.fields['period'].widget.attrs.update({
-        #     'id': 'rubric-period-select',
-        #     'class': 'custom-select mb-4',
-        #     'hx-get': '/gradebook/get-teachers-extra/',
-        #     'hx-trigger': 'change',
-        #     'hx-target': '#rubric-teacher-select',
-        #     'hx-swap': 'innerHTML',
-        # })
+        self.fields['period'].widget.attrs.update({
+            'id': 'rubric-period-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-teachers-extra/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-teacher-select',
+            'hx-swap': 'innerHTML',
+        })
 
         self.fields['level'].widget.attrs.update({
             'id': 'rubric-level-select',

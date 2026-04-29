@@ -39,6 +39,7 @@
                 <tr>
                     {% comment %} <th>User</th> {% endcomment %}
                     <th class="flex-1">Tanggal</th>
+                    <th class="flex-1">Course</th>
                     <th class="flex-1">Topic</th>
                     <th class="flex-1">Max Score</th>
                     <th class="flex-1">Action</th>
@@ -48,6 +49,7 @@
                 {% for ahead in pnation_ah %}
                 <tr class="hover:bg-base-200" onclick="window.location.href='{% url 'ge-edit' ahead.id %}'" style="cursor: pointer;">
                     <td class="flex-1">{{ ahead.date }}</td>
+                    <td class="flex-1"><strong>{{ ahead.course }}</strong></td>
                     <td class="flex-1"><strong>{{ ahead.topic }}</strong></td>
                     <td class="flex-1">{{ ahead.max_score }}</td>
                     {% comment %} <td class="flex-1"><a href="{% url 'ge-edit' ahead.id %}" class="flex-1 smol smol-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="flex-1 bi bi-pencil-square" viewBox="0 0 16 16">

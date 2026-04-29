@@ -50,6 +50,7 @@
                     <tr>
                         <th style="width: 40%;">Activity</th>
                         <th style="width: 40%;">Score (1-4)</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -59,6 +60,7 @@
                 {% comment %}
                         <tr class="indicator-row">
                             <td class="font-semibold align-middle">
+
                                 <span class="badge {% if rubric.type == 'Spiritual' %}badge-info{% else %}badge-success{% endif %}">
                                     {{ rubric.get_type_display }}
                                 </span>
@@ -81,6 +83,11 @@
                                                 placeholder="Score (1-4)"
                                                 required
                                             >
+                            </td>
+                            <td>
+                                <button class="btn btn-circle">
+                                    <p>+</p>
+                                    </button>
                             </td>
                         </tr>
                 {% comment %}

@@ -106,18 +106,10 @@
             <input 
                 type="text" 
                 name="{{ form.na_reason.html_name }}" 
+                    id="{{ form.na_reason.auto_id }}"
                 value="{{ form.na_reason.value|default_if_none:'' }}"
-                class="form-control"
+                    class="form-control na-reason-input"
                 >
-                {% comment %} {% if form.current_is_active %}
-                    readonly 
-                    style="background-color: #e9ecef; cursor: not-allowed;"
-                    placeholder="Active (Uncheck & Save to edit)"
-                {% else %}
-                    style="background-color: #ffffff;"
-                    placeholder="Enter reason..."
-                {% endif %} {% endcomment %}
-            
             
             {% if form.na_reason.errors %}
                 <div class="text-danger small">{{ form.na_reason.errors }}</div>
@@ -126,7 +118,9 @@
 
         {# IS ACTIVE CHECKBOX #}
         <td class="text-center">
-            {{ form.is_active }}
+            <div class="active-checkbox-wrapper">
+                {{ form.is_active }}
+            </div>
         </td>
 
                                         {% comment %} <td>
@@ -174,15 +168,6 @@
                                 {% comment %} </td>
                                 </tr> {% endcomment %}
 
-                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                <div class="mb-1 basis-full md:flex-1">
-                                {{ wizard.form.level.label }}
-                                {{ wizard.form.level }}
-                                    <div class="error">
-                                        {{ wizard.form.level.errors }}
-                                    </div>
-                                </div>
-                                </div>
 
                                 <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                 <div class="mb-1 basis-full md:flex-1">
@@ -200,6 +185,16 @@
                                 {{ wizard.form.teacher }}
                                     <div class="error">
                                         {{ wizard.form.teacher.errors }}
+                                    </div>
+                                </div>
+                                </div>
+
+                            <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.level.label }}
+                                {{ wizard.form.level }}
+                                    <div class="error">
+                                        {{ wizard.form.level.errors }}
                                     </div>
                                 </div>
                                 </div>
@@ -331,6 +326,14 @@
         font-weight: bold;
         width: 100%;
     }
-</style>
 
+    /* PURE CSS TOGGLE LOGIC */
+    /* If the row contains a checked 'is_active' checkbox, style the reason input */
+    tr:has(input[name$="-is_active"]:checked) .na-reason-input {
+        background-color: #f3f4f6 !important;
+        pointer-events: none; /* Prevents mouse interaction (clicks) */
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>
 {% endblock %}

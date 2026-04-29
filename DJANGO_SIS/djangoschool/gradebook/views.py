@@ -280,8 +280,8 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
                 detail.teacher_notes = note_content
                 if detail.score > max_score:
                     return HttpResponse("Error: Score exceeds maximum allowed.")
-                elif formset_data_2['form-0-student'] is None:
-                    return HttpResponse("Error: No students selected.")
+                # elif formset_data_2['form-0-student'] is None:
+                #     return HttpResponse("Error: No students selected.")
                 else:
                     # Student sudah ada di instance dari form clean (karena ModelForm)
                     details_to_create.append(detail)
@@ -1254,11 +1254,18 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
 @login_required
 def ge_table(request):
+    user = request.user
+    teach = Teacher.objects.filter(user=user).first()
     ge = GradeEntry.objects.all()
-    ah = AssignmentHead.objects.all()
+    # ah = AssignmentHead.objects.all()
     ad = AssignmentDetail.objects.all()
 
-    pnation = Paginator(AssignmentHead.objects.all(), 15)  # Show 10 aktivitas per page
+    if teach:
+        ah = AssignmentHead.objects.filter(course__teacher=teach).order_by('-date')
+    else:
+        ah = AssignmentHead.objects.all().order_by('-date')
+
+    pnation = Paginator(ah, 15)  # Show 10 aktivitas per page
     page = request.GET.get('page')
     pnation_ah = pnation.get_page(page)
 
@@ -2438,7 +2445,7 @@ def get_kelas_extra_info(request):
 def get_period_extra_info(request):
     ay_id = request.GET.get('academic_year_id')
     if ay_id:
-        periods = LearningPeriod.objects.filter(academic_year_id=ay_id)
+        periods = LearningPeriod.objects.all()
     else:
         periods = LearningPeriod.objects.none()
 
@@ -2456,6 +2463,12 @@ def get_act_subj(request):
     context = {'act_subj': act_subj}
     return render(request, "partials/gradebook/extrainfo_partials/act_subj.html", context)
 # a
+
+
+def nilairaport_calc(request):
+    pass
+
+
 
 
 class TotalGrading(LoginRequiredMixin, SessionWizardView):
