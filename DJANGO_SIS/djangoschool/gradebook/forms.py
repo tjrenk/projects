@@ -822,6 +822,7 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
 
         # self.fields["start_date"].widget.is_hidden = True
+        self.fields['period'].queryset = LearningPeriod.objects.all()
 
 
 
@@ -1008,6 +1009,8 @@ class StudentListItemForm(forms.ModelForm):
         
         if student_obj:
             self.fields['student_name'].initial = str(student_obj)
+
+        self.fields['is_graded'].initial = self.initial.get('is_graded', False)
             
         # 2. DETERMINE IS_ACTIVE STATUS (The Fix)
         # Default to True (active) unless we find otherwise

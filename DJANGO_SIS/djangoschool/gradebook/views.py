@@ -297,9 +297,9 @@ def midterm_report(request):
     all_students = Student.objects.all()
 
     # This will be the final list we send to the template.
-    # student_list = [] 
-    # user_rekap_list_by_prodi = [] 
-    # user_rekap_list_by_angkatan = [] 
+    # student_list = []
+    # user_rekap_list_by_prodi = []
+    # user_rekap_list_by_angkatan = []
 
     # Loop through each user to perform calculations.
     # for u in all_students:
@@ -334,7 +334,7 @@ def midterm_report(request):
     }
     # print(f"Sort type: {sort_type}, Order field: {order_field}")
     # print(f"All users count: {all_users.count()}")
-    # print(f"First user: {all_users.first()}")   
+    # print(f"First user: {all_users.first()}")
     # return render(request, 'rekap.html', context)
     # if request.headers.get('HX-Request'):
     #     return render(request, 'partials/rekap_table.html', context)
@@ -642,7 +642,7 @@ def midterm_report_pdf(request, student_id=None):
     # sig_left_content = [
     #     Paragraph("Dosen Wali", center_style),
     #     Paragraph("Akademik", center_style),
-    #     Spacer(1, 80),  
+    #     Spacer(1, 80),
     #     Paragraph("(_________________)", center_style),
     # ]
 
@@ -1114,7 +1114,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         "reportcard__student__registration_data__last_name",
     ]
 
-    # 2. Crosstab 
+    # 2. Crosstab
     # filtering berdasarkan field apa
     crosstab_field = "subject"
     # isi kolom
@@ -1125,9 +1125,9 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     # 3. What goes inside the cells? (The Score)
     # crosstab_columns = [
     #     ComputationField.create(
-    #         Sum, 
-    #         "final_score", 
-    #         verbose_name="Score", 
+    #         Sum,
+    #         "final_score",
+    #         verbose_name="Score",
     #         is_summable=False
     #     )
     # ]
@@ -1183,7 +1183,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         elements = []
 
         # 3. Prepare the Data for the Table
-        # report_data['columns'] holds the definitions. 
+        # report_data['columns'] holds the definitions.
         # report_data['data'] holds the list of dictionaries (rows).
 
         columns = report_data['columns']
@@ -1617,6 +1617,27 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 
         return context
 
+    def post(self, *args, **kwargs):
+        """Handle the 'Back' button logic to delete data if going to step 0"""
+        if self.request.POST.get('wizard_goto_step') == '0' and self.steps.current == '1':
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data:
+                # Find the container
+                behaviour = ReportcardBehaviour.objects.filter(
+                    academic_year=step0_data.get('academic_year'),
+                    period=step0_data.get('period'),
+                    level=step0_data.get('level'),
+                    is_mid=False
+                ).first()
+
+                if behaviour:
+                    # Delete all reports associated with this specific behavior grading session
+                    # This acts as the 'Undo' logic for the Back button
+                    StudentBehaviourReport.objects.filter(behaviour=behaviour).delete()
+                    messages.info(self.request, "Previous grading progress cleared.")
+
+        return super().post(*args, **kwargs)
+
     def done(self, form_list, **kwargs):
         form_data_0 = form_list[0].cleaned_data
 
@@ -1642,15 +1663,56 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         return redirect('rubric-entry')
 
 
+# def get_kelas_rubric(request):
+#     class_id = request.GET.get('class_id')
+#     if class_id:
+#         kelas = Class.objects.filter(is_home_class=True, id=class_id)
+#     else:
+#         kelas = Class.objects.none()
+#
+#     return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", {'kelas': kelas})
+
 def get_kelas_rubric(request):
-    class_id = request.GET.get('class_id')
-    if class_id:
-        kelas = Class.objects.filter(is_home_class=True, id=class_id)
-    else:
-        kelas = Class.objects.none()
+    rubric.existing_score = existing_scores.get(rubric.id, None)
 
-    return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", {'kelas': kelas})
+    # Process form submission
 
+
+    if request.method == 'POST':
+        # 1. Ensure the container exists
+        if academic_year and period and level:
+            behaviour_obj, _ = ReportcardBehaviour.objects.get_or_create(
+                academic_year=academic_year,
+                period=period,
+                level=level,
+                is_mid=False
+            )
+
+            # 2. Save each score from the radio buttons
+            for rubric in rubrics:
+                score_val = request.POST.get(f'rubric_{rubric.id}')
+                if score_val:
+                    StudentBehaviourReport.objects.update_or_create(
+                        student=student,
+                        behaviour=behaviour_obj,
+                        rubric=rubric,
+                        defaults={'score': int(score_val)}
+                    )
+
+        # 3. Manually set wizard back to Step 1 (the table screen)
+        wizard_key = 'wizard_rubric_entry_wizard'
+
+        if wizard_key in request.session:
+            data = request.session[wizard_key]
+            data['step'] = '1'
+            request.session[wizard_key] = data
+            request.session.modified = True
+
+            return redirect('rubric-entry')
+
+    context = {
+                  'student': student,
+    }
 
 @login_required
 def student_behavior_grading(request, pk):
@@ -2465,12 +2527,6 @@ def get_act_subj(request):
 # a
 
 
-def nilairaport_calc(request):
-    pass
-
-
-
-
 class TotalGrading(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/gradebook/total_grade.html"
 
@@ -2585,3 +2641,7 @@ def get_period_tgrade(request):
     period = LearningPeriod.objects.all()
     context = {'period': period}
     return render(request, "partials/gradebook/totalgrade_partials/period.html", context)
+
+
+def nilairaport_calc(request):
+    pass

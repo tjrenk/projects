@@ -144,17 +144,8 @@
                             {% comment %} <table class="table table-borderless"> {% endcomment %}
                             <fieldset class="module aligned mb-4 overflow-visible">
                                 {% if wizard.steps.current == '0' %}
-                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                        <div class="mb-1 basis-full md:flex-1">
-                                            {{ wizard.form.subject.label }}
-                                            {{ wizard.form.subject }}
-                                            <div class="error">
-                                                {{ wizard.form.subject.errors }}
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                         <div class="mb-1 basis-full md:flex-1">
                                             {{ wizard.form.academic_year.label }}
                                             {{ wizard.form.academic_year }}
@@ -164,12 +155,22 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                         <div class="mb-1 basis-full md:flex-1">
                                             {{ wizard.form.period.label }}
                                             {{ wizard.form.period }}
                                             <div class="error">
                                                 {{ wizard.form.period.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                        <div class="mb-1 basis-full md:flex-1">
+                                            {{ wizard.form.subject.label }}
+                                            {{ wizard.form.subject }}
+                                            <div class="error">
+                                                {{ wizard.form.subject.errors }}
                                             </div>
                                         </div>
                                     </div>
