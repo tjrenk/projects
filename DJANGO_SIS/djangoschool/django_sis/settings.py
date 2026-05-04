@@ -98,7 +98,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "django_sis.wsgi.application"
 
-
+LOGOUT_REDIRECT_URL = '/'
 
 # SQLite3
 # Database

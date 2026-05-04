@@ -1,5 +1,7 @@
 from pyexpat.errors import messages
 
+from django.urls import reverse
+from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
@@ -1536,6 +1538,23 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
     # def get_template_names(self):
     #     return [self.templates[self.steps.current]]
 
+    def get(self, request, *args, **kwargs):
+        """Override GET to allow redirecting to a specific step without resetting storage."""
+        goto_step = request.GET.get('step')
+
+        # If we passed a specific step in the URL (?step=1) and it exists in our wizard
+        if goto_step in self.steps.all:
+            # Update the current step WITHOUT resetting the storage
+            self.storage.current_step = goto_step
+            # Return an unbound form. This ensures get_form_initial runs again
+            # so the "Pending" badge updates to "Graded"!
+            return self.render(self.get_form())
+
+        # Default behavior for a normal GET request: wipe data and start fresh
+        self.storage.reset()
+        self.storage.current_step = self.steps.first
+        return self.render(self.get_form())
+
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
 
@@ -1722,8 +1741,8 @@ def student_behavior_grading(request, pk):
     except Student.DoesNotExist:
         return HttpResponse("Student not found", status=404)
 
-    # Get data from the first step of the Rubric Entry form (from session)
-    wizard_key = 'wizard_rubric_entry_wizard'
+    # FIX 1: The correct Formtools session key is the lowercase class name!
+    wizard_key = 'wizard_rubricentrywizard'
     wizard_data = request.session.get(wizard_key, {})
     step_data = wizard_data.get('step_data', {})
     step0_data = step_data.get('0', {})
@@ -1806,7 +1825,9 @@ def student_behavior_grading(request, pk):
 
         # 4. Redirect back to the URL where the Wizard is hosted
         # Use the 'name' from your urls.py for RubricEntryWizard.as_view()
-        return redirect('rubric-entry')
+        url = reverse('rubric-entry')
+        # return redirect('rubric-entry')
+        return HttpResponseRedirect(f"{url}?step=1")
 
     context = {
         'student': student,
@@ -2638,10 +2659,13 @@ def get_academic_year_totalg(request):
 
 
 def get_period_tgrade(request):
-    period = LearningPeriod.objects.all()
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    period = LearningPeriod.objects.filter(academic_year_id=acayear_id)
     context = {'period': period}
     return render(request, "partials/gradebook/totalgrade_partials/period.html", context)
 
 
 def nilairaport_calc(request):
+    # acayear =
+    #
     pass

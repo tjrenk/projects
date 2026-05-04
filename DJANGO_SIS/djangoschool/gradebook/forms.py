@@ -99,6 +99,11 @@ class GradeEntryForm(forms.ModelForm):
         else:
             self.fields['course'].queryset = Course.objects.none()
 
+        # if level:
+        #     self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher).distinct()
+        # else:
+        #     self.fields['course'].queryset = Course.objects.none()
+
         if course:
             self.fields['assignment_type'].queryset = AssignmentType.objects.all()
         else:
@@ -410,7 +415,11 @@ class AssignmentDetailItemForm(forms.ModelForm):
             # Logic: If inactive (False) AND reason is empty, raise error
         if is_active is False and not na_reason:
             self.add_error('na_reason', "Reason is required when item is inactive.")
-            
+
+        if is_active:
+            cleaned_data['na_reason'] = ""
+
+
         return cleaned_data
         
 
@@ -425,10 +434,11 @@ class AssignmentDetailFormSet(BaseFormSet):
             'na_reason': forms.TextInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
-    def __init__(self, *args, max_score=None, form_kwargs_list=None, **kwargs):
+    def __init__(self, *args, max_score=None, is_active=True, form_kwargs_list=None, **kwargs):
         form_kwargs_list = kwargs.pop('form_kwargs_list', [])
         super().__init__(*args, **kwargs)
         self.max_score = max_score
+        self.is_active = is_active
         if form_kwargs_list:
             self.form_kwargs_list = form_kwargs_list
 
@@ -461,6 +471,11 @@ class AssignmentDetailFormSet(BaseFormSet):
                 if form.cleaned_data and form.cleaned_data.get('score') is not None:
                     if form.cleaned_data['score'] > self.max_score:
                         form.add_error('score', f"Score cannot exceed {self.max_score}.")
+
+        if self.is_active is not True:
+            for form in self.forms:
+                if form.cleaned_data is not None:
+                    form.cleaned_data['na_reason'] = ""
 
 AssignmentDetailFormSet = formset_factory(AssignmentDetailItemForm, formset=AssignmentDetailFormSet, extra=0)
 

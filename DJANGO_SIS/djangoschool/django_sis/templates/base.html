@@ -133,7 +133,7 @@
 {% comment %} a {% endcomment %}
     </div>
 
-    <form id="logout-form" class="hidden" method="post" action="/admin/logout/">
+    <form id="logout-form" class="hidden" method="post" action="/logout/">
         {% csrf_token %}
         <button type="submit"></button>
     </form>

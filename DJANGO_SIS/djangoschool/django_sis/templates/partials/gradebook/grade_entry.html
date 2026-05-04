@@ -191,6 +191,16 @@
 
                             <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                 <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.subject.label }}
+                                {{ wizard.form.subject }}
+                                    <div class="error">
+                                        {{ wizard.form.subject.errors }}
+                                    </div>
+                                </div>
+                                </div>
+
+                            <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.level.label }}
                                 {{ wizard.form.level }}
                                     <div class="error">
@@ -199,15 +209,6 @@
                                 </div>
                                 </div>
 
-                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                <div class="mb-1 basis-full md:flex-1">
-                                {{ wizard.form.subject.label }}
-                                {{ wizard.form.subject }}
-                                    <div class="error">
-                                        {{ wizard.form.subject.errors }}
-                                    </div>
-                                </div>
-                                </div>
 
                                 <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                 <div class="mb-1 basis-full md:flex-1">
@@ -334,6 +335,8 @@
         pointer-events: none; /* Prevents mouse interaction (clicks) */
         opacity: 0.6;
         cursor: not-allowed;
+        color: transparent !important;
+        text-shadow: none !important;
     }
 </style>
 {% endblock %}
