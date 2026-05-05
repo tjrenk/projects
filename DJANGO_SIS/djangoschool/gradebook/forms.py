@@ -602,7 +602,7 @@ class CourseByTeacher(forms.ModelForm):
         else:
             # Fallback for admins or if no teacher profile is linked
             if subject_id:
-                self.fields['course'].queryset = Course.objects.filter(subject_id=subject_id)
+                self.fields['course'].queryset = Course.objects.filter(subject_id=subject_id).distinct()
             else:
                 self.fields['course'].queryset = Course.objects.none()
 
@@ -1210,7 +1210,7 @@ class ExtraGradeItemForm(forms.ModelForm):
 
         # Teacher depends on Period
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
+            self.fields['teacher'].queryset = Teacher.objects.all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
@@ -1476,7 +1476,6 @@ class StudentsExamGradesEntry(forms.ModelForm):
             'id': 'extra-type-select',
             'class': 'custom-select mb-4',
         })
-
 
 
 
@@ -1930,3 +1929,54 @@ class TotalGradesTestList(TotalGradesForm):
 
 # FormSet for Total Grading Step 1
 TotalGradesFormSet = formset_factory(TotalGradesTestList, formset=StudentListFormSetBase, extra=0)
+
+
+class AssignmentAvgForm(forms.Form):
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+    # Subject triggers the HTMX request to filter Courses (Classes)
+    subject = forms.ModelChoiceField(
+        queryset=Subject.objects.all(),
+        widget=forms.Select(attrs={
+            'id': 'assignment-avg-subject-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses-assignment-avg/',
+            'hx-trigger': 'change',
+            'hx-target': '#assignment-avg-course-select',
+            'hx-swap': 'innerHTML',
+        })
+    )
+    kelas = forms.ModelChoiceField(
+        queryset=Class.objects.none(),
+        label="Class",
+        widget=forms.Select(attrs={
+            'id': 'assignment-avg-course-select',
+            'class': 'custom-select mb-4'
+        })
+    )
+    is_mid = forms.BooleanField(
+        required=False,
+        label="Is Midterm?",
+        widget=forms.CheckboxInput(attrs={'class': 'checkbox mb-4'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        data = self.data
+        initial = self.initial
+
+        subject_id = data.get('0-subject') or initial.get('subject')
+
+        # Course depends strictly on subject now
+        if subject_id:
+            self.fields['kelas'].queryset = Class.objects.all()
+        else:
+            self.fields['kelas'].queryset = Class.objects.none()

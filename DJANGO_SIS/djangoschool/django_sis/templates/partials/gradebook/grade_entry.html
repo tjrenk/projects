@@ -95,10 +95,21 @@
 </td>
 
                                         <td>
-                                            {{ form.score }}
-                                            {% if form.score.errors %}
-                                                <div class="text-danger small">{{ form.score.errors }}</div>
-                                            {% endif %}
+<!--                                            {{ form.score }}-->
+<!--                                            {% if form.score.errors %}-->
+<!--                                                <div class="text-danger small">{{ form.score.errors }}</div>-->
+<!--                                            {% endif %}-->
+                                                        <input
+                type="text"
+                name="{{ form.score.html_name }}"
+                    id="{{ form.score.auto_id }}"
+                value="{{ form.score.value|default_if_none:'' }}"
+                    class="form-control score-input"
+                >
+
+            {% if form.na_reason.errors %}
+                <div class="text-danger small">{{ form.na_reason.errors }}</div>
+            {% endif %}
                                         </td>
 
 {# N/A REASON - MANUAL RENDERING #}
@@ -338,5 +349,15 @@
         color: transparent !important;
         text-shadow: none !important;
     }
+
+    tr:has(input[name$="-is_active"]:not(:checked)) .score-input {
+        background-color: #f3f4f6 !important;
+        pointer-events: none; /* Prevents mouse interaction (clicks) */
+        opacity: 0.6;
+        cursor: not-allowed;
+        color: transparent !important;
+        text-shadow: none !important;
+    }
+
 </style>
 {% endblock %}

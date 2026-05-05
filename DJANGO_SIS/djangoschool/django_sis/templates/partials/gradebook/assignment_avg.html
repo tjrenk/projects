@@ -1,0 +1,36 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="card-body px-3 py-1 w-full">
+        <h1 class="text-2xl font-bold mb-4">Assignment Average Calculator</h1>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            {{ wizard.management_form }}
+
+            {% if wizard.form.forms %}
+                {{ wizard.form.management_form }}
+                {% for form in wizard.form %}
+                    <div class="form-group">
+                        {{ form.as_p }}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="form-group">
+                    {{ wizard.form.as_p }}
+                </div>
+            {% endif %}
+
+            <div class="flex gap-2">
+                {% if wizard.steps.prev %}
+                    <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.first }}" class="btn btn-secondary">First</button>
+                    <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn btn-secondary">Previous</button>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary">{% if wizard.steps.current == wizard.steps.last %}Calculate{% else %}Next{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

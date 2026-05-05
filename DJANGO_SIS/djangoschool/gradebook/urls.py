@@ -50,10 +50,10 @@ urlpatterns = [
     path('get-period-extra/', views.get_period_extra, name='get-period-extra'),
     path('get-level-extra/', views.get_level_extra, name='get-level-extra'),
     path('get-kelas-extra/', views.get_kelas_extra, name='get-kelas-extra'),
-    path('get-extra-type/', views.get_extra_type, name='get-extra-type'),
+    # path('get-extra-type/', views.get_extra_type, name='get-extra-type'),
 
     # EXTRA INFO
-    path('extra-info/', views.ExtraInfoWizard.as_view(), name='extra-info'),
+    # path('extra-info/', views.ExtraInfoWizard.as_view(), name='extra-info'),
     path('get-act-subj/', views.get_act_subj, name='get-act-subj'),
 
     # GRADES WIZARD
@@ -69,5 +69,11 @@ urlpatterns = [
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")
     # path("grade-entry", views.grade_entry, name="grade-entry"),
-    path('get-period-grades/', views.get_period_grades, name='get_period_grades'),
-    ]
+    # path('get-period-grades/', views.get_period_grades, name='get_period_grades'),
+    # path('get-level-grades/', views.get_level_grades, name='get_level_grades'),
+    path('assignm_avg/', views.assignm_avg, name='assignm_avg'),
+    path('assignment-avg-wizard/', views.AssignmentAvgWizard.as_view(), name='assignment-avg-wizard'),
+    path('get-period-assignment-avg/', views.get_period_assignment_avg, name='get-period-assignment-avg'),
+    path('get-subjects-assignment-avg/', views.get_subjects_assignment_avg, name='get-subjects-assignment-avg'),
+    path('get-courses-assignment-avg/', views.get_courses_assignment_avg, name='get-courses-assignment-avg'),
+]

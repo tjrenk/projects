@@ -1,0 +1,58 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="card-body px-3 py-1 w-full">
+        <h1 class="text-2xl font-bold mb-4">Student Assignment Averages</h1>
+
+        <!-- Optional: Top summary bar -->
+        <div class="flex gap-4 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+            <div><strong>Tahun Ajaran:</strong> {{ selected_academic_year }}</div>
+            <div><strong>Level:</strong> {{ selected_level }}</div>
+            <div><strong>Midterm:</strong> {% if is_mid %}Yes{% else %}No{% endif %}</div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="table table-zebra w-full border border-base-300">
+                <thead>
+                    <tr class="bg-base-300 text-base-content">
+                        <th>NISN</th>
+                        <th>Student</th>
+                        <th>Kelas</th>
+                        <th>Subject</th>
+                        <th>Course</th>
+                        <th>Average</th>
+                        <!-- Optional: Weighted Average column if you still need it -->
+                        <th>Weighted Average</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in student_results %}
+                    <tr>
+                        <td class="font-mono">{{ item.nisn }}</td>
+                        <td class="font-semibold">{{ item.student_name }}</td>
+                        <td>{{ item.kelas }}</td>
+                        <td>{{ item.subject }}</td>
+                        <!-- Assuming Course maps to Subject here, adjust if Course is different -->
+                        <td>{{ item.subject }}</td>
+                        <td>{{ item.raw_avg|floatformat:2 }}</td>
+                        <td class="text-primary font-bold">{{ item.weighted_avg|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-6 text-base-content/60">
+                            No assignments have been posted for this class yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-8 flex gap-2">
+            <a href="{% url 'assignment-avg-wizard' %}" class="btn btn-primary">Calculate Another</a>
+            <a href="{% url 'gb-index' %}" class="btn btn-secondary">Back to Index</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
