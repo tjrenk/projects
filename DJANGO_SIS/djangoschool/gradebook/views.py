@@ -2422,7 +2422,7 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
 
         # 2. Get distinct students who have assignment data for this specific SUBJECT
         students = Student.objects.filter(
-            assignmentdetail__assignment_head__course__subject=subject
+            assignmentdetail__assignment_head__course__subject=subject, assignmentdetail__assignment_head__course__academic_year=academic_year
         ).distinct()
 
         # NOTE: If you need to strictly limit this to students ONLY in the selected 'kelas',
@@ -2511,12 +2511,21 @@ def get_period_assignment_avg(request):
 
 
 def get_subjects_assignment_avg(request):
-    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    # 1. Look at the ID badge of the person currently clicking the screen
+    user = request.user
+
+    # 2. Look up that person in the Teacher directory
+    teacher = Teacher.objects.filter(user=user).first()
+
+    level_id = request.GET.get('0-level') or request.GET.get('level')
     selected_subject = request.GET.get('0-subject') or request.GET.get('subject')
-    if teacher_id:
-        subjects = Subject.objects.filter(course__teacher_id=teacher_id).distinct()
+
+    # 3. Only search if a level is picked AND this person is actually a teacher
+    if level_id and teacher:
+        subjects = Subject.objects.filter(course__teacher=teacher).distinct()
     else:
         subjects = Subject.objects.none()
+
     html = render_to_string("partials/gradebook/assignment_avg_partials/subject.html", {
         'subjects': subjects,
         'selected_subject': selected_subject
@@ -2525,11 +2534,18 @@ def get_subjects_assignment_avg(request):
 
 
 def get_courses_assignment_avg(request):
+    # 1. Get the logged-in teacher
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+
     subject_id = request.GET.get('0-subject') or request.GET.get('subject')
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
 
-    if subject_id:
-        kelas = Class.objects.all()
+    # 2. Filter classes by both Subject AND Teacher
+    if subject_id and teacher:
+        kelas = Class.objects.filter(
+            teacher=teacher
+        ).distinct()
     else:
         kelas = Class.objects.none()
 

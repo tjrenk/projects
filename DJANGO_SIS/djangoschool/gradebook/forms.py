@@ -1936,13 +1936,19 @@ class AssignmentAvgForm(forms.Form):
         queryset=AcademicYear.objects.all(),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
+    # ADDED HTMX HERE: Level must trigger the Subject dropdown!
     level = forms.ModelChoiceField(
         queryset=GradeLevel.objects.all(),
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+        widget=forms.Select(attrs={
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-subjects-assignment-avg/',
+            'hx-trigger': 'change',
+            'hx-target': '#assignment-avg-subject-select',
+            'hx-swap': 'innerHTML',
+        })
     )
-    # Subject triggers the HTMX request to filter Courses (Classes)
     subject = forms.ModelChoiceField(
-        queryset=Subject.objects.all(),
+        queryset=Subject.objects.none(), # Default to none until teacher/level is known
         widget=forms.Select(attrs={
             'id': 'assignment-avg-subject-select',
             'class': 'custom-select mb-4',
@@ -1967,16 +1973,35 @@ class AssignmentAvgForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        # 1. Grab the user from the view
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
         data = self.data
         initial = self.initial
 
+        level_id = data.get('0-level') or initial.get('level')
         subject_id = data.get('0-subject') or initial.get('subject')
 
-        # Course depends strictly on subject now
-        if subject_id:
-            self.fields['kelas'].queryset = Class.objects.all()
+        # 2. Figure out who the logged-in teacher is
+        teacher_obj = None
+        if user:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+
+        # 3. Filter SUBJECTS: Must belong to the teacher (and potentially the level)
+        if level_id and teacher_obj:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                course__teacher=teacher_obj
+            ).distinct()
+        else:
+            self.fields['subject'].queryset = Subject.objects.none()
+
+        # 4. Filter KELAS: Must belong to the teacher AND the selected subject
+        if subject_id and teacher_obj:
+            # *NOTE: If this line gives an error, it's because Django doesn't know
+            # how your Class model links to your Course model.
+            self.fields['kelas'].queryset = Class.objects.filter(
+            teacher=teacher_obj
+        ).distinct()
         else:
             self.fields['kelas'].queryset = Class.objects.none()
