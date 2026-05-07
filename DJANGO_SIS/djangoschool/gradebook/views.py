@@ -1,5 +1,8 @@
 from pyexpat.errors import messages
 
+from django.db import transaction
+from django.views.decorators.http import require_POST
+from django.contrib import messages
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
@@ -2468,6 +2471,59 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         }
 
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
+
+
+@require_POST
+def save_assignment_results(request):
+    """
+    This view is triggered ONLY when the user clicks 'Save to Report Cards'
+    on the preview page.
+    """
+    # 1. Get IDs from the hidden form fields
+    ay_id = request.POST.get('academic_year_id')
+    sub_id = request.POST.get('subject_id')
+    lvl_id = request.POST.get('level_id')
+    is_mid = request.POST.get('is_mid') == 'True'
+
+    # 2. Re-fetch objects and calculate (DRY: You could move calculation to a helper function)
+    academic_year = AcademicYear.objects.get(id=ay_id)
+    subject = Subject.objects.get(id=sub_id)
+    level = GradeLevel.objects.get(id=lvl_id)
+    period = LearningPeriod.objects.filter(is_active=True).first()
+
+    weightings = Weighting.objects.filter(academic_year=academic_year, level=level, subject=subject)
+    students = Student.objects.filter(
+        assignmentdetail__assignment_head__course__subject=subject,
+        assignmentdetail__assignment_head__course__academic_year=academic_year
+    ).distinct()
+
+    with transaction.atomic():
+        for student in students:
+            # --- Perform the same calculation logic as before ---
+            total_weighted_avg = 0
+            for weighting in weightings:
+                w_avg = AssignmentDetail.objects.filter(
+                    student=student,
+                    assignment_head__course__subject=subject,
+                    assignment_head__assignment=weighting.assignment
+                ).aggregate(Avg('score'))['score__avg'] or 0
+                total_weighted_avg += float(w_avg) * float(weighting.weight)
+
+            final_score_int = round(total_weighted_avg)
+
+            # --- THE DUMP ---
+            reportcard, _ = StudentReportcard.objects.update_or_create(
+                student=student, academic_year=academic_year,
+                period=period, is_mid=is_mid, defaults={'level': level}
+            )
+            ReportcardGrade.objects.update_or_create(
+                reportcard=reportcard, subject=subject,
+                defaults={'final_score': final_score_int, 'final_grade': 'B'}  # Add your letter logic
+            )
+
+    messages.success(request, f"Successfully saved grades for {subject.subject_name}!")
+    return redirect('assignment-avg-wizard')  # Change to your actual redirect
+
 
 class GradesWizard(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/gradebook/grades_wizard.html"

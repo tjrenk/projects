@@ -76,4 +76,5 @@ urlpatterns = [
     path('get-period-assignment-avg/', views.get_period_assignment_avg, name='get-period-assignment-avg'),
     path('get-subjects-assignment-avg/', views.get_subjects_assignment_avg, name='get-subjects-assignment-avg'),
     path('get-courses-assignment-avg/', views.get_courses_assignment_avg, name='get-courses-assignment-avg'),
+    path('save_grade_avg', views.save_assignment_results, name='save_grade_avg')
 ]

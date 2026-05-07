@@ -35,8 +35,8 @@
                         <td>{{ item.subject }}</td>
                         <!-- Assuming Course maps to Subject here, adjust if Course is different -->
                         <td>{{ item.subject }}</td>
-                        <td>{{ item.raw_avg|floatformat:2 }}</td>
-                        <td class="text-primary font-bold">{{ item.weighted_avg|floatformat:2 }}</td>
+                        <td>{{ item.raw_avg|floatformat:0 }}</td>
+                        <td class="text-primary font-bold">{{ item.weighted_avg|floatformat:0 }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -50,6 +50,7 @@
         </div>
 
         <div class="mt-8 flex gap-2">
+            <a href="{% url 'save_grade_avg' %}" class="btn btn-secondary">Save to Database</a>
             <a href="{% url 'assignment-avg-wizard' %}" class="btn btn-primary">Calculate Another</a>
             <a href="{% url 'gb-index' %}" class="btn btn-secondary">Back to Index</a>
         </div>
