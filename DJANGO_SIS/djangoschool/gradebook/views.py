@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
+import re
 from formtools.wizard.views import SessionWizardView
 from .forms import *
 from .models import *
@@ -1483,45 +1484,50 @@ def tc_del(request, pk):
 
 @login_required
 def toggle_na_reason(request):
-    form_index = request.GET.get('form_index', '0')
+    # 1. Extract the step and form index from the keys (e.g., '2-0-is_active')
+    step_prefix = ""
+    form_idx = ""
 
-    # Find the na_reason field name from the request
-    na_reason_keys = [k for k in request.GET.keys() if k.endswith('-na_reason')]
-    if na_reason_keys:
-        na_reason_name = na_reason_keys[0]
-        na_reason_value = request.GET.get(na_reason_name, '')
-    else:
-        na_reason_name = f'2-{form_index}-na_reason'
-        na_reason_value = request.GET.get(na_reason_name, '')
+    for key in request.GET.keys():
+        if '-is_active' in key:
+            parts = key.split('-')  # ['2', '0', 'is_active']
+            step_prefix = parts[0]
+            form_idx = parts[1]
+            break
 
-    # Get the is_active value
-    is_active_name = na_reason_name.replace('-na_reason', '-is_active')
-    is_active_value = request.GET.get(is_active_name, '')
-    is_active = is_active_value == 'on'
+    if not form_idx:
+        return HttpResponse("")
 
+    # 2. Get the current state
+    is_active = request.GET.get(f'{step_prefix}-{form_idx}-is_active') == 'on'
+    score = request.GET.get(f'{step_prefix}-{form_idx}-score', '')
+    na_reason = request.GET.get(f'{step_prefix}-{form_idx}-na_reason', '')
+
+    # We also need the student info which is in hidden fields or NISN/Name
+    # but since we are just re-rendering the inputs, we can just pass values
+    student_name = request.GET.get(f'{step_prefix}-{form_idx}-student_name', '')
+    student_nisn = request.GET.get(f'{step_prefix}-{form_idx}-student_nisn', '')
+
+    # 3. APPLY BACKEND LOGIC (The "Wipe")
     if is_active:
-        input_html = f'''
-        <input id="na_reason_input_{form_index}"
-            type="text" 
-            class="form-control"
-            name="{na_reason_name}" 
-            value=""
-            readonly
-            style="background-color: #e9ecef; cursor: not-allowed;"
-            placeholder="Item is active"
-        >
-        '''
+        na_reason = ""
     else:
-        input_html = f'''
-        <input id="na_reason_input_{form_index}"
-            type="text" 
-            class="form-control"
-            name="{na_reason_name}" 
-            value=""
-            placeholder="Enter reason..."
-        >
-        '''
-    return HttpResponse(input_html.strip())
+        score = ""
+
+    # 4. SEND BACK THE ROW HTML
+    # We use a small partial template for a single row to keep it clean
+    context = {
+        'step': step_prefix,
+        'idx': form_idx,
+        'score': score,
+        'na_reason': na_reason,
+        'is_active': is_active,
+        'student_name': student_name,
+        'student_nisn': student_nisn,
+    }
+
+    html = render_to_string("partials/gradebook/gradeentry_partials/row_partial.html", context)
+    return HttpResponse(html)
 
 
 # Create FormSet for Step 1 (Student List)
@@ -2489,7 +2495,7 @@ def save_assignment_results(request):
     academic_year = AcademicYear.objects.get(id=ay_id)
     subject = Subject.objects.get(id=sub_id)
     level = GradeLevel.objects.get(id=lvl_id)
-    period = LearningPeriod.objects.filter(is_active=True).first()
+    period = LearningPeriod.objects.filter(academic_year_id=ay_id).first()
 
     weightings = Weighting.objects.filter(academic_year=academic_year, level=level, subject=subject)
     students = Student.objects.filter(
@@ -2516,10 +2522,10 @@ def save_assignment_results(request):
                 student=student, academic_year=academic_year,
                 period=period, is_mid=is_mid, defaults={'level': level}
             )
-            ReportcardGrade.objects.update_or_create(
-                reportcard=reportcard, subject=subject,
-                defaults={'final_score': final_score_int, 'final_grade': 'B'}  # Add your letter logic
-            )
+            # ReportcardGrade.objects.update_or_create(
+            #     reportcard=reportcard, subject=subject,
+            #     defaults={'final_score': final_score_int, 'final_grade': 'B'}  # Add your letter logic
+            # )
 
     messages.success(request, f"Successfully saved grades for {subject.subject_name}!")
     return redirect('assignment-avg-wizard')  # Change to your actual redirect

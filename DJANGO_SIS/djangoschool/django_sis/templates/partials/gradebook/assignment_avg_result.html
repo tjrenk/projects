@@ -50,7 +50,22 @@
         </div>
 
         <div class="mt-8 flex gap-2">
-            <a href="{% url 'save_grade_avg' %}" class="btn btn-secondary">Save to Database</a>
+<!--            <a href="{% url 'save_grade_avg' %}" class="btn btn-secondary">Save to Database</a>-->
+            <div class="mt-8 flex items-center gap-2">
+    <!-- This form sends the POST request required by the view -->
+    <form method="POST" action="{% url 'save_grade_avg' %}" style="display: inline;">
+        {% csrf_token %}
+
+        <!-- These hidden inputs tell the 'save' view what to process -->
+        <input type="hidden" name="academic_year_id" value="{{ selected_academic_year.id }}">
+        <input type="hidden" name="subject_id" value="{{ selected_subject.id }}">
+        <input type="hidden" name="level_id" value="{{ selected_level.id }}">
+        <input type="hidden" name="is_mid" value="{{ is_mid }}">
+
+        <button type="submit" class="btn btn-secondary">
+            Save to Table
+        </button>
+    </form>
             <a href="{% url 'assignment-avg-wizard' %}" class="btn btn-primary">Calculate Another</a>
             <a href="{% url 'gb-index' %}" class="btn btn-secondary">Back to Index</a>
         </div>

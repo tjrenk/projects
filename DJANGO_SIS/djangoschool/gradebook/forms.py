@@ -442,27 +442,45 @@ class AssignmentDetailFormSet(BaseFormSet):
         if form_kwargs_list:
             self.form_kwargs_list = form_kwargs_list
 
+
+        # THIS ONE BELOW IS OLD, UNCOMMENTED INCASE NEW ONE WORKS EVEN WORSE
+        #
+        #
+        # for i, form_kwargs in enumerate(form_kwargs_list):
+        #     if i < len(self.forms):
+        #         self.forms[i].form_index = form_kwargs.get('form_index', i)
+        #         # Add HTMX attributes
+        #         self.forms[i].fields['na_reason'].widget.attrs.update({
+        #             'hx-get': '/gradebook/toggle-na-reason/',
+        #             'hx-target': f'#na_reason_td_{self.forms[i].form_index}',
+        #             'hx-swap': 'innerHTML',
+        #             'hx-include': f'[name="form-{self.forms[i].form_index}-na_reason"], [name="form-{self.forms[i].form_index}-is_active"]',
+        #             'hx-trigger': 'change',
+        #             'id': f'na_reason_input_{self.forms[i].form_index}',
+        #             'class': 'form-control textarea textarea-bordered w-full min-w-24 focus:outline-0 transition-all focus:outline-offset-0'
+        #         })
+        #         self.forms[i].fields['is_active'].widget.attrs.update({
+        #             'hx-get': '/gradebook/toggle-na-reason/',
+        #             'hx-target': f'#na_reason_td_{self.forms[i].form_index}',
+        #             'hx-swap': 'innerHTML',
+        #             'hx-include': f'[name="form-{self.forms[i].form_index}-na_reason"], [name="form-{self.forms[i].form_index}-is_active"]',
+        #             'hx-trigger': 'change',
+        #             'id': f'is_active_{self.forms[i].form_index}'
+        #         })
+
         for i, form_kwargs in enumerate(form_kwargs_list):
             if i < len(self.forms):
-                self.forms[i].form_index = form_kwargs.get('form_index', i)
-                # Add HTMX attributes
-                self.forms[i].fields['na_reason'].widget.attrs.update({
-                    'hx-get': '/gradebook/toggle-na-reason/',
-                    'hx-target': f'#na_reason_td_{self.forms[i].form_index}',
-                    'hx-swap': 'innerHTML',
-                    'hx-include': f'[name="form-{self.forms[i].form_index}-na_reason"], [name="form-{self.forms[i].form_index}-is_active"]',
-                    'hx-trigger': 'change',
-                    'id': f'na_reason_input_{self.forms[i].form_index}',
-                    'class': 'form-control textarea textarea-bordered w-full min-w-24 focus:outline-0 transition-all focus:outline-offset-0'
-                })
+                idx = i
+
                 self.forms[i].fields['is_active'].widget.attrs.update({
                     'hx-get': '/gradebook/toggle-na-reason/',
-                    'hx-target': f'#na_reason_td_{self.forms[i].form_index}',
-                    'hx-swap': 'innerHTML',
-                    'hx-include': f'[name="form-{self.forms[i].form_index}-na_reason"], [name="form-{self.forms[i].form_index}-is_active"]',
+                    'hx-target': 'closest tr',  # Target the whole row
+                    'hx-swap': 'outerHTML',  # Replace the whole row
                     'hx-trigger': 'change',
-                    'id': f'is_active_{self.forms[i].form_index}'
+                    # 'closest tr' includes all inputs inside that row automatically
+                    'hx-include': 'closest tr',
                 })
+
     
     def clean(self):
         super().clean()

@@ -35,6 +35,7 @@ class Weighting(models.Model):
     level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
+    is_mid = models.BooleanField(default=False)
     weight = models.DecimalField(max_digits=2, decimal_places=2, default=0.0)
 
 class Course(AbstractClass):
@@ -48,6 +49,9 @@ class CourseMember(models.Model):
     is_active = models.BooleanField(default=True)
     na_date = models.DateField(null=True, blank=True)
     na_reason = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return self.student.__str__()
 
 class PassingGrade(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)

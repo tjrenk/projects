@@ -39,8 +39,8 @@ class AssignmentTypeAdmin(admin.ModelAdmin):
     list_display = ["short_name", "name"]
 
 class WeightingAdmin(admin.ModelAdmin):
-    list_display = ["academic_year","subject","assignment","format_percentage"]
-    list_filter = ["academic_year", "subject", ]
+    list_display = ["academic_year","is_mid","subject","assignment","format_percentage"]
+    list_filter = ["academic_year", "subject", "is_mid"]
 
     def format_percentage(self, obj: Weighting)->decimal:
         return obj.weight*100
@@ -143,5 +143,5 @@ admin.site.register(StudentReportcard, StudentReportcardAdmin)
 admin.site.register(StudentReportExtra, StudentReportExtraAdmin)
 # admin.site.register(RubricIndicator)
 # admin.site.register(StudentReportcard, StudentReportcardHistory)
-# admin.site.register(ReportcardGrade, ReportCardGradeHistory)
+admin.site.register(ReportcardGrade, ReportCardGradeHistory)
 # admin.site.register(GradeLevel, GradeLevelAdmin)

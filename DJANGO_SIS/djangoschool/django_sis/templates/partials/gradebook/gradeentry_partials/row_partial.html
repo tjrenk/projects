@@ -1,0 +1,37 @@
+<tr class="transition-all">
+    <!-- Hidden fields for Django Wizard to keep track -->
+    <input type="hidden" name="{{ step }}-{{ idx }}-student" value="{{ request.GET|dictget:step|add:'-'|add:idx|add:'-student' }}">
+
+    <td>
+        <input type="text" readonly class="form-control-plaintext" value="{{ student_nisn }}">
+        <input type="hidden" name="{{ step }}-{{ idx }}-student_nisn" value="{{ student_nisn }}">
+    </td>
+    <td>
+        <input type="text" readonly class="form-control-plaintext" value="{{ student_name }}">
+        <input type="hidden" name="{{ step }}-{{ idx }}-student_name" value="{{ student_name }}">
+    </td>
+
+    <td>
+        <input type="text"
+               name="{{ step }}-{{ idx }}-score"
+               value="{{ score }}"
+               class="form-control score-input">
+    </td>
+
+    <td>
+        <input type="text"
+               name="{{ step }}-{{ idx }}-na_reason"
+               value="{{ na_reason }}"
+               class="form-control na-reason-input">
+    </td>
+
+    <td class="text-center">
+        <input type="checkbox"
+               name="{{ step }}-{{ idx }}-is_active"
+               {% if is_active %}checked{% endif %}
+               hx-get="/gradebook/toggle-na-reason/"
+               hx-target="closest tr"
+               hx-swap="outerHTML"
+               hx-include="closest tr">
+    </td>
+</tr>
