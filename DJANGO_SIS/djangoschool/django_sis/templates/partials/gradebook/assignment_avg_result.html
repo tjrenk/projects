@@ -35,8 +35,8 @@
                         <td>{{ item.subject }}</td>
                         <!-- Assuming Course maps to Subject here, adjust if Course is different -->
                         <td>{{ item.subject }}</td>
-                        <td>{{ item.raw_avg|floatformat:0 }}</td>
-                        <td class="text-primary font-bold">{{ item.weighted_avg|floatformat:0 }}</td>
+                        <td>{{ item.raw_avg|floatformat:2 }}</td>
+                        <td class="text-primary font-bold">{{ item.weighted_avg|floatformat:2 }}</td>
                     </tr>
                     {% empty %}
                     <tr>

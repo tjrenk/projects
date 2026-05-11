@@ -711,34 +711,43 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
 
-        # Logika khusus untuk Step 3 (FormSet Siswa)
         if step == '2':
-            # Ambil data dari Step 0 (GradeEntry)
-            step0_data = self.get_cleaned_data_for_step('1')
-            if step0_data and 'subject' in step0_data:
-                subject = step0_data['subject']
-                course = step0_data.get('course')
+            # 1. Get data from Step 0 and Step 1
+            data0 = self.get_cleaned_data_for_step('0')  # Year, Period, Is Mid, Level
+            data1 = self.get_cleaned_data_for_step('1')  # Subject, Course
 
-                if course:
-                    # Ambil semua siswa yang aktif di course tersebut
-                    students = CourseMember.objects.filter(
-                        course=course
-                    ).select_related('student')
-                else:
-                    # If no course selected, get all students from all courses of the subject
-                    courses = Course.objects.filter(subject=subject)
-                    students = CourseMember.objects.filter(
-                        course__in=courses
-                    ).select_related('student')
+            if not data0 or not data1:
+                return initial
 
-                # Siapkan initial data (list of dicts) untuk FormSet
-                initial_list = []
-                for member in students:
-                    initial_list.append({
-                        'student_name': str(member.student),  # Display name from related Student
-                        'subject': subject.id,  # Subject ID from step 1
-                    })
-                return initial_list
+            subject = data1.get('subject')
+            course = data1.get('course')
+
+            # 2. Get students in the course
+            members = CourseMember.objects.filter(course=course).select_related('student')
+
+            initial_list = []
+            for member in members:
+                # 3. CRITICAL QUERY: Find the existing grade for this specific student/subject/period
+                # Note: We filter by the fields that define a unique report card entry
+                existing_grade = ReportcardGrade.objects.filter(
+                    reportcard__student=member.student,
+                    reportcard__academic_year=data0['academic_year'],
+                    reportcard__period=data0['period'],
+                    reportcard__is_mid=data0['is_mid'],
+                    subject=subject
+                ).first()
+
+                initial_list.append({
+                    'student_name': str(member.student),
+                    'subject': subject.id,
+                    # These are the fields you were missing:
+                    'final_score': existing_grade.final_score if existing_grade else 0,
+                    'final_grade': existing_grade.final_grade if existing_grade else '-',
+                    'teacher_comments': existing_grade.teacher_comments if existing_grade else '',
+                    # Hidden field to help the 'done' method find the right record
+                    'grade_id': existing_grade.id if existing_grade else None,
+                })
+            return initial_list
 
         return initial
 
@@ -768,6 +777,8 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             data_step1 = self.get_cleaned_data_for_step('1')
             if data_step1:
                 context['assignment_head_data'] = data_step1
+                # context['final_score'] = ReportcardGrade.objects.get(final_score=rep)
+
 
         return context
 
@@ -2522,10 +2533,10 @@ def save_assignment_results(request):
                 student=student, academic_year=academic_year,
                 period=period, is_mid=is_mid, defaults={'level': level}
             )
-            # ReportcardGrade.objects.update_or_create(
-            #     reportcard=reportcard, subject=subject,
-            #     defaults={'final_score': final_score_int, 'final_grade': 'B'}  # Add your letter logic
-            # )
+            ReportcardGrade.objects.update_or_create(
+                reportcard=reportcard, subject=subject,
+                defaults={'final_score': final_score_int, 'final_grade': 'B'}  # Add your letter logic
+            )
 
     messages.success(request, f"Successfully saved grades for {subject.subject_name}!")
     return redirect('assignment-avg-wizard')  # Change to your actual redirect

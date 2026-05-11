@@ -1,3 +1,4 @@
+
 <tr class="transition-all">
     <!-- Hidden fields for Django Wizard to keep track -->
     <input type="hidden" name="{{ step }}-{{ idx }}-student" value="{{ request.GET|dictget:step|add:'-'|add:idx|add:'-student' }}">

@@ -669,6 +669,20 @@ class ReportCardGradeForm(forms.ModelForm):
         required=False
     )
 
+    student_id = forms.IntegerField(widget=forms.HiddenInput(), required=False)
+
+    class Meta:
+        model = ReportcardGrade
+        fields = ['student_name', 'subject', 'final_score', 'final_grade', 'teacher_notes']
+        widgets = {
+            'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+            'subject': forms.HiddenInput(),
+            'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
+            'final_grade': forms.Select(attrs={'class': 'form-select'}),
+            'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+        }
+        exclude = ('reportcard',)
+
     def __init__(self, *args, subject_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -704,17 +718,13 @@ class ReportCardGradeForm(forms.ModelForm):
         if self.initial.get('student_name'):
             self.fields['student_name'].initial = self.initial['student_name']
 
-    class Meta:
-        model = ReportcardGrade
-        fields = ['student_name', 'subject', 'final_score', 'final_grade', 'teacher_notes']
-        widgets = {
-            'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-            'subject': forms.HiddenInput(),
-            'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
-            'final_grade': forms.Select(attrs={'class': 'form-select'}),
-            'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-        }
-        exclude = ('reportcard',)
+        if self.initial.get('final_score') is not None:
+            self.fields['final_score'].initial = self.initial['final_score']
+
+        if self.initial.get('final_grade') is not None:
+            self.fields['final_grade'].initial = self.initial['final_grade']
+
+
 
 
 # Formset for ReportCardGradeForm
