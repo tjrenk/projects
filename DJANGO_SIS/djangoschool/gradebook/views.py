@@ -2502,154 +2502,117 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
             is_mid=is_mid,
         ).select_related('assignment')
 
-        # 2. PENENTUAN BATAS TANGGAL (PENTING: Agar nilai tidak campur)
-        # period = LearningPeriod.objects.filter(academic_year=academic_year).first()
-        # if is_mid:
-        #     # Hanya ambil tugas yang dikerjakan s/d tengah semester
-        #     date_filter = {'assignment_head__date__lte': period.midterm_end_date}
-        # else:
-        #     # Hanya ambil tugas yang dikerjakan setelah tengah semester
-        #     date_filter = {'assignment_head__date__gt': period.midterm_end_date}
+        allowed_assignment_ids = weightings.values_list('assignment_id', flat=True)
 
-        # 3. QUERY SISWA (Perbaikan error "Must be Course instance")
-        # Kita gunakan filter yang lebih aman
+        # 2. Get distinct students who have assignment data for this specific SUBJECT
         students = Student.objects.filter(
             assignmentdetail__assignment_head__course__subject=subject, assignmentdetail__assignment_head__course__academic_year=academic_year
         ).distinct()
 
-        # # Jika 'kelas' yang dipilih di form adalah spesifik Course/Rombel
-        # if kelas:
-        #     # Jika error "Must be Course instance" muncul di sini,
-        #     # pastikan field di filter sesuai dengan tipe data 'kelas'
-        #     students = students.filter(coursemember__course=kelas)
-        #
-        # students = students.distinct()
+        # NOTE: If you need to strictly limit this to students ONLY in the selected 'kelas',
+        # you can chain a filter here depending on how your Student model connects to your Class model.
+        # Example: students = students.filter(student_class=kelas)  <-- Change 'student_class' to your actual field
 
         student_results = []
-        for student in students:
-            total_weighted_avg = 0.0
 
+        # assignment = AssignmentDetail.objects.filter(assignment_head__assignment = weightings) #<--- upaya gw
+
+        for student in students:
+            # Calculate RAW average for this student in this SUBJECT
+            raw_avg = AssignmentDetail.objects.filter(
+                student=student,
+                assignment_head__course__subject=subject,
+                assignment_head__assignment_id__in=allowed_assignment_ids,  #<---- yang ini
+            ).aggregate(Avg('score'))['score__avg'] or 0
+
+            # Calculate WEIGHTED average
+            total_weighted_avg = 0
             for weighting in weightings:
-                # 4. ISOLASI NILAI (Gunakan date_filter agar SUMM Mid & Final tidak gabung)
-                avg_result = AssignmentDetail.objects.filter(
+                w_avg = AssignmentDetail.objects.filter(
                     student=student,
                     assignment_head__course__subject=subject,
-                    assignment_head__assignment=weighting.assignment,
-                    is_active=True,
-                    # **date_filter  # <--- INI KUNCI AGAR TIDAK KECAMPUR
-                ).aggregate(avg=Avg('score'))['avg']
+                    assignment_head__assignment=weighting.assignment
+                ).aggregate(Avg('score'))['score__avg'] or 0
 
-                avg_score = float(avg_result) if avg_result is not None else 0.0
-
-                # Cek apakah bobot di DB berbentuk 70.0 atau 0.70
-                # Jika di DB 70.0, maka harus dibagi 100
-                w_val = float(weighting.weight)
-                if w_val > 1:
-                    w_val = w_val / 100
-
-                total_weighted_avg += avg_score * w_val
+                total_weighted_avg += float(w_avg) * float(weighting.weight)
 
             student_results.append({
+                'nisn': getattr(student, 'nisn', '-'),
                 'student_name': str(student),
-                'weighted_avg': round(total_weighted_avg, 2),
-                'final_score': round(total_weighted_avg),
+                'kelas': kelas,
+                'subject': subject,
+                'raw_avg': raw_avg,
+                'weighted_avg': total_weighted_avg
             })
 
         context = {
             'student_results': student_results,
-            'is_mid': is_mid,
-            'subject': subject,
             'selected_academic_year': academic_year,
+            'selected_subject': subject,
             'selected_kelas': kelas,
             'selected_level': level,
+            'is_mid': is_mid,
         }
 
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
 
+
 @require_POST
 def save_assignment_results(request):
-    # --- Step 1: Read inputs ---
-    ay_id  = request.POST.get('academic_year_id')
+    """
+    This view is triggered ONLY when the user clicks 'Save to Report Cards'
+    on the preview page.
+    """
+    # 1. Get IDs from the hidden form fields
+    ay_id = request.POST.get('academic_year_id')
     sub_id = request.POST.get('subject_id')
     lvl_id = request.POST.get('level_id')
-    is_mid_pilihan = request.POST.get('is_mid') in ['True', 'true', 'on']
+    is_mid = request.POST.get('is_mid') == 'True'
 
+    # 2. Re-fetch objects and calculate (DRY: You could move calculation to a helper function)
     academic_year = AcademicYear.objects.get(id=ay_id)
-    subject       = Subject.objects.get(id=sub_id)
-    level         = GradeLevel.objects.get(id=lvl_id)
+    subject = Subject.objects.get(id=sub_id)
+    level = GradeLevel.objects.get(id=lvl_id)
+    period = LearningPeriod.objects.filter(academic_year_id=ay_id).first()
 
-    # Use the period that matches is_mid to get the right date boundary
-    period = LearningPeriod.objects.filter(academic_year=academic_year).first()
-    if not period:
-        messages.error(request, "Periode pembelajaran tidak ditemukan.")
-        return redirect('assignment-avg-wizard')
-
-    # --- Step 2: Get weightings filtered by is_mid ---
     weightings = Weighting.objects.filter(
         academic_year=academic_year,
         level=level,
         subject=subject,
-        is_mid=is_mid_pilihan,   # KEY: isolates mid vs. final weightings
-    )
-
-    if not weightings.exists():
-        messages.warning(request, "Tidak ada bobot nilai ditemukan untuk kriteria ini.")
-        return redirect('assignment-avg-wizard')
-
-    # --- Step 3: Date boundary based on is_mid ---
-    # Mid  → assignments ON OR BEFORE midterm_end_date
-    # Final → assignments AFTER midterm_end_date
-    if is_mid_pilihan:
-        date_filter = {'assignment_head__date__lte': period.midterm_end_date}
-    else:
-        date_filter = {'assignment_head__date__gt': period.midterm_end_date}
-
-    # --- Step 4: Students filtered by level AND subject ---
+        is_mid=is_mid,
+    ).select_related('assignment')
     students = Student.objects.filter(
-        coursemember__course__subject=subject,
-        coursemember__course__academic_year=academic_year,
-        coursemember__course__level=level,   # <-- filter by level
-        coursemember__is_active=True,
+        assignmentdetail__assignment_head__course__subject=subject,
+        assignmentdetail__assignment_head__course__academic_year=academic_year
     ).distinct()
 
     with transaction.atomic():
         for student in students:
-            total_weighted_avg = Decimal('0.00')
-
-            for w in weightings:
-                avg_result = AssignmentDetail.objects.filter(
+            # --- Perform the same calculation logic as before ---
+            total_weighted_avg = 0
+            for weighting in weightings:
+                w_avg = AssignmentDetail.objects.filter(
                     student=student,
                     assignment_head__course__subject=subject,
-                    assignment_head__course__level=level,       # <-- filter by level
-                    assignment_head__assignment=w.assignment,
-                    is_active=True,
-                    **date_filter
-                ).aggregate(avg=Avg('score'))['avg']
+                    assignment_head__assignment=weighting.assignment
+                ).aggregate(Avg('score'))['score__avg'] or 0
+                total_weighted_avg += float(w_avg) * float(weighting.weight)
 
-                avg_score = Decimal(str(avg_result)) if avg_result is not None else Decimal('0')
+            final_score_int = round(total_weighted_avg)
 
-                # w.weight is stored as 0.70 (not 70), so multiply directly — no / 100
-                total_weighted_avg += avg_score * Decimal(str(w.weight))
-
-            final_score_int = int(round(total_weighted_avg))
-
+            # --- THE DUMP ---
             reportcard, _ = StudentReportcard.objects.update_or_create(
-                student=student,
-                academic_year=academic_year,
-                period=period,
-                is_mid=is_mid_pilihan,
-                defaults={'level': level}
+                student=student, academic_year=academic_year,
+                period=period, is_mid=is_mid, defaults={'level': level}
             )
 
             ReportcardGrade.objects.update_or_create(
-                reportcard=reportcard,
-                subject=subject,
-                defaults={'final_score': final_score_int}
+                reportcard=reportcard, subject=subject,
+                defaults={'final_score': final_score_int, 'final_grade': 'B'}  # Add your letter logic
             )
 
-    label = "Midterm" if is_mid_pilihan else "Final"
-    messages.success(request, f"Perhitungan {label} berhasil disimpan untuk {students.count()} siswa.")
-    return redirect('assignment-avg-wizard')
+    messages.success(request, f"Successfully saved grades for {subject.subject_name}!")
+    return redirect('assignment-avg-wizard')  # Change to your actual redirect
 
 class GradesWizard(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/gradebook/grades_wizard.html"
@@ -2682,7 +2645,8 @@ def get_period_assignment_avg(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     selected_period = request.GET.get('0-period') or request.GET.get('period')
     if acayear_id:
-        periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
+        # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
+        periods = LearningPeriod.objects.all()
     else:
         periods = LearningPeriod.objects.none()
     html = render_to_string("partials/gradebook/assignment_avg_partials/period.html", {
@@ -2703,8 +2667,8 @@ def get_subjects_assignment_avg(request):
     selected_subject = request.GET.get('0-subject') or request.GET.get('subject')
 
     # 3. Only search if a level is picked AND this person is actually a teacher
-    if level_id and teacher:
-        subjects = Subject.objects.filter(course__teacher=teacher).distinct()
+    if level_id:
+        subjects = Subject.objects.all()
     else:
         subjects = Subject.objects.none()
 
@@ -2724,10 +2688,8 @@ def get_courses_assignment_avg(request):
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
 
     # 2. Filter classes by both Subject AND Teacher
-    if subject_id and teacher:
-        kelas = Class.objects.filter(
-            teacher=teacher
-        ).distinct()
+    if subject_id:
+        kelas = Class.objects.all()
     else:
         kelas = Class.objects.none()
 

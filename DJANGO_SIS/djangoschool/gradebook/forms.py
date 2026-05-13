@@ -42,6 +42,8 @@ class GradeEntryForm(forms.ModelForm):
         data = self.data
         initial = self.initial
 
+        is_admin = user and (user.is_staff or user.is_superuser)
+
         # Default Logic for Logged-in Teacher
         if user and not self.is_bound:
             teacher_obj = Teacher.objects.filter(user=user).first()
@@ -105,6 +107,7 @@ class GradeEntryForm(forms.ModelForm):
         #     self.fields['course'].queryset = Course.objects.none()
 
         if course:
+            self.fields['assignment_type'].label_from_instance = lambda obj: obj.name
             self.fields['assignment_type'].queryset = AssignmentType.objects.all()
         else:
             self.fields['assignment_type'].queryset = AssignmentType.objects.none()
@@ -2011,25 +2014,21 @@ class AssignmentAvgForm(forms.Form):
         level_id = data.get('0-level') or initial.get('level')
         subject_id = data.get('0-subject') or initial.get('subject')
 
-        # 2. Figure out who the logged-in teacher is
-        teacher_obj = None
-        if user:
-            teacher_obj = Teacher.objects.filter(user=user).first()
+        # # 2. Figure out who the logged-in teacher is
+        # teacher_obj = None
+        # if user:
+        #     teacher_obj = Teacher.objects.filter(user=user).first()
 
         # 3. Filter SUBJECTS: Must belong to the teacher (and potentially the level)
-        if level_id and teacher_obj:
-            self.fields['subject'].queryset = Subject.objects.filter(
-                course__teacher=teacher_obj
-            ).distinct()
+        if level_id:
+            self.fields['subject'].queryset = Subject.objects.all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
         # 4. Filter KELAS: Must belong to the teacher AND the selected subject
-        if subject_id and teacher_obj:
+        if subject_id:
             # *NOTE: If this line gives an error, it's because Django doesn't know
             # how your Class model links to your Course model.
-            self.fields['kelas'].queryset = Class.objects.filter(
-            teacher=teacher_obj
-        ).distinct()
+            self.fields['kelas'].queryset = Class.objects.all()
         else:
             self.fields['kelas'].queryset = Class.objects.none()

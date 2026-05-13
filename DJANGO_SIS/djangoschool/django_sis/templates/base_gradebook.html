@@ -148,7 +148,9 @@
                                 <li><a href="{% url 'rubric-entry' %}">Behaviour Grade Entry</a></li>
                                 <li><a href="{% url 'extra-report' %}">Activity Entry</a></li>
                                 <li><a href="{% url 'grades-wizard' %}">Grades Wizard</a></li>
+                                {% if user.is_staff %}
                                 <li><a href="{% url 'assignment-avg-wizard' %}">Calculate Final Grade</a></li>
+                                {% endif %}
                             </ul>
                         </details>
                     </li>
@@ -170,6 +172,23 @@
 
             <div class="flex-1 flex flex-col">
                 <div class="p-5 pb-0">
+                    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div role="alert" class="alert {% if message.tags == 'error' %}alert-error{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} shadow-lg mb-2">
+                    {% if message.tags == 'success' %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {% elif message.tags == 'error' %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {% endif %}
+                    <span>{{ message }}</span>
+                    <div>
+                        <button class="btn btn-sm btn-ghost" onclick="this.parentElement.parentElement.remove()">✕</button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
                     <div class="breadcrumbs">
                         {% block content %}{% endblock %}
                     </div>
