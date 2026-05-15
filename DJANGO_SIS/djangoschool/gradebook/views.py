@@ -712,8 +712,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         initial = super().get_form_initial(step)
 
         if step == '2':
-            # 1. Get data from Step 0 and Step 1
-            data0 = self.get_cleaned_data_for_step('0')  # Year, Period, Is Mid, Level
+            data0 = self.get_cleaned_data_for_step('0')  # Academic Year, Period, Is Mid, Level
             data1 = self.get_cleaned_data_for_step('1')  # Subject, Course
 
             if not data0 or not data1:
@@ -722,33 +721,44 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             subject = data1.get('subject')
             course = data1.get('course')
 
-            # 2. Get students in the course
+            # Filter member kelas
             members = CourseMember.objects.filter(course=course).select_related('student')
-
             initial_list = []
+
             for member in members:
-                # 3. CRITICAL QUERY: Find the existing grade for this specific student/subject/period
-                # Note: We filter by the fields that define a unique report card entry
+                # KRUSIAL: Filter ini harus match persis dengan cara kamu simpan nilai akhir
                 existing_grade = ReportcardGrade.objects.filter(
                     reportcard__student=member.student,
                     reportcard__academic_year=data0['academic_year'],
                     reportcard__period=data0['period'],
                     reportcard__is_mid=data0['is_mid'],
-                    subject=subject
+                    subject=subject  # Ini pengunci agar mapel lain tidak ikut terbawa
                 ).first()
 
-                initial_list.append({
-                    'student_name': str(member.student),
-                    'subject': subject.id,
-                    # These are the fields you were missing:
-                    'final_score': existing_grade.final_score if existing_grade else 0,
-                    'final_grade': existing_grade.final_grade if existing_grade else '-',
-                    'teacher_comments': existing_grade.teacher_comments if existing_grade else '',
-                    # Hidden field to help the 'done' method find the right record
-                    'grade_id': existing_grade.id if existing_grade else None,
-                })
-            return initial_list
+                # Jika kamu hanya mau menampilkan siswa yang SUDAH punya nilai:
+                if existing_grade:
+                    initial_list.append({
+                        'student_id': member.student.id,
+                        'student_name': f"{member.student.id_number} - {member.student.registration_data.first_name} {member.student.registration_data.last_name}",
+                        'subject': subject.id,
+                        'final_score': existing_grade.final_score,
+                        'final_grade': existing_grade.final_grade,
+                        'teacher_notes': existing_grade.teacher_notes,
+                        'grade_id': existing_grade.id,
+                    })
+                else:
+                    # Opsi jika nilai belum ada: tampilkan siswa tapi beri tanda 0
+                    # (Atau jangan append kalau mau filter benar-benar ketat)
+                    initial_list.append({
+                        'student_id': member.student.id,
+                        'student_name': str(member.student),
+                        'subject': subject.id,
+                        'final_score': 0,
+                        'final_grade': '-',
+                        'teacher_notes': 'NILAI BELUM DIKALKULASI',
+                    })
 
+            return initial_list
         return initial
 
     def get_context_data(self, form, **kwargs):
@@ -783,82 +793,43 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         return context
 
     def done(self, form_list, **kwargs):
-        # Ambil data dari form yang sudah divalidasi
-        form_data_0 = form_list[0].cleaned_data  # StudentReportcardForm (academic_year, period, is_mid, level)
-        form_data_1 = form_list[1].cleaned_data  # CourseByTeacher (course, subject)
+        form_data_0 = form_list[0].cleaned_data
+        form_data_1 = form_list[1].cleaned_data
+        formset = form_list[2]
 
-        # Get the course and subject from step 1
         course = form_data_1['course']
         subject = form_data_1['subject']
 
-        # Get all students in the course
-        students_in_course = CourseMember.objects.filter(course=course).select_related('student')
+        with transaction.atomic():
+            for form in formset:
+                if form.is_valid() and form.cleaned_data:
+                    data = form.cleaned_data
 
-        # Create a StudentReportcard for each student
-        reportcards = {}
-        for member in students_in_course:
-            student_reportcard = StudentReportcard(
-                academic_year=form_data_0['academic_year'],
-                period=form_data_0['period'],
-                is_mid=form_data_0['is_mid'],
-                level=form_data_0['level'],
-                student=member.student
-            )
-            student_reportcard.save()
-            reportcards[member.student.id] = student_reportcard
+                    # 1. Cari atau buat Head (Report Card)
+                    # Kita cari berdasarkan student_id yang kita simpan di initial tadi
+                    student_id = data.get('student_id')
 
-        # 3. Simpan ReportcardGrade (Looping FormSet)
-        details_to_create = []
+                    reportcard, _ = StudentReportcard.objects.update_or_create(
+                        student_id=student_id,
+                        academic_year=form_data_0['academic_year'],
+                        period=form_data_0['period'],
+                        is_mid=form_data_0['is_mid'],
+                        defaults={'level': form_data_0['level']}
+                    )
 
-        print("\n--- DEBUG: Starting FormSet Loop ---")
+                    # 2. Update Komentar di ReportcardGrade
+                    # Kita tidak create baru, tapi update yang sudah ada (hasil hitungan wizard)
+                    ReportcardGrade.objects.update_or_create(
+                        reportcard=reportcard,
+                        subject=subject,
+                        defaults={
+                            'teacher_notes': data.get('teacher_notes'),
+                            # Score & Grade tidak diupdate di sini (biar tetap hasil wizard)
+                        }
+                    )
 
-        formset = form_list[2]  # ReportCardGradeFormset
-
-        # Zip the formset forms with the students (assuming order matches initial_list)
-        for i, (form, member) in enumerate(zip(formset.forms, students_in_course)):
-
-            # Re-validate the form here to force errors to populate the form object
-            is_valid = form.is_valid()
-
-            print(f"DEBUG: Form Index {i}: Valid? {is_valid}")
-
-            if is_valid and form.cleaned_data:
-                # Print the data to confirm required fields are present
-                print(f"DEBUG: Form {i} Cleaned Data: {form.cleaned_data}")
-
-                # Extract the subject from this form's cleaned_data
-                # subject_obj = form.cleaned_data.get('subject')
-                subject_obj = subject  # Use the subject from step 1 directly
-
-                # Check if the subject object is None
-                if not subject_obj:
-                    print(f"!!! CRITICAL FAIL: Form {i} cleaned_data['subject'] is missing or None.")
-                    continue
-
-                detail = form.save(commit=False)
-                detail.reportcard = reportcards[member.student.id]  # Assign the correct reportcard
-                detail.subject = subject_obj
-
-                # If the form corresponds to an existing DB row, save/update it.
-                if detail.pk:
-                    detail.save()
-                else:
-                    # Ensure PK is None for new objects to let the DB assign it
-                    detail.pk = None
-                    details_to_create.append(detail)
-
-            else:
-                # Print form errors if not valid
-                print(f"DEBUG: Form {i} Errors: {form.errors}")
-
-            print(f"--- DEBUG: Total forms added to bulk_create: {len(details_to_create)} ---\n")
-
-        # Bulk-create any new grade rows (do not attempt to bulk_create existing PKs)
-        if details_to_create:
-            ReportcardGrade.objects.bulk_create(details_to_create)
-
-        return render(self.request, "partials/gradebook/finished_screen_teachercomm.html")
-
+        messages.success(self.request, "Teacher's notes updated successfully!")
+        return redirect('report-card')  # Ganti ke nama URL yang sesuai
 
 # Grade Entry dynamic fields
 def get_levels_ge(request):
@@ -1579,48 +1550,30 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         initial = super().get_form_initial(step)
 
         if step == '1':
-            step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data and 'kelas' in step0_data:
-                kelas = step0_data['kelas']
-                academic_year = step0_data.get('academic_year')
-                period = step0_data.get('period')
-                level = step0_data.get('level')
+            data0 = self.get_cleaned_data_for_step('0')
+            if not data0: return initial
 
-                # 1. Check the DB to see who is already graded
-                graded_student_ids = []
-                if academic_year and period and level:
-                    # Find the grading container for this term
-                    behaviour = ReportcardBehaviour.objects.filter(
-                        academic_year=academic_year,
-                        period=period,
-                        level=level,
-                        is_mid=False
-                    ).first()
+            # Cari siapa aja yang udah punya nilai di session ini
+            graded_student_ids = StudentBehaviourReport.objects.filter(
+                behaviour__academic_year=data0['academic_year'],
+                behaviour__period=data0['period'],
+                behaviour__level=data0['level'],
+                behaviour__is_mid=False
+            ).values_list('student_id', flat=True).distinct()
 
-                    if behaviour:
-                        # Extract a flat list of student IDs that have at least one score
-                        graded_student_ids = list(StudentBehaviourReport.objects.filter(
-                            behaviour=behaviour
-                        ).values_list('student_id', flat=True).distinct())
+            students = ClassMember.objects.filter(
+                kelas=data0['kelas'],
+                is_active=True
+            ).select_related('student')
 
-                # 2. Get all students active in this class
-                students = ClassMember.objects.filter(
-                    kelas=kelas,
-                    is_active=True
-                ).select_related('student')
-
-                # 3. Populate initial data for the FormSet
-                initial_list = []
-                for member in students:
-                    student_id = member.student.id
-                    initial_list.append({
-                        'student': student_id,
-                        'is_active': member.is_active,
-                        # The Magic Switch: True if they are in the graded list
-                        'is_graded': student_id in graded_student_ids,
-                    })
-                return initial_list
-
+            initial_list = []
+            for member in students:
+                initial_list.append({
+                    'student': member.student.id,
+                    'is_graded': member.student.id in graded_student_ids,  # Ini logic kuncinya
+                    'is_active': member.is_active,
+                })
+            return initial_list
         return initial
 
     def get_form_kwargs(self, step=None):
@@ -1753,101 +1706,67 @@ def get_kelas_rubric(request):
                   'student': student,
     }
 
+
 @login_required
 def student_behavior_grading(request, pk):
-    """View for grading individual student behavior using rubrics and indicators"""
     try:
         student = Student.objects.select_related('registration_data').get(pk=pk)
     except Student.DoesNotExist:
         return HttpResponse("Student not found", status=404)
 
-    # FIX 1: The correct Formtools session key is the lowercase class name!
-    wizard_key = 'wizard_rubricentrywizard'
+    # NAMA KEY HARUS SAMA: Sesuai nama class Wizard (snake_case)
+    # Jika class: RubricEntryWizard -> key: wizard_rubric_entry_wizard
+    wizard_key = 'wizard_rubric_entry_wizard'
     wizard_data = request.session.get(wizard_key, {})
-    step_data = wizard_data.get('step_data', {})
-    step0_data = step_data.get('0', {})
+    step_data = wizard_data.get('step_data', {}).get('0', {})
 
-    # Helper to extract PK from raw wizard session data
-    def get_pk_from_step0(key, fallback=None):
-        # 1. Add the step prefix to the key (e.g., '0-academic_year')
-        prefixed_key = f'0-{key}'
-        val = step0_data.get(prefixed_key)
+    # Helper buat ambil ID dari session (karena formatnya list: ['2'])
+    def get_id(field):
+        val = step_data.get(f'0-{field}')
+        return val[0] if isinstance(val, list) and val else val
 
-        # 2. Extract the string from the list if it's stored as a list
-        if isinstance(val, list) and val:
-            val = val[0]
+    ay_id = get_id('academic_year')
+    p_id = get_id('period')
+    l_id = get_id('level')
 
-        # 3. Return the string ID if it exists
-        if val:
-            return val
+    # Ambil object untuk context template
+    academic_year = AcademicYear.objects.filter(pk=ay_id).first()
+    period = LearningPeriod.objects.filter(pk=p_id).first()
+    level = GradeLevel.objects.filter(pk=l_id).first()
 
-        return fallback
-
-    academic_year_id = get_pk_from_step0('academic_year', request.GET.get('academic_year'))
-    period_id = get_pk_from_step0('period', request.GET.get('period'))
-    level_id = get_pk_from_step0('level', request.GET.get('level'))
-
-    academic_year = None
-    period = None
-    level = None
-    try:
-        if academic_year_id:
-            academic_year = AcademicYear.objects.get(pk=academic_year_id)
-        if period_id:
-            period = LearningPeriod.objects.get(pk=period_id)
-        if level_id:
-            level = GradeLevel.objects.get(pk=level_id)
-    except (AcademicYear.DoesNotExist, LearningPeriod.DoesNotExist, GradeLevel.DoesNotExist):
-        academic_year = period = level = None
-
-    # Get all rubrics for this academic year (both Spiritual and Social)
-    rubrics = Rubric.objects.all()
-
-    behaviour = None
-    if academic_year and period and level:
-        behaviour = ReportcardBehaviour.objects.filter(
-            academic_year=academic_year,
-            period=period,
-            level=level,
-            is_mid=False
-        ).first()
-
-    # 2. Get all rubrics (convert to list so we can inject temporary attributes)
+    # Ambil rubrik
     rubrics = list(Rubric.objects.all())
 
-    # 3. Create a dictionary of existing scores {rubric_id: score}
-    existing_scores = {}
-    if behaviour:
-        reports = StudentBehaviourReport.objects.filter(student=student, behaviour=behaviour)
-        for report in reports:
-            existing_scores[report.rubric_id] = report.score
+    # Ambil container Behaviour
+    behaviour, _ = ReportcardBehaviour.objects.get_or_create(
+        academic_year=academic_year,
+        period=period,
+        level=level,
+        is_mid=False
+    )
 
-    # 4. Attach the existing score directly to each rubric object
-    for rubric in rubrics:
-        # This creates a temporary 'existing_score' attribute for the template
-        rubric.existing_score = existing_scores.get(rubric.id, None)
-
-    # Process form submission
+    # LOGIC SIMPAN (POST) - Ini yang tadi kamu belum ada:
     if request.method == 'POST':
-        # 1. Define the wizard's session key
-        # Format is usually 'wizard_[NAME_OF_VIEW_CLASS_LOWERCASE]'
-        wizard_key = 'wizard_rubric_entry_wizard'
+        for rubric in rubrics:
+            score = request.POST.get(f'rubric_{rubric.id}')
+            if score:
+                # Simpan atau update nilai per rubrik
+                StudentBehaviourReport.objects.update_or_create(
+                    student=student,
+                    behaviour=behaviour,
+                    rubric=rubric,
+                    defaults={'score': int(score)}
+                )
 
-        # 2. Update the session to set the current step back to '1' (the second step)
-        if wizard_key in request.session:
-            data = request.session[wizard_key]
-            data['step'] = '1'  # This is the ID of your StudentListFormSet step
-            request.session[wizard_key] = data
-            request.session.modified = True
-
-        # 3. Add success message
-        # messages.success(request, f"Behavior grades successfully saved for {student}!")
-
-        # 4. Redirect back to the URL where the Wizard is hosted
-        # Use the 'name' from your urls.py for RubricEntryWizard.as_view()
+        # Redirect balik ke wizard step 1
         url = reverse('rubric-entry')
-        # return redirect('rubric-entry')
         return HttpResponseRedirect(f"{url}?step=1")
+
+    # Ambil nilai yang sudah ada buat ditampilin di form
+    existing_scores = {r.rubric_id: r.score for r in
+                       StudentBehaviourReport.objects.filter(student=student, behaviour=behaviour)}
+    for rubric in rubrics:
+        rubric.existing_score = existing_scores.get(rubric.id)
 
     context = {
         'student': student,
@@ -1855,10 +1774,8 @@ def student_behavior_grading(request, pk):
         'period': period,
         'level': level,
         'rubrics': rubrics,
-        'score_choices': [(1, '1'), (2, '2'), (3, '3'), (4, '4')],
     }
     return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
-
 
 # pls github i need this
 

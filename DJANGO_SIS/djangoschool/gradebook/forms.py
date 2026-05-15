@@ -45,7 +45,7 @@ class GradeEntryForm(forms.ModelForm):
         is_admin = user and (user.is_staff or user.is_superuser)
 
         # Default Logic for Logged-in Teacher
-        if user and not self.is_bound:
+        if user and not self.is_bound and not is_admin:
             teacher_obj = Teacher.objects.filter(user=user).first()
             if teacher_obj:
                 self.initial['teacher'] = teacher_obj.id
@@ -76,6 +76,9 @@ class GradeEntryForm(forms.ModelForm):
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
             self.fields['level'].queryset = GradeLevel.objects.all()
+            if is_admin and not teacher_obj:
+                self.fields['period'].queryset = LearningPeriod.objects.all()
+                self.fields['level'].queryset = GradeLevel.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
             self.fields['level'].queryset = GradeLevel.objects.none()
@@ -85,6 +88,8 @@ class GradeEntryForm(forms.ModelForm):
         # 3. Logic: Teacher depends on Period
         if period:
             self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
+            if is_admin and not teacher_obj:
+                self.fields['teacher'].queryset = Teacher.objects.all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
@@ -92,12 +97,16 @@ class GradeEntryForm(forms.ModelForm):
         if teacher:
             # Using your existing filtering logic
             self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher).distinct()
+            if is_admin and not teacher_obj:
+                self.fields['subject'].queryset = Subject.objects.all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
         if subject:
             # Using your existing filtering logic
             self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher).distinct()
+            if is_admin and not teacher_obj:
+                self.fields['course'].queryset = Course.objects.all()
         else:
             self.fields['course'].queryset = Course.objects.none()
 
@@ -109,6 +118,7 @@ class GradeEntryForm(forms.ModelForm):
         if course:
             self.fields['assignment_type'].label_from_instance = lambda obj: obj.name
             self.fields['assignment_type'].queryset = AssignmentType.objects.all()
+
         else:
             self.fields['assignment_type'].queryset = AssignmentType.objects.none()
 
@@ -600,6 +610,17 @@ class CourseByTeacher(forms.ModelForm):
         # Using '1-' prefix for Wizard step 1
         subject_id = data.get('1-subject') or initial.get('subject')
 
+        # Ambil data dari initial dictionary yang dikirim Wizard
+        initial_score = self.initial.get('final_score')
+        initial_grade = self.initial.get('final_grade')
+
+        if initial_score is not None:
+            # Set nilai ke widget secara langsung
+            self.fields['final_score'].widget.attrs['value'] = initial_score
+
+        if initial_grade:
+            self.fields['final_grade'].initial = initial_grade
+
         if teacher_obj:
             # 1. Filter Subjects: Only subjects taught by this teacher
             subj_qs = Subject.objects.filter(course__teacher=teacher_obj).distinct()
@@ -642,6 +663,16 @@ class CourseByTeacher(forms.ModelForm):
             'id': 'course-select'
         })
 
+    def clean(self):
+        cleaned_data = super().clean()
+        subject = cleaned_data.get('subject')
+        course = cleaned_data.get('course')
+
+        # Proteksi: Pastikan course yang dipilih memang milik subject tersebut
+        if course and subject and course.subject != subject:
+            raise forms.ValidationError("Invalid Course for the selected Subject.")
+        return cleaned_data
+
 
 class ReportCardGradeForm(forms.ModelForm):
     # Dummy field for display purposes only
@@ -659,7 +690,7 @@ class ReportCardGradeForm(forms.ModelForm):
     
 
     # This must be required=False, as you haven't entered a score yet
-    final_score = forms.DecimalField(required=False, max_digits=5, decimal_places=2, initial=0) 
+    final_score = forms.DecimalField(required=False, max_digits=5, decimal_places=2)
     
     # This must be required=False, as you haven't entered a grade yet
     final_grade = forms.ChoiceField(choices=FINAL_GRADE_CHOICES, required=False) 
