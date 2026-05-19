@@ -12,7 +12,7 @@
 </style>
 
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
-    <div class="collapse-title text-xl font-medium mb-4">Student Behavior Grading</div>
+    <div class="collapse-title text-xl font-medium mb-4">Penilaian Nilai Sikap Murid</div>
     
     <!-- Student Information Header -->
     <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-gray-100 rounded-lg">
@@ -74,8 +74,8 @@
                                                 name="rubric_{{ rubric.id }}"
                                                 value="{{ rubric.existing_score|default_if_none:'' }}"
                                                 min="1"
-                                                max="4"
-                                                placeholder="Score (1-4)"
+                                                max="100"
+                                                placeholder="Score"
                                                 required
                                             >
                             </td>

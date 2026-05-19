@@ -84,12 +84,12 @@
             </div>
 
             <div class="navbar-center max-sm:hidden">
-                <a class="btn btn-ghost text-xl" href="{% url 'gb-index' %}">Gradebook</a>
+                <a class="btn btn-ghost text-xl" href="{% url 'gb-index' %}">Buku Nilai</a>
             </div>
 
             <div class="navbar-end">
                         {% if user.is_authenticated %}
-            <p style="font-size: 15px;"><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></p>
+            <p style="font-size: 15px;"><strong>Halo, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></p>
         {% else %}
             &nbsp;
         {% endif %}
@@ -116,12 +116,12 @@
                         <i class="fa-regular fa-user text-lg"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content rounded-md bg-base-300 z-20 w-48 p-2 shadow-2xl">
-                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" href="/admin/password_change/">Change password</a></li>
-                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Log out</a></li>
+                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" href="/admin/password_change/">Ubah password</a></li>
+                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Keluar</a></li>
                     </ul>
                 </div>
                 {% else %}
-                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Login</a>
+                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Masuk</a>
                 {% endif %}
             </div>
         </div>
@@ -132,7 +132,7 @@
                 <ul class="menu rounded-box mb-auto w-56">
                     <li class="mb-2">
                         <a href="{% url 'gb-index' %}">
-                            <i class="fa fa-th"></i> Dashboard
+                            <i class="fa fa-th"></i> Halaman Utama
                         </a>
                     </li>
 
@@ -140,29 +140,30 @@
 
                     <li class="mb-2">
                         <details open>
-                            <summary><i class="fa-solid fa-users-gear"></i> Operations</summary>
+                            <summary><i class="fa-solid fa-users-gear"></i>Operasional</summary>
                             <ul>
-                                <li><a href="{% url 'grade-entry' %}">Grade Entry</a></li>
-                                <li><a href="{% url 'student-attendance' %}">Student Attendance</a></li>
-                                <li><a href="{% url 'report-card' %}">Add Notes</a></li>
-                                <li><a href="{% url 'rubric-entry' %}">Behaviour Grade Entry</a></li>
-                                <li><a href="{% url 'extra-report' %}">Activity Entry</a></li>
-                                <li><a href="{% url 'grades-wizard' %}">Grades Wizard</a></li>
-                                {% if user.is_staff %}
-                                <li><a href="{% url 'assignment-avg-wizard' %}">Calculate Final Grade</a></li>
-                                {% endif %}
+                                <li><a href="{% url 'grade-entry' %}">Nilai Ulangan</a></li>
+                                <li><a href="{% url 'student-attendance' %}">Absensi Siswa</a></li>
+                                <li><a href="{% url 'report-card' %}">Komentar Guru</a></li>
+                                <li><a href="{% url 'rubric-entry' %}">Nilai Sikap</a></li>
+                                <li><a href="{% url 'extra-report' %}">Nilai Ekstrakurikuler</a></li>
+<!--                                <li><a href="{% url 'grades-wizard' %}">Grades Wizard</a></li>-->
+
                             </ul>
                         </details>
                     </li>
 
                     <li class="mb-2">
                         <details open>
-                            <summary><i class="fa-solid fa-users-gear"></i> Reports</summary>
+                            <summary><i class="fa-solid fa-users-gear"></i>Laporan</summary>
                             <ul>
-                                <li><a href="{% url 'grade-entry-table' %}">Students' Grade</a></li>
-                                <li><a href="{% url 'report-card-table' %}">Teacher's Notes</a></li>
-                                <li><a href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
-                                <li><a href="{% url 'grades-wizard' %}">Grades List</a></li>
+                                <li><a href="{% url 'grade-entry-table' %}">Nilai Ulangan</a></li>
+                                <li><a href="{% url 'report-card-table' %}">Komentar Guru</a></li>
+                                <li><a href="{% url 'rcard-ledger' %}">Laporan Nilai Rapot</a></li>
+                                <li><a href="{% url 'grades-wizard' %}">Daftar Nilai</a></li>
+                                {% if user.is_staff %}
+                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>
+                                {% endif %}
                             </ul>
                         </details>
                     </li>

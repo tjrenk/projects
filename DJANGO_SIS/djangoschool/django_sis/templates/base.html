@@ -27,7 +27,7 @@
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Django DaisyUI{% endblock %}</title>
+    <title>{% block title %}Ekumene SIS{% endblock %}</title>
     
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.13/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="/static_files/admin/js/tailwind-3.4.5.js"></script>
@@ -73,14 +73,14 @@
             </div>
 
             <div class="navbar-center max-sm:hidden">
-                <a href="{% url 'adm-index' %}" class="btn btn-ghost text-xl">Admission</a>
-                <a href="{% url 'gb-index' %}" class="btn btn-ghost text-xl">Gradebook</a>
+                <a href="{% url 'adm-index' %}" class="btn btn-ghost text-xl">Admisi</a>
+                <a href="{% url 'gb-index' %}" class="btn btn-ghost text-xl">Buku Nilai</a>
                 <a href="{% url 'admin:index' %}" class="btn btn-ghost text-xl">SIS Admin</a>
             </div>
 
             <div class="navbar-end">
                                         {% if user.is_authenticated %}
-            <h1><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
+            <h1><strong>Halo, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
         {% else %}
             &nbsp;
         {% endif %}
@@ -113,7 +113,7 @@
                     </ul>
                 </div>
                 {% else %}
-                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Login</a>
+                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Masuk</a>
                 {% endif %}
             </div>
         </div>
