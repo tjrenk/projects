@@ -10,6 +10,20 @@
 <div>
 <div class="collapse-title text-xl font-medium">Nilai Ulangan</div>
 </div>
+
+    <div class="w-full flex justify-center mb-8 mt-2">
+        <ul class="steps w-full max-w-2xl">
+            <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">
+                Pilih Kelas & Mapel
+            </li>
+            <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">
+                Detail Tugas
+            </li>
+            <li class="step {% if wizard.steps.step1 >= 3 %}step-primary{% endif %}">
+                Input Nilai
+            </li>
+        </ul>
+    </div>
     {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
     <div class="col-md-8 offset-md-2">
     <fieldset class="module aligned   mb-4 overflow-visible">
@@ -75,7 +89,7 @@
                                     <tr>
                                         <th style="width: 30%;">NISN</th>
                                         <th style="width: 30%;">Nama</th>
-                                        <th style="width: 20%;">Nilaai</th>
+                                        <th style="width: 20%;">Nilai</th>
                                         <th style="width: 30%;">Alasan Tidak Hadir</th>
                                         {% comment %} <th style="width: 70%;">Teacher's Notes</th> {% endcomment %}
                                         <th style="width: 10%;">Hadir?</th>
@@ -265,7 +279,7 @@
                     {% comment %} <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0"> {% endcomment %}
                     {% comment %} <div class="text-start flex  gap-2"> {% endcomment %}
                         <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
-                            &laquo; Back
+                            &laquo; Kembali
                         </button>
                     {% else %}
                         <div></div> 
@@ -275,16 +289,16 @@
                         {% if wizard.steps.current == '2' %}
                             {% if not assignment_head_data or not wizard.form.forms %}
                             <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                                Submit
+                                Simpan
                             </button>                                &nbsp;
                             {% else %}
                             <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                                Submit
+                                Simpan
                             </button>
                             {% endif %}
                         {% else %}
                         <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                            Next
+                            Lanjut
                         </button>
                         {% endif %}
                     

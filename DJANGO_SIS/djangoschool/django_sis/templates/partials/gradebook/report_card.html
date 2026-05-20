@@ -6,6 +6,20 @@
 <div>
 <div class="collapse-title text-xl font-medium">Komentar Wali Kelas</div>
 </div>
+
+        <div class="w-full flex justify-center mb-8 mt-2">
+        <ul class="steps w-full max-w-2xl">
+            <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">
+                Pilih Tahun Ajaran & Semester
+            </li>
+            <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">
+                Detail Mata Pelajaran
+            </li>
+            <li class="step {% if wizard.steps.step1 >= 3 %}step-primary{% endif %}">
+                Input Komentar
+            </li>
+        </ul>
+    </div>
     {% comment %} <div class="card shadow-sm"> {% endcomment %}
     <fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1">
         {% comment %} <div class="card-header bg-primary text-white">
@@ -41,11 +55,11 @@
                             <table class="table table-responsive table-auto w-full">
                                 <thead class="bg-base-200 rounded-md">
                                     <tr>
-                                        <th style="width: 20%;">Student</th>
+                                        <th style="width: 20%;">Nama Murid</th>
                                         {% comment %} <th style="width: 20%;">Subject</th> {% endcomment %}
-                                        <th style="width: 7%;">Score</th>
-                                        <th style="width: 10%;">Grade</th>
-                                        <th style="width: 30%;">Teacher's Notes</th>
+                                        <th style="width: 7%;">Nilai</th>
+                                        <th style="width: 10%;">Predikat</th>
+                                        <th style="width: 30%;">Komentar / Narasi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -193,7 +207,7 @@
                 <div class="d-flex justify-content-between">
                     {% if wizard.steps.prev %}
                         <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-secondary px-4 primary-content  btn rounded-md legitRipple">
-                            &laquo; Back
+                            &laquo; Kembali
                         </button>
                     {% else %}
                         <div></div> 
@@ -201,9 +215,9 @@
                     
                     <button type="submit" class="btn-sm btn-success px-4 primary-content  btn rounded-md legitRipple">
                         {% if wizard.steps.current == '2' %}
-                            Save Report Card
+                            Simpan
                         {% else %}
-                            Next &raquo;
+                            Lanjut &raquo;
                         {% endif %}
                     </button>
                 </div>

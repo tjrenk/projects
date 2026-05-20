@@ -34,6 +34,15 @@ class GradeEntryForm(forms.ModelForm):
     class Meta:
         model = GradeEntry
         fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_type"]
+        labels = {
+            'academic_year': 'Tahun Ajaran',
+            'period': 'Periode Pembelajaran / Semester',
+            'teacher': 'Nama Guru',
+            'subject': "Mata Pelajaran",
+            'level': "Level Pembelajaran",
+            'course': "Sub-level",
+            'assignment_type': "Tipe Tugas",
+        }
         
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
@@ -333,6 +342,12 @@ class AttendanceForm(forms.ModelForm):
         widgets = {
             'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
         }
+        labels = {
+            'attendance_date': 'Tanggal Absensi',
+            'student': 'Nama Murid',
+            'attendance_type': 'Tipe Absensi',
+            'notes': 'Catatan',
+        }
 
 # Form Step 2
 class AssignmentHeadForm(forms.ModelForm):
@@ -340,9 +355,15 @@ class AssignmentHeadForm(forms.ModelForm):
         model = AssignmentHead
         fields = ['date', 'topic', 'max_score'] 
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'topic': forms.TextInput()
         }
         # Note: course dan assignment type diambil dari step 1, jadi tidak perlu di-field lagi
+        labels = {
+            'date': 'Tanggal',
+            'topic': 'Topik',
+            'max_score': 'Nilai Maksimal'
+        }
 
 # Form Step 3 (Detail per Siswa)
 class AssignmentDetailItemForm(forms.ModelForm):
@@ -514,22 +535,26 @@ AssignmentDetailFormSet = formset_factory(AssignmentDetailItemForm, formset=Assi
 class StudentReportcardForm(forms.ModelForm):
     academic_year = forms.ModelChoiceField(
         queryset=AcademicYear.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Tahun Ajaran'
     )
 
     period = forms.ModelChoiceField(
-        queryset=LearningPeriod.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'period-select'})
+        queryset=LearningPeriod.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'period-select'}),
+        label='Periode Pembelajaran / Semester'
     )
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Tengah Semester?'
     )
 
     level = forms.ModelChoiceField(
         queryset=GradeLevel.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'}),
+        label='Level Pembelajaran'
     )
 
     class Meta:
@@ -538,6 +563,13 @@ class StudentReportcardForm(forms.ModelForm):
         widgets = {
             'student': forms.Select(attrs={'class': 'form-select select2'}), # Assuming you use select2
         }
+        labels = {
+            'academic_year': 'Tahun Ajaran',
+            'period': 'Periode Pembelajaran / Semester',
+            'is_mid': 'Tengah Semester',
+            'level': 'Level Pembelajaran'
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # BIAR NGGAK ERROR PAS MAU LANJUT KE STEP BERIKUTNYA
@@ -594,6 +626,10 @@ class CourseByTeacher(forms.ModelForm):
     class Meta:
         model = GradeEntry
         fields = ["subject", "course"]
+        labels = {
+            'subject': 'Mata Pelajaran',
+            'course': 'Sub-level'
+        }
         
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
@@ -950,18 +986,27 @@ class RubricEntryForm(forms.ModelForm):
     teacher = forms.ModelChoiceField(
         queryset=Teacher.objects.all(),
         required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Nama Guru'
     )
     
     kelas = forms.ModelChoiceField(
-        queryset=Class.objects.none(),
+        queryset=Class.objects.all(),
         required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Kelas'
     )
+
+
         
     class Meta:
         model = ReportcardBehaviour
         fields = ['academic_year', 'period', 'level']
+        labels = {
+            'academic_year': 'Tahun Ajaran',
+            'period': 'Periode Pembelajaran / Semester',
+            'level': 'Level Pembelajaran'
+        }
     
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
@@ -969,6 +1014,8 @@ class RubricEntryForm(forms.ModelForm):
         
         data = self.data
         initial = self.initial
+
+        is_admin = user and (user.is_staff or user.is_superuser)
 
         # Default Logic
         if user and not self.is_bound:
@@ -992,18 +1039,24 @@ class RubricEntryForm(forms.ModelForm):
         # Period depends on Academic Year
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+            if is_admin:
+                self.fields['period'].queryset = LearningPeriod.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
         # Teacher depends on Period
         if period:
             self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
+            if is_admin:
+                self.fields['teacher'].queryset = Teacher.objects.all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
             self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher, is_home_class=True).distinct()
+            if is_admin:
+                self.fields['kelas'].queryset = Class.objects.all()
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
@@ -1996,7 +2049,8 @@ TotalGradesFormSet = formset_factory(TotalGradesTestList, formset=StudentListFor
 class AssignmentAvgForm(forms.Form):
     academic_year = forms.ModelChoiceField(
         queryset=AcademicYear.objects.all(),
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Tahun Ajaran'
     )
     # ADDED HTMX HERE: Level must trigger the Subject dropdown!
     level = forms.ModelChoiceField(
@@ -2007,7 +2061,8 @@ class AssignmentAvgForm(forms.Form):
             'hx-trigger': 'change',
             'hx-target': '#assignment-avg-subject-select',
             'hx-swap': 'innerHTML',
-        })
+        }),
+        label='Level Pembelajaran'
     )
     subject = forms.ModelChoiceField(
         queryset=Subject.objects.none(), # Default to none until teacher/level is known
@@ -2018,11 +2073,12 @@ class AssignmentAvgForm(forms.Form):
             'hx-trigger': 'change',
             'hx-target': '#assignment-avg-course-select',
             'hx-swap': 'innerHTML',
-        })
+        }),
+        label='Mata Pelajaran'
     )
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.none(),
-        label="Class",
+        label="Kelas",
         widget=forms.Select(attrs={
             'id': 'assignment-avg-course-select',
             'class': 'custom-select mb-4'
@@ -2030,8 +2086,8 @@ class AssignmentAvgForm(forms.Form):
     )
     is_mid = forms.BooleanField(
         required=False,
-        label="Is Midterm?",
-        widget=forms.CheckboxInput(attrs={'class': 'checkbox mb-4'})
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Tengah Semester?'
     )
 
     def __init__(self, *args, **kwargs):

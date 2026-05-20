@@ -131,6 +131,7 @@ def attendance(request):  # musti di cek ini kefilter berdasarkan guru apa kgk l
 
         if form.is_valid():
             form.save()
+            messages.success(request, f"Data absensi sudah tersimpan!")
 
     # if not hasattr(request.user, 'teacher'):
     #     return redirect('gb-index')

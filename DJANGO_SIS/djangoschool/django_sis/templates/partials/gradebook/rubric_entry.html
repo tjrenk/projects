@@ -10,6 +10,21 @@
 <div>
 <div class="collapse-title text-xl font-medium">Nilai Sikap</div>
 </div>
+
+        <div class="w-full flex justify-center mb-8 mt-2">
+        <ul class="steps w-full max-w-2xl">
+            <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">
+                Pilih Kelas & Mapel
+            </li>
+            <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">
+                Pilih Murid
+            </li>
+            <li class="step {% if wizard.steps.step1 >= 3 %}step-primary{% endif %}">
+                Input Nilai Sikap Murid
+            </li>
+        </ul>
+    </div>
+
     {% comment %} <div class="card shadow-sm bg-secondary bg-opacity-3"> {% endcomment %}
     <div class="col-md-8 offset-md-2">
     <fieldset class="module aligned   mb-4 overflow-visible">
@@ -47,8 +62,8 @@
             {% if selected_course %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
                 <span>
-                    <i class="bi bi-book"></i> 
-                    <strong>Class:</strong> {{ selected_course }} 
+                    <i class="bi bi-book"></i>
+                    <strong>Class:</strong> {{ selected_course }}
                 </span>
                 {% if wizard.steps.current == '2' and assignment_head_data %}
                 <span class="badge bg-light text-dark border">
@@ -60,9 +75,9 @@
 
             <form action="" method="post">
                 {% csrf_token %}
-                
+
                 {{ wizard.management_form }}
-                
+
                 {# === DEBUG: Show all form errors === #}
                 {% if wizard.form.errors %}
                 <div class="alert alert-danger mb-3">
@@ -70,10 +85,10 @@
                     {{ wizard.form.errors }}
                 </div>
                 {% endif %}
-                
+
                 {# === STEP 1 (index '1'): Student List === #}
                 {% if wizard.steps.current == '1' %}
-                
+
                     {{ wizard.form.management_form }}
 
                     {% if wizard.form.forms %}
@@ -82,9 +97,9 @@
 <thead class="bg-base-200 rounded-md">
     <tr>
         <th style="width: 25%;">NISN</th>
-        <th style="width: 35%;">Name</th>
+        <th style="width: 35%;">Nama Murid</th>
         <th style="width: 20%;">Status</th>
-        <th style="width: 20%;">Action</th>
+        <th style="width: 20%;">Aksi</th>
     </tr>
 </thead>
 <tbody>
@@ -102,9 +117,9 @@
 
         <td>
             {% if form.initial.is_graded %}
-                <span class="badge badge-success text-white">Graded</span>
+                <span class="badge badge-success text-white">Sudah Dinilai</span>
             {% else %}
-                <span class="badge badge-warning">Pending</span>
+                <span class="badge badge-warning">Belum Dinilai</span>
             {% endif %}
 
             <div class="hidden">{{ form.is_graded }}</div>
@@ -114,9 +129,9 @@
             <a href="{% url 'student-behavior-grading' pk=form.student.value %}"
                class="btn btn-sm {% if form.initial.is_graded %}btn-outline btn-secondary{% else %}btn-outline btn-primary{% endif %}">
                 {% if form.initial.is_graded %}
-                    Edit
+                    Ubah
                 {% else %}
-                    Start
+                    Mulai
                 {% endif %}
             </a>
         </td>
@@ -127,9 +142,9 @@
                         </div>
 
                         <!-- Submit button to complete setup -->
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-primary">Complete Setup and Create Behavior Records</button>
-                        </div>
+<!--                        <div class="mt-4">-->
+<!--                            <button type="submit" class="btn btn-primary">Complete Setup and Create Behavior Records</button>-->
+<!--                        </div>-->
 
                     {% else %}
                         <div class="alert alert-warning d-flex justify-content-between align-items-center" style="margin-bottom: 200px">
@@ -200,10 +215,10 @@
                 {% endif %}
 
                 {% comment %} <hr class="my-4"> {% endcomment %}
-                
-                
+
+
                 {% comment %} <div class="d-flex justify-content-between"> {% endcomment %}
-                
+
                     {% if wizard.steps.prev %}
                     {% comment %} <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0"> {% endcomment %}
                     {% comment %} <div class="text-start flex  gap-2"> {% endcomment %}
@@ -211,28 +226,28 @@
                             &laquo; Back
                         </button>
                     {% else %}
-                        <div></div> 
+                        <div></div>
                     {% endif %}
 
-                    
+
                         {% if wizard.steps.current == '2' %}
                             {% if not assignment_head_data or not wizard.form.forms %}
                                 &nbsp;
                             {% else %}
                             <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                                Submit
+                                Kirim
                             </button>
                             {% endif %}
                         {% else %}
                         <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                            Next
+                            Lanjut
                         </button>
                         {% endif %}
-                    
+
                 {% comment %} </div> {% endcomment %}
                 {% comment %} </div> {% endcomment %}
                 </div>
-                
+
             </form>
         </div>
         </div>
@@ -245,7 +260,7 @@
 <style>
     /* Agar input score tidak terlalu lebar di dalam tabel */
     input[name$="-score"] {
-        width: 100px; 
+        width: 100px;
         display: inline-block;
         form-control;
     }

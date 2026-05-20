@@ -13,7 +13,7 @@
 
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
     <div class="collapse-title text-xl font-medium mb-4">Penilaian Nilai Sikap Murid</div>
-    
+
     <!-- Student Information Header -->
     <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-gray-100 rounded-lg">
         <div>
@@ -21,7 +21,7 @@
             <p class="text-lg font-semibold">{{ student.id_number }}</p>
         </div>
         <div>
-            <p class="text-gray-600 text-sm"><strong>Name:</strong></p>
+            <p class="text-gray-600 text-sm"><strong>Nama Siswa:</strong></p>
             <p class="text-lg font-semibold">
                 {% if student.registration_data %}
                     {{ student.registration_data.first_name }} {{ student.registration_data.last_name }}
@@ -31,11 +31,11 @@
             </p>
         </div>
         <div>
-            <p class="text-gray-600 text-sm"><strong>Academic Year:</strong></p>
+            <p class="text-gray-600 text-sm"><strong>Tahun Ajaran:</strong></p>
             <p class="text-lg font-semibold">{{ academic_year.year|default:"N/A" }}</p>
         </div>
         <div>
-            <p class="text-gray-600 text-sm"><strong>Period:</strong></p>
+            <p class="text-gray-600 text-sm"><strong>Periode Pembelajaran / Semester:</strong></p>
             <p class="text-lg font-semibold">{{ period.period_name|default:"N/A" }}</p>
         </div>
     </div>
@@ -43,7 +43,7 @@
     <!-- Grading Form -->
     <form method="post" class="form-horizontal">
         {% csrf_token %}
-        
+
         <div class="table-responsive">
             <table class="table table-bordered align-middle">
                 <thead class="bg-base-200">
@@ -67,17 +67,38 @@
                             </td>
 
                             <td>
-                                            <input
-                                                type="number"
-                                                class="input input-bordered input-sm w-20"
-                                                id="rubric_{{ rubric.id }}"
-                                                name="rubric_{{ rubric.id }}"
-                                                value="{{ rubric.existing_score|default_if_none:'' }}"
-                                                min="1"
-                                                max="100"
-                                                placeholder="Score"
-                                                required
-                                            >
+<div class="mb-2 flex items-center gap-2">
+                                    <span class="text-xs font-medium text-base-content/60">Nilai:</span>
+                                    <span id="display_{{ rubric.id }}" class="badge badge-primary font-bold">
+                                        {{ rubric.existing_score|default_if_none:"50" }}
+                                    </span>
+                                </div>
+
+                                <input
+                                    type="range"
+                                    class="range range-sm range-primary"
+                                    id="rubric_{{ rubric.id }}"
+                                    name="rubric_{{ rubric.id }}"
+                                    value="{{ rubric.existing_score|default_if_none:'50' }}"
+                                    min="0"
+                                    max="100"
+                                    step="10"
+                                    required
+                                    oninput="document.getElementById('display_{{ rubric.id }}').innerText = this.value"
+                                >
+<div class="flex justify-between px-2.5 mt-1 text-[10px] opacity-60 select-none">
+        <span class="w-0 text-center flex justify-center">0</span>
+        <span class="w-0 text-center flex justify-center">10</span>
+        <span class="w-0 text-center flex justify-center">20</span>
+        <span class="w-0 text-center flex justify-center">30</span>
+        <span class="w-0 text-center flex justify-center">40</span>
+        <span class="w-0 text-center flex justify-center">50</span>
+        <span class="w-0 text-center flex justify-center">60</span>
+        <span class="w-0 text-center flex justify-center">70</span>
+        <span class="w-0 text-center flex justify-center">80</span>
+        <span class="w-0 text-center flex justify-center">90</span>
+        <span class="w-0 text-center flex justify-center">100</span>
+    </div>
                             </td>
                         </tr>
                     {% empty %}
