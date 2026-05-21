@@ -83,7 +83,7 @@ class GradeEntryForm(forms.ModelForm):
 
 
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
             self.fields['level'].queryset = GradeLevel.objects.all()
             if is_admin and not teacher_obj:
                 self.fields['period'].queryset = LearningPeriod.objects.all()
@@ -1026,7 +1026,7 @@ class RubricEntryForm(forms.ModelForm):
             curr_ay = AcademicYear.objects.order_by('-id').first()
             if curr_ay:
                 self.initial['academic_year'] = curr_ay.id
-                curr_period = LearningPeriod.objects.filter(academic_year=curr_ay).order_by('-id').first()
+                curr_period = LearningPeriod.objects.filter(academic_year=curr_ay, period_name__icontains='semester').order_by('-id').first()
                 if curr_period:
                     self.initial['period'] = curr_period.id
         
@@ -1038,7 +1038,7 @@ class RubricEntryForm(forms.ModelForm):
         
         # Period depends on Academic Year
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
             if is_admin:
                 self.fields['period'].queryset = LearningPeriod.objects.all()
         else:

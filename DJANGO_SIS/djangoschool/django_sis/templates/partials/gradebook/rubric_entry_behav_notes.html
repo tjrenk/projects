@@ -82,7 +82,7 @@
                                     value="{{ rubric.existing_score|default_if_none:'50' }}"
                                     min="0"
                                     max="100"
-                                    step="10"
+                                    step="1"
                                     required
                                     oninput="document.getElementById('display_{{ rubric.id }}').innerText = this.value"
                                 >
