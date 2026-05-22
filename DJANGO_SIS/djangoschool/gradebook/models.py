@@ -32,6 +32,7 @@ class AssignmentType(models.Model):
 
 class Weighting(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    period = models.ForeignKey(LearningPeriod, on_delete=models.CASCADE)
     level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)

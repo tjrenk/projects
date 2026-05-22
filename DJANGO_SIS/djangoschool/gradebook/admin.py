@@ -1,6 +1,8 @@
 from django.contrib import admin
 import decimal
-from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator, StudentReportcard, ReportcardGrade, GradeLevel, StudentReportExtra
+from django import forms
+
+from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator, StudentReportcard, ReportcardGrade, GradeLevel, StudentReportExtra, LearningPeriod
 from simple_history.admin import SimpleHistoryAdmin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
@@ -38,13 +40,36 @@ class PassingGradeAdmin(admin.ModelAdmin):
 class AssignmentTypeAdmin(admin.ModelAdmin):
     list_display = ["short_name", "name"]
 
+class WeightingForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        acayear = self.instance.academic_year.id
+        self.fields["period"].queryset = LearningPeriod.objects.filter(academic_year=acayear, period_name__icontains='semester')
+
 class WeightingAdmin(admin.ModelAdmin):
-    list_display = ["academic_year","is_mid","subject","assignment","format_percentage"]
+    list_display = ["academic_year","period","mid_sem","subject","assignment","format_percentage"]
     list_filter = ["academic_year", "subject", "is_mid"]
+    form = WeightingForm
 
     def format_percentage(self, obj: Weighting)->decimal:
         return obj.weight*100
     format_percentage.short_description = "Weight %"
+
+    def filter_period(self, request, obj=None, **kwargs):
+        qs = super().get_queryset(request)
+        if obj and obj.academic_year:  # If the object exists and has a value
+            # Filter the 'related_item' field based on the 'category' field
+            qs.base_fields['academic_year'].queryset = LearningPeriod.objects.filter(
+                academic_year=obj.academic_year
+            )
+        return qs
+
+    @admin.display(description="Mid Semester?")
+    def mid_sem(self, obj):
+        if obj.is_mid==True:
+            return "Yes"
+        else:
+            return "No"
 
 class GradeEntryAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "course", "period", "subject", "teacher")

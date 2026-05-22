@@ -358,12 +358,14 @@ class AssignmentHeadForm(forms.ModelForm):
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'topic': forms.TextInput()
         }
-        # Note: course dan assignment type diambil dari step 1, jadi tidak perlu di-field lagi
+
         labels = {
             'date': 'Tanggal',
             'topic': 'Topik',
             'max_score': 'Nilai Maksimal'
         }
+
+
 
 # Form Step 3 (Detail per Siswa)
 class AssignmentDetailItemForm(forms.ModelForm):

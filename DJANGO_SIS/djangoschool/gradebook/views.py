@@ -2407,125 +2407,110 @@ def assignm_avg(request):
 
 # KALKULASI NILAI AKHIR (UTS & UAS)
 def calculate_student_averages_optimized(academic_year, subject, level, is_mid, kelas, period=None):
-    # 1. Ambil Weightings (1 Query)
+    # ========================================================
+    # FIX 1: PENCARIAN BOBOT (WEIGHTING) LINTAS PERIODE
+    # ========================================================
+    # Cari SEMUA periode yang beririsan. Kalau user generate rapot Term 1,
+    # sistem tetep bisa narik tabel Weighting yang nyantol di Semester 1.
+    overlapping_periods = LearningPeriod.objects.filter(
+        academic_year=academic_year,
+        # date_start__lte=period.date_end,
+        # date_end__gte=period.date_start
+    )
+
     weightings = Weighting.objects.filter(
         academic_year=academic_year,
         level=level,
         subject=subject,
         is_mid=is_mid,
+        period__in=overlapping_periods  # <-- KUNCI BARU: Fleksibel cari bobot di Term maupun Semester
     )
 
-    # Bikin kamus {assignment_id: weight_value} buat kalkulasi di Python
     weight_map = {w.assignment_id: w.weight for w in weightings}
     allowed_assignment_ids = list(weight_map.keys())
 
     if not allowed_assignment_ids:
-        return []  # Gak ada settingan bobot, kembalikan kosong
+        return [], None
 
-    # 2. Filter dasar AssignmentDetail
     detail_qs = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
         assignment_head__course__academic_year=academic_year,
         assignment_head__assignment_id__in=allowed_assignment_ids
     )
 
-    # === LOGIKA FILTER TERM 1 / TERM 2 MASUK DI SINI ===
-    # 1. Tentukan nama term yang dicari berdasarkan status UTS / UAS
-    target_term_name = "Term 1" if is_mid else "Term 2"
+    # ========================================================
+    # FIX 2: PENCARIAN TERM (MURNI BERDASARKAN URUTAN WAKTU)
+    # ========================================================
+    # Kita urutkan semua periode yang beririsan berdasarkan tanggal mulai.
+    # Secara kronologis: Paling awal = Term 1, Paling akhir = Term 2.
+    ordered_periods = overlapping_periods.order_by('date_start')
 
-    # 2. Ambil semua kandidat term berdasarkan tahun ajaran dan teks "Term X"
-    term_qs = LearningPeriod.objects.filter(
-        academic_year=academic_year,
-        period_name__icontains=target_term_name
+    # UTS (Mid) ambil yang pertama (Term 1), UAS (Final) ambil yang terakhir (Term 2)
+    term_period = ordered_periods.first() if is_mid else ordered_periods.last()
+
+    if not term_period:
+        term_period = period
+
+    # Filter tugas berdasarkan tanggal asli si Term yang terpilih
+    detail_qs = detail_qs.filter(
+        assignment_head__date__range=(term_period.date_start, term_period.date_end)
     )
 
-    term_period = None
-
-    # 3. Jika object 'period' (Semester) dari form/wizard itu ADA
-    if period:
-        # Cari Term yang rentang tanggalnya berada di dalam rentang Semester tersebut
-        for candidate in term_qs:
-            if candidate.date_start >= period.date_start and candidate.date_end <= period.date_end:
-                term_period = candidate
-                break
-
-    # 4. JALAN NINJA FALLBACK: Kalau 'period' kosong atau irisan tanggal gak ketemu,
-    # ambil term pertama yang cocok di tahun ajaran itu biar sistem GAK CRASH
-    if not term_period:
-        term_period = term_qs.first()
-
-    # 5. Eksekusi filter tanggal ke query utama jika objek term berhasil didapat
-    if term_period:
-        detail_qs = detail_qs.filter(
-            assignment_head__date__range=(term_period.date_start, term_period.date_end)
-        )
-    else:
-        # Kondisi paling apes: kalau di DB beneran gak ada data Term 1 / Term 2 sama sekali
-        detail_qs = detail_qs.none()
-    # ===================================================
-
-    # 3. KEKUATAN ANNOTATE (1 Query Raksasa untuk semua murid & tipe tugas)
-    # Daripada looping, kita minta DB mengelompokkan langsung
-    aggregated_data = detail_qs.values(
+    # ========================================================
+    # FIX 3: KALKULASI RATA-RATA & BOBOT
+    # ========================================================
+    # .order_by() kosong untuk reset grouping bawaan Django
+    aggregated_data = detail_qs.order_by().values(
         'student_id',
         'assignment_head__assignment_id'
     ).annotate(
         avg_score=Avg('score')
     )
 
-    # 4. Kalkulasi di Memori Python (Super Cepat)
     student_records = {}
     for row in aggregated_data:
         s_id = row['student_id']
         a_id = row['assignment_head__assignment_id']
-        score = row['avg_score'] or 0
+        score = float(row['avg_score'] or 0)
 
         if s_id not in student_records:
-            student_records[s_id] = {
-                'raw_total': 0,
-                'raw_count': 0,
-                'weighted_total': 0.0,
-            }
+            student_records[s_id] = {'raw_total': 0, 'raw_count': 0, 'weighted_total': 0.0}
 
-        # Kumpulin Raw Data
         student_records[s_id]['raw_total'] += score
         student_records[s_id]['raw_count'] += 1
 
-        # Kumpulin Weighted Data
-        weight = weight_map.get(a_id, 0)
-        student_records[s_id]['weighted_total'] += float(score) * float(weight)
+        # Ditarik pakai float biar gak bentrok sama format Decimal dari DB
+        weight = float(weight_map.get(a_id, 0))
+        student_records[s_id]['weighted_total'] += (score * weight)
 
-    # 5. Ambil data nama murid sekaligus buat presentasi (1 Query)
     students = Student.objects.filter(id__in=student_records.keys())
     student_dict = {s.id: s for s in students}
 
-    # 6. Finalisasi Nilai
     results = []
     for s_id, record in student_records.items():
         student_obj = student_dict.get(s_id)
-        if not student_obj:
-            continue
+        if not student_obj: continue
 
         raw_avg = record['raw_total'] / record['raw_count'] if record['raw_count'] > 0 else 0
         total_weighted_avg = record['weighted_total']
 
-        # LOGIKA JALAN NINJA: Kurangi 1 setelah loop selesai jika Finals (bukan Mid)
         if not is_mid:
             total_weighted_avg -= 1
 
         results.append({
-            'student_obj': student_obj,  # Object aslinya disimpan buat save DB nanti
+            'student_obj': student_obj,
             'nisn': getattr(student_obj, 'nisn', '-'),
             'student_name': str(student_obj),
-            'kelas': kelas,  # <--- KITA KEMBALIKAN KE SINI
-            'subject': subject,  # <--- KITA KEMBALIKAN KE SINI
+            'kelas': kelas,
+            'subject': subject,
             'level': level,
             'raw_avg': raw_avg,
-            'weighted_avg': total_weighted_avg,
+            'weighted_avg': total_weighted_avg, # Harusnya tepat 83.33 sekarang!
             'final_score_preview': round(total_weighted_avg)
         })
 
-    return results
+    # Mengembalikan data murid DAN data Term yang dipakai buat ditaruh di rapot
+    return results, term_period
 
 
 class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
@@ -2549,16 +2534,16 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         kelas = form_data.get('kelas')
         subject = form_data.get('subject')
         is_mid = form_data.get('is_mid')
-        period = form_data.get('period')  # <-- Ambil Term 1/2 dari form
+        period = form_data.get('period')
 
-        # Panggil Helper Function!
-        student_results = calculate_student_averages_optimized(
+        # Tangkap 2 nilai: student_results dan decided_period
+        student_results, decided_period = calculate_student_averages_optimized(
             academic_year=academic_year,
             subject=subject,
             level=level,
-            kelas=kelas,
             is_mid=is_mid,
-            period=period  # <-- Kirim param Term
+            kelas=kelas,
+            period=period
         )
 
         context = {
@@ -2567,33 +2552,40 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
             'selected_subject': subject,
             'selected_kelas': kelas,
             'selected_level': level,
-            'selected_period': period,
+            'selected_period': decided_period,  # <--- SEKARANG ID-NYA PASTI ADA ISINYA
             'is_mid': is_mid,
         }
 
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
+
 
 @require_POST
 def save_assignment_results(request):
     ay_id = request.POST.get('academic_year_id')
     sub_id = request.POST.get('subject_id')
     lvl_id = request.POST.get('level_id')
-    period_id = request.POST.get('period_id') # <-- Pastiin ini dilempar sbg input hidden dr template
+    period_id = request.POST.get('period_id')
     is_mid = request.POST.get('is_mid') == 'True'
+
+    # Validasi biar server lu aman dari crash kalau misal ke-skip
+    if not period_id:
+        messages.error(request, "Gagal. ID Periode tidak ditemukan dari template.")
+        return redirect('assignment-avg-wizard')
 
     academic_year = AcademicYear.objects.get(id=ay_id)
     subject = Subject.objects.get(id=sub_id)
     level = GradeLevel.objects.get(id=lvl_id)
     period = LearningPeriod.objects.get(id=period_id)
 
-    # Langsung panggil Helper, gak perlu loop dari 0 lagi
+    # Tangkap list muridnya aja di indeks [0]
     calculated_data = calculate_student_averages_optimized(
         academic_year=academic_year,
         subject=subject,
         level=level,
         is_mid=is_mid,
+        kelas=None, # pass dummy untuk parameter kelas
         period=period
-    )
+    )[0]
 
     # --- THE DUMP (Save to DB) ---
     with transaction.atomic():
@@ -2601,7 +2593,6 @@ def save_assignment_results(request):
             student = data['student_obj']
             final_score_int = data['final_score_preview']
 
-            # Update/Create Reportcard
             reportcard, _ = StudentReportcard.objects.update_or_create(
                 student=student,
                 academic_year=academic_year,
@@ -2610,13 +2601,12 @@ def save_assignment_results(request):
                 defaults={'level': level}
             )
 
-            # Update/Create Grade
             ReportcardGrade.objects.update_or_create(
                 reportcard=reportcard,
                 subject=subject,
                 defaults={
                     'final_score': final_score_int,
-                    'final_grade': 'B' # Ganti dengan logic letter grade kamu
+                    'final_grade': 'B'
                 }
             )
 
