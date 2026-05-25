@@ -142,6 +142,9 @@ class ReportcardGrade(models.Model):
     final_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
     teacher_notes = models.TextField(null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.reportcard.student}"
+
 class StudentAttendance(models.Model):
     ATTD_CHOICES = [("S", "Sick"), ("P", "Permit"), ("A", "Absent"), ("L", "Late")]
     attendance_date = models.DateField(null=True, blank=True)

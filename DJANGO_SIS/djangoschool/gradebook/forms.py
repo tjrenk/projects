@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django import forms
 from datetime import datetime
@@ -2078,11 +2079,11 @@ class AssignmentAvgForm(forms.Form):
         }),
         label='Mata Pelajaran'
     )
-    kelas = forms.ModelChoiceField(
-        queryset=Class.objects.none(),
-        label="Kelas",
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.all(),
+        label="Period",
         widget=forms.Select(attrs={
-            'id': 'assignment-avg-course-select',
+            'hx-get': '/gradebook/get-period-assignment-avg/',
             'class': 'custom-select mb-4'
         })
     )
@@ -2100,6 +2101,7 @@ class AssignmentAvgForm(forms.Form):
         data = self.data
         initial = self.initial
 
+        acayear_id = data.get('0-academic_year') or initial.get('academic_year')
         level_id = data.get('0-level') or initial.get('level')
         subject_id = data.get('0-subject') or initial.get('subject')
 
@@ -2115,9 +2117,10 @@ class AssignmentAvgForm(forms.Form):
             self.fields['subject'].queryset = Subject.objects.none()
 
         # 4. Filter KELAS: Must belong to the teacher AND the selected subject
-        if subject_id:
-            # *NOTE: If this line gives an error, it's because Django doesn't know
-            # how your Class model links to your Course model.
-            self.fields['kelas'].queryset = Class.objects.all()
-        else:
-            self.fields['kelas'].queryset = Class.objects.none()
+        # if subject_id:
+        #     # *NOTE: If this line gives an error, it's because Django doesn't know
+        #     # how your Class model links to your Course model.
+        #     self.fields['period'].queryset = LearningPeriod.objects.all()
+        # else:
+        #     self.fields['period'].queryset = LearningPeriod.objects.none()
+        self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))

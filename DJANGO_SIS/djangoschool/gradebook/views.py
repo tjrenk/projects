@@ -2406,16 +2406,30 @@ def assignm_avg(request):
 
 
 # KALKULASI NILAI AKHIR (UTS & UAS)
-def calculate_student_averages_optimized(academic_year, subject, level, is_mid, kelas, period=None):
+def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period=None):
     # ========================================================
     # FIX 1: PENCARIAN BOBOT (WEIGHTING) LINTAS PERIODE
     # ========================================================
     # Cari SEMUA periode yang beririsan. Kalau user generate rapot Term 1,
     # sistem tetep bisa narik tabel Weighting yang nyantol di Semester 1.
-    overlapping_periods = LearningPeriod.objects.filter(
+
+    if period is None:
+        semester_periods = LearningPeriod.objects.filter(
+            academic_year=academic_year,
+            period_name__icontains='Semester'
+        ).order_by('date_start')
+        # LANGSUNG ASSIGN KE PERIOD SUPAYA TIDAK NONE DI BAWAH
+        period = semester_periods.first()
+
+        # Pengaman jika database benar-benar kosong/tidak ada data Semester
+    if not period:
+        return [], None
+
+        # Sekarang baris ini dijamin aman dari AttributeError
+    selected_periods = LearningPeriod.objects.filter(
         academic_year=academic_year,
-        # date_start__lte=period.date_end,
-        # date_end__gte=period.date_start
+        date_start__lte=period.date_end,
+        date_end__gte=period.date_start
     )
 
     weightings = Weighting.objects.filter(
@@ -2423,7 +2437,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         level=level,
         subject=subject,
         is_mid=is_mid,
-        period__in=overlapping_periods  # <-- KUNCI BARU: Fleksibel cari bobot di Term maupun Semester
+        period__in=selected_periods  # <-- KUNCI BARU: Fleksibel cari bobot di Term maupun Semester
     )
 
     weight_map = {w.assignment_id: w.weight for w in weightings}
@@ -2432,6 +2446,9 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     if not allowed_assignment_ids:
         return [], None
 
+    if not period:
+        period = semester_periods.first()
+
     detail_qs = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
         assignment_head__course__academic_year=academic_year,
@@ -2439,23 +2456,24 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     )
 
     # ========================================================
-    # FIX 2: PENCARIAN TERM (MURNI BERDASARKAN URUTAN WAKTU)
+    # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
     # ========================================================
-    # Kita urutkan semua periode yang beririsan berdasarkan tanggal mulai.
-    # Secara kronologis: Paling awal = Term 1, Paling akhir = Term 2.
-    ordered_periods = overlapping_periods.order_by('date_start')
+    ordered_periods = selected_periods.order_by('date_start')
 
-    # UTS (Mid) ambil yang pertama (Term 1), UAS (Final) ambil yang terakhir (Term 2)
-    term_period = ordered_periods.first() if is_mid else ordered_periods.last()
-
-    if not term_period:
+    # Ambil periode, jika kosong gunakan periode default dari 'period'
+    if ordered_periods.exists():
+        term_period = ordered_periods.first() if is_mid else ordered_periods.last()
+    else:
         term_period = period
 
-    # Filter tugas berdasarkan tanggal asli si Term yang terpilih
-    detail_qs = detail_qs.filter(
-        assignment_head__date__range=(term_period.date_start, term_period.date_end)
-    )
+        # Tambahkan pengaman ekstra: kalau masih None, pakai period yang dikirim
+    target_start = term_period.date_start if term_period else period.date_start
+    target_end = term_period.date_end if term_period else period.date_end
 
+    # Filter tugas berdasarkan rentang tanggal
+    detail_qs = detail_qs.filter(
+        assignment_head__date__range=(target_start, target_end)
+    )
     # ========================================================
     # FIX 3: KALKULASI RATA-RATA & BOBOT
     # ========================================================
@@ -2501,12 +2519,13 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'student_obj': student_obj,
             'nisn': getattr(student_obj, 'nisn', '-'),
             'student_name': str(student_obj),
-            'kelas': kelas,
+            # 'kelas': kelas,
             'subject': subject,
             'level': level,
             'raw_avg': raw_avg,
             'weighted_avg': total_weighted_avg, # Harusnya tepat 83.33 sekarang!
-            'final_score_preview': round(total_weighted_avg)
+            'final_score_preview': round(total_weighted_avg),
+            'period': period
         })
 
     # Mengembalikan data murid DAN data Term yang dipakai buat ditaruh di rapot
@@ -2531,26 +2550,38 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
 
         academic_year = form_data.get('academic_year')
         level = form_data.get('level')
-        kelas = form_data.get('kelas')
+        # kelas = form_data.get('kelas')
         subject = form_data.get('subject')
         is_mid = form_data.get('is_mid')
         period = form_data.get('period')
 
+        if period is None:
+            semester_periods = LearningPeriod.objects.filter(
+                academic_year=academic_year,
+                period_name__icontains='Semester'
+            ).order_by('date_start')
+            # LANGSUNG ASSIGN KE PERIOD SUPAYA TIDAK NONE DI BAWAH
+            period = semester_periods.first()
+
         # Tangkap 2 nilai: student_results dan decided_period
-        student_results, decided_period = calculate_student_averages_optimized(
-            academic_year=academic_year,
-            subject=subject,
-            level=level,
-            is_mid=is_mid,
-            kelas=kelas,
-            period=period
-        )
+        student_results, decided_period = calculate_student_averages_optimized(academic_year=academic_year,
+                                                                               subject=subject, level=level,
+                                                                               is_mid=is_mid, period=period)
+
+        print(academic_year)
+        print(level)
+        # print(kelas)
+        print(subject)
+        print(is_mid)
+        print(period)
+
+
 
         context = {
             'student_results': student_results,
             'selected_academic_year': academic_year,
             'selected_subject': subject,
-            'selected_kelas': kelas,
+            # 'selected_kelas': kelas,
             'selected_level': level,
             'selected_period': decided_period,  # <--- SEKARANG ID-NYA PASTI ADA ISINYA
             'is_mid': is_mid,
@@ -2578,14 +2609,8 @@ def save_assignment_results(request):
     period = LearningPeriod.objects.get(id=period_id)
 
     # Tangkap list muridnya aja di indeks [0]
-    calculated_data = calculate_student_averages_optimized(
-        academic_year=academic_year,
-        subject=subject,
-        level=level,
-        is_mid=is_mid,
-        kelas=None, # pass dummy untuk parameter kelas
-        period=period
-    )[0]
+    calculated_data = calculate_student_averages_optimized(academic_year=academic_year, subject=subject, level=level,
+                                                           is_mid=is_mid, period=period)[0]
 
     # --- THE DUMP (Save to DB) ---
     with transaction.atomic():
@@ -2763,7 +2788,7 @@ def get_period_assignment_avg(request):
         # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
         periods = LearningPeriod.objects.all()
     else:
-        periods = LearningPeriod.objects.none()
+        periods = LearningPeriod.objects.all()
     html = render_to_string("partials/gradebook/assignment_avg_partials/period.html", {
         'periods': periods,
         'selected_period': selected_period

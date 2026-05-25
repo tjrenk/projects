@@ -132,7 +132,7 @@
                 <ul class="menu rounded-box mb-auto w-56">
                     <li class="mb-2">
                         <a href="{% url 'gb-index' %}">
-                            <i class="fa fa-th"></i> Halaman Utama
+                            <i class="fa fa-th"></i> Dashboard
                         </a>
                     </li>
 
@@ -140,13 +140,13 @@
 
                     <li class="mb-2">
                         <details open>
-                            <summary><i class="fa-solid fa-users-gear"></i>Operasional</summary>
+                            <summary><i class="fa-solid fa-keyboard"></i>Data Entry</summary>
                             <ul>
-                                <li><a href="{% url 'grade-entry' %}">Nilai Ulangan</a></li>
-                                <li><a href="{% url 'student-attendance' %}">Absensi Siswa</a></li>
-                                <li><a href="{% url 'report-card' %}">Komentar Guru</a></li>
-                                <li><a href="{% url 'rubric-entry' %}">Nilai Sikap</a></li>
-                                <li><a href="{% url 'extra-report' %}">Nilai Ekstrakurikuler</a></li>
+                                <li><a href="{% url 'grade-entry' %}">Student Grade</a></li>
+                                <li><a href="{% url 'student-attendance' %}">Student Attendance</a></li>
+                                <li><a href="{% url 'report-card' %}">Teacher's Comments</a></li>
+                                <li><a href="{% url 'rubric-entry' %}">Student Behaviour</a></li>
+                                <li><a href="{% url 'extra-report' %}">Extracurricular Grade</a></li>
 <!--                                <li><a href="{% url 'grades-wizard' %}">Grades Wizard</a></li>-->
 
                             </ul>
@@ -155,18 +155,28 @@
 
                     <li class="mb-2">
                         <details open>
-                            <summary><i class="fa-solid fa-users-gear"></i>Laporan</summary>
+                            <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
-                                <li><a href="{% url 'grade-entry-table' %}">Nilai Ulangan</a></li>
-                                <li><a href="{% url 'report-card-table' %}">Komentar Guru</a></li>
-                                <li><a href="{% url 'rcard-ledger' %}">Laporan Nilai Rapot</a></li>
+                                <li><a href="{% url 'grade-entry-table' %}">Student Grade</a></li>
+                                <li><a href="{% url 'report-card-table' %}">Teacher's Comments</a></li>
+                                <li><a href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
                                 <li><a href="{% url 'grades-wizard' %}">Daftar Nilai</a></li>
-                                {% if user.is_staff %}
-                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>
-                                {% endif %}
+<!--                                {% if user.is_staff %}-->
+<!--                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>-->
+<!--                                {% endif %}-->
                             </ul>
                         </details>
                     </li>
+                                    {% if user.is_staff %}
+                <li class="mb-2">
+                        <details open>
+                            <summary><i class="fa-solid fa-calculator"></i>Calculations</summary>
+                            <ul>
+                                <li><a href="{% url 'assignment-avg-wizard' %}">Final Grade Avg</a></li>
+                            </ul>
+                        </details>
+                    </li>
+                {% endif %}
                 </ul>
             </div>
             {% endif %}
