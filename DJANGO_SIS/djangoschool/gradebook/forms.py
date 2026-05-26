@@ -393,6 +393,7 @@ class AssignmentDetailItemForm(forms.ModelForm):
         student_obj = kwargs.pop('student', None)
         super().__init__(*args, **kwargs)
 
+
         # 1. SETUP STUDENT NAME (Keep your existing logic)
         student_obj = None
         if self.instance and hasattr(self.instance, 'student'):

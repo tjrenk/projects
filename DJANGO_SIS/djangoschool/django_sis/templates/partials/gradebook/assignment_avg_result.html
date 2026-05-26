@@ -6,10 +6,11 @@
         <h1 class="text-2xl font-bold mb-4">Rata-rata Nilai Tugas Siswa</h1>
 
         <!-- Optional: Top summary bar -->
-        <div class="flex gap-4 mb-6 text-sm bg-base-200 p-3 rounded-lg">
-            <div><strong>Tahun Ajaran:</strong> {{ selected_academic_year }}</div>
-            <div><strong>Level:</strong> {{ selected_level }}</div>
-            <div><strong>Tengah Semester / Midterm:</strong> {% if is_mid %}Yes{% else %}No{% endif %}</div>
+        <div class="flex gap-10 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+            <div><strong>Tahun Ajaran:</strong>&nbsp;{{ selected_academic_year }}</div>
+            <div><strong>Level:</strong>&nbsp;{{ selected_level }}</div>
+            <div><strong>Tengah Semester / Midterm:</strong>&nbsp;{% if is_mid %}Yes{% else %}No{% endif %}</div>
+            <div><strong>Subject:</strong>&nbsp;{{ selected_subject }}</div>
         </div>
 
         <div class="overflow-x-auto">
@@ -18,12 +19,12 @@
                     <tr class="bg-base-300 text-base-content">
                         <th>NISN</th>
                         <th>Nama Siswa</th>
-                        <th>Kelas</th>
-                        <th>Mata Pelajaran</th>
-                        <th>Sub-level</th>
-                        <th>Rata-rata</th>
+<!--                        <th>Kelas</th>-->
+<!--                        <th>Mata Pelajaran</th>-->
+<!--                        <th>Sub-level</th>-->
+<!--                        <th>Rata-rata</th>-->
                         <!-- Optional: Weighted Average column if you still need it -->
-                        <th>Rata-rata * Bobot</th>
+                        <th>Final Score</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -32,10 +33,10 @@
                         <td class="font-mono">{{ item.nisn }}</td>
                         <td class="font-semibold">{{ item.student_name }}</td>
 <!--                        <td>{{ item.kelas }}</td>-->
-                        <td>{{ item.subject }}</td>
+<!--                        <td>{{ item.subject }}</td>-->
                         <!-- Assuming Course maps to Subject here, adjust if Course is different -->
-                        <td>{{ item.subject }}</td>
-                        <td>{{ item.raw_avg|floatformat:2 }}</td>
+<!--                        <td>{{ item.subject }}</td>-->
+<!--                        <td>{{ item.raw_avg|floatformat:2 }}</td>-->
                         <td class="text-primary font-bold">{{ item.weighted_avg|floatformat:2 }}</td>
                     </tr>
                     {% empty %}

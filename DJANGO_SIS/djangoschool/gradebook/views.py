@@ -235,9 +235,18 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             kwargs['user'] = self.request.user
         if step == '2':
             step1_data = self.get_cleaned_data_for_step('1')
+            # step0_data = self.get_cleaned_data_for_step('0')
+            # topic = step1_data['topic']
+            # date = step1_data['date']
+            # assign_type = step0_data['assignment_type']
+
             if step1_data and 'max_score' in step1_data:
                 kwargs['max_score'] = step1_data['max_score']
             # Pass form_kwargs_list for each form in the formset
+
+            # if step1_data:
+            #     kwargs['topic'] = step1_data['topic']
+
             initial = self.get_form_initial(step)
             kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
         return kwargs
@@ -247,14 +256,22 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
         # Get cleaned data from step 0 if available
         step0_data = self.get_cleaned_data_for_step('0')
+        step1_data = self.get_cleaned_data_for_step('1')
+        # step2_data = self.get_cleaned_data_for_step('2')
         if step0_data:
             context['selected_academic_year'] = step0_data.get('academic_year')
             context['selected_period'] = step0_data.get('period')
             context['selected_level'] = step0_data.get('level')
             context['selected_subject'] = step0_data.get('subject')
             context['selected_is_mid'] = step0_data.get('is_mid')
+            context['selected_assignment_type'] = step0_data.get('assignment_type')
+        if step1_data:
+            context['selected_topic'] = step1_data.get('topic')
+            context['selected_date'] = step1_data.get('date')
 
         return context
+
+
 
     def done(self, form_list, **kwargs):
         # Ambil data dari form yang sudah divalidasi
@@ -2280,6 +2297,8 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
 
         return context
 
+
+
     def done(self, form_list, **kwargs):
         form_data = form_list[0].cleaned_data
 
@@ -2363,6 +2382,8 @@ class TotalGrading(LoginRequiredMixin, SessionWizardView):
             'period': period,
         }
 
+
+
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
 
 
@@ -2405,25 +2426,28 @@ def assignm_avg(request):
     return render(request, "partials/gradebook/allassignm_avg.html", context)
 
 
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+
 # KALKULASI NILAI AKHIR (UTS & UAS)
-def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period=None):
+def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period):
     # ========================================================
     # FIX 1: PENCARIAN BOBOT (WEIGHTING) LINTAS PERIODE
     # ========================================================
     # Cari SEMUA periode yang beririsan. Kalau user generate rapot Term 1,
     # sistem tetep bisa narik tabel Weighting yang nyantol di Semester 1.
 
-    if period is None:
-        semester_periods = LearningPeriod.objects.filter(
-            academic_year=academic_year,
-            period_name__icontains='Semester'
-        ).order_by('date_start')
-        # LANGSUNG ASSIGN KE PERIOD SUPAYA TIDAK NONE DI BAWAH
-        period = semester_periods.first()
+    # if period is None:
+    #     semester_periods = LearningPeriod.objects.filter(
+    #         academic_year=academic_year,
+    #         period_name__icontains='Semester'
+    #     ).order_by('date_start')
+    #     # LANGSUNG ASSIGN KE PERIOD SUPAYA TIDAK NONE DI BAWAH
+    #     period = semester_periods.first()
 
         # Pengaman jika database benar-benar kosong/tidak ada data Semester
-    if not period:
-        return [], None
+    # if not period:
+    #     return [], None
 
         # Sekarang baris ini dijamin aman dari AttributeError
     selected_periods = LearningPeriod.objects.filter(
@@ -2437,7 +2461,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         level=level,
         subject=subject,
         is_mid=is_mid,
-        period__in=selected_periods  # <-- KUNCI BARU: Fleksibel cari bobot di Term maupun Semester
+        period=period  # <-- KUNCI BARU: Fleksibel cari bobot di Term maupun Semester
     )
 
     weight_map = {w.assignment_id: w.weight for w in weightings}
@@ -2446,8 +2470,8 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     if not allowed_assignment_ids:
         return [], None
 
-    if not period:
-        period = semester_periods.first()
+    # if not period:
+    #     period = semester_periods.first()
 
     detail_qs = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
@@ -2458,7 +2482,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     # ========================================================
     # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
     # ========================================================
-    ordered_periods = selected_periods.order_by('date_start')
+    ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
 
     # Ambil periode, jika kosong gunakan periode default dari 'period'
     if ordered_periods.exists():
@@ -2504,6 +2528,42 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     students = Student.objects.filter(id__in=student_records.keys())
     student_dict = {s.id: s for s in students}
 
+    uts_weight = 0.0
+    if not is_mid:
+        uts_weight_obj = Weighting.objects.filter(
+            academic_year=academic_year,
+            level=level,
+            subject=subject,
+            period=period,
+            is_mid=True,
+            assignment__short_name='SUMM'  # Sesuaikan field ini
+        ).first()
+
+        if uts_weight_obj:
+            uts_weight = float(uts_weight_obj.weight)
+
+            # PENTING: Kalau di DB nyimpennya "30.00" (bukan "0.30"),
+            # kita harus bagi 100 biar jadi desimal 0.30 untuk pengali.
+            if uts_weight > 1:
+                uts_weight = uts_weight / 100.0
+
+    # ========================================================
+    # 2. TARIK NILAI UTS YANG UDAH DI-POST DARI DB
+    # ========================================================
+    # uts_posted_scores = {}
+    # if not is_mid:
+    #     # GANTI 'StudentGrade' DENGAN MODEL LU YANG NYIMPEN NILAI RAPOT UTS
+    #     posted_mid_results = StudentGrade.objects.filter(
+    #         student_id__in=student_records.keys(),
+    #         subject=subject,
+    #         period=period,
+    #         is_mid=True  # Pastikan ini narik data rapot UTS
+    #     )
+    #
+    #     for res in posted_mid_results:
+    #         # Ganti 'final_score' dengan field tempat lu nyimpen nilai angkanya
+    #         uts_posted_scores[res.student_id] = float(res.final_score)
+
     results = []
     for s_id, record in student_records.items():
         student_obj = student_dict.get(s_id)
@@ -2513,7 +2573,15 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         total_weighted_avg = record['weighted_total']
 
         if not is_mid:
-            total_weighted_avg -= 1
+            if uts_weight > 0:
+                # Kita cari total bobot UAS (Misal: 1.0 - 0.30 = 0.70)
+                uas_weight_total = 1.0 - uts_weight
+
+                if uas_weight_total > 0:
+                    # Nilai dibagi bobot UAS supaya balik ke skala 100
+                    total_weighted_avg /= uas_weight_total
+            else:
+                total_weighted_avg = 0  # Pengaman
 
         results.append({
             'student_obj': student_obj,
@@ -2528,8 +2596,12 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'period': period
         })
 
+        data = list(detail_qs.values())
+        print(json.dumps(data, indent=4, cls=DjangoJSONEncoder, default=str))
+
     # Mengembalikan data murid DAN data Term yang dipakai buat ditaruh di rapot
     return results, term_period
+
 
 
 class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
@@ -2577,15 +2649,20 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
 
 
 
+
+
         context = {
             'student_results': student_results,
             'selected_academic_year': academic_year,
             'selected_subject': subject,
             # 'selected_kelas': kelas,
             'selected_level': level,
-            'selected_period': decided_period,  # <--- SEKARANG ID-NYA PASTI ADA ISINYA
+            'selected_period': period,  # <--- SEKARANG ID-NYA PASTI ADA ISINYA
             'is_mid': is_mid,
         }
+
+        # data = list(context.values())
+        # print(json.dumps(data, indent=4, cls=DjangoJSONEncoder, default=str))
 
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
 
@@ -2596,7 +2673,7 @@ def save_assignment_results(request):
     sub_id = request.POST.get('subject_id')
     lvl_id = request.POST.get('level_id')
     period_id = request.POST.get('period_id')
-    is_mid = request.POST.get('is_mid') == 'True'
+    is_mid = request.POST.get('is_mid')
 
     # Validasi biar server lu aman dari crash kalau misal ke-skip
     if not period_id:
@@ -2631,7 +2708,6 @@ def save_assignment_results(request):
                 subject=subject,
                 defaults={
                     'final_score': final_score_int,
-                    'final_grade': 'B'
                 }
             )
 

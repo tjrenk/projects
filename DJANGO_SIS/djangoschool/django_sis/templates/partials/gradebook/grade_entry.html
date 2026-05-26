@@ -83,16 +83,21 @@
                     {{ wizard.form.management_form }}
 
                     {% if wizard.form.forms %}
+                <div class="flex gap-10 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+                    <div><strong>Topic:</strong>&nbsp;{{ selected_topic }}</div>
+                    <div><strong>Date:</strong>&nbsp;{{ selected_date }}</div>
+                    <div><strong>Type:</strong>&nbsp;{{ selected_assignment_type }}</div>
+                </div>
                         <div class="table-responsive">
                             <table class="table table-hover table-bordered align-middle">
                                 <thead class="bg-base-200 rounded-md">
                                     <tr>
                                         <th style="width: 30%;">NISN</th>
-                                        <th style="width: 30%;">Nama</th>
-                                        <th style="width: 20%;">Nilai</th>
-                                        <th style="width: 30%;">Alasan Tidak Hadir</th>
+                                        <th style="width: 30%;">Name</th>
+                                        <th style="width: 20%;">Score</th>
+                                        <th style="width: 30%;">Nonactive Reason</th>
                                         {% comment %} <th style="width: 70%;">Teacher's Notes</th> {% endcomment %}
-                                        <th style="width: 10%;">Hadir?</th>
+                                        <th style="width: 10%;">Active?</th>
                                     </tr>
                                 </thead>
                                 <tbody>
