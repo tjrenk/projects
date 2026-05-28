@@ -2510,85 +2510,199 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     student_dict = {s.id: s for s in students}
 
     uts_weight = 0.0
+    uts_posted_scores = {}
+
     if not is_mid:
+        # 6A. Cari Bobot UTS
         uts_weight_obj = Weighting.objects.filter(
             academic_year=academic_year,
             level=level,
             subject=subject,
             period=period,
             is_mid=True,
-            assignment__short_name='SUMM'  # Sesuaikan field ini
+            assignment__short_name='SUMM'
         ).first()
-
-        print(uts_weight_obj)
 
         if uts_weight_obj:
             uts_weight = float(uts_weight_obj.weight)
-
-            # PENTING: Kalau di DB nyimpennya "30.00" (bukan "0.30"),
-            # kita harus bagi 100 biar jadi desimal 0.30 untuk pengali.
             if uts_weight > 1:
-                uts_weight = uts_weight / 30.0
+                uts_weight = uts_weight / 100.0  # Diubah jadi 100.0 biar jadi desimal yang benar (0.30)
 
-        print(uts_weight)
+        # 6B. Cari Nilai Rapot UTS yang udah di-save
+        # Relasi: ReportcardGrade punya ForeignKey 'reportcard' ke StudentReportcard
+        posted_mid_grades = ReportcardGrade.objects.filter(
+            reportcard__student__id__in=student_records.keys(),
+            reportcard__academic_year=academic_year,
+            reportcard__period=period,
+            reportcard__is_mid=True,  # Ini nyari header UTS
+            subject=subject  # Ini nyari mapelnya
+        ).select_related('reportcard')
+
+        for grade in posted_mid_grades:
+            # Simpan skor akhir UTS berdasarkan ID muridnya
+            uts_posted_scores[grade.reportcard.student_id] = float(grade.final_score)
 
     # ========================================================
-    # 2. TARIK NILAI UTS YANG UDAH DI-POST DARI DB
+    # BLOK 7: FINALISASI & GABUNGAN NILAI UAS + UTS
     # ========================================================
-    # uts_posted_scores = {}
-    # if not is_mid:
-    #     # GANTI 'StudentGrade' DENGAN MODEL LU YANG NYIMPEN NILAI RAPOT UTS
-    #     posted_mid_results = StudentGrade.objects.filter(
-    #         student_id__in=student_records.keys(),
-    #         subject=subject,
-    #         period=period,
-    #         is_mid=True  # Pastikan ini narik data rapot UTS
-    #     )
-    #
-    #     for res in posted_mid_results:
-    #         # Ganti 'final_score' dengan field tempat lu nyimpen nilai angkanya
-    #         uts_posted_scores[res.student_id] = float(res.final_score)
-
     results = []
     for s_id, record in student_records.items():
         student_obj = student_dict.get(s_id)
         if not student_obj: continue
 
         raw_avg = record['raw_total'] / record['raw_count'] if record['raw_count'] > 0 else 0
+
+        # Ini total dari UAS saja (yang bobotnya 70%)
         total_weighted_avg = record['weighted_total']
 
         if not is_mid:
-            if uts_weight > 0:
-                # Kita cari total bobot UAS (Misal: 1.0 - 0.30 = 0.70)
-                uas_weight_total = 1.0 - uts_weight
+            # Ambil nilai UTS murid ini dari dictionary (default 0 kalau belum dapet)
+            student_uts_score = uts_posted_scores.get(s_id, 0.0)
 
-                if uas_weight_total > 0:
-                    # Nilai dibagi bobot UAS supaya balik ke skala 100
-                    total_weighted_avg /= uas_weight_total
-            else:
-                total_weighted_avg = 0  # Pengaman
+            # Kalikan nilai rapot UTS dengan 30%
+            uts_contribution = student_uts_score * uts_weight
 
-            print(uas_weight_total)
+            # Langsung tambahin ke nilai UAS
+            total_weighted_avg += uts_contribution
 
         results.append({
             'student_obj': student_obj,
             'nisn': getattr(student_obj, 'nisn', '-'),
             'student_name': str(student_obj),
-            # 'kelas': kelas,
             'subject': subject,
             'level': level,
             'raw_avg': raw_avg,
-            'weighted_avg': total_weighted_avg, # Harusnya tepat 83.33 sekarang!
+            'weighted_avg': total_weighted_avg,
             'final_score_preview': round(total_weighted_avg),
             'period': period
         })
 
-        data = list(detail_qs.values())
-        print(json.dumps(data, indent=4, cls=DjangoJSONEncoder, default=str))
-
-    # Mengembalikan data murid DAN data Term yang dipakai buat ditaruh di rapot
     return results, term_period
 
+def calc_student_avg_redone(academic_year, subject, level, is_mid, period):
+    # bobot_formatif_sem_jalan = Weighting.objects.filter(
+    #         academic_year=academic_year,
+    #         level=level,
+    #         subject=subject,
+    #         period=period,
+    #         is_mid=is_mid
+    #     )
+    #
+    # bobot_sumatif_sem_akhir = Weighting.objects.filter(
+    #     academic_year=academic_year,
+    #     level=level,
+    #     subject=subject,
+    #     period=period,
+    #     is_mid=True,
+    #     assignment__short_name='SUMM'
+    # )
+    #
+    # selected_periods = LearningPeriod.objects.filter(
+    #     academic_year=academic_year,
+    #     date_start__lte=period.date_end,
+    #     date_end__gte=period.date_start
+    # )
+    #
+    #
+    # weight_map = {w.assignment_id: w.weight for w in bobot_formatif_sem_jalan}
+    # allowed_assignment_ids = list(weight_map.keys())
+    #
+    # if not allowed_assignment_ids:
+    #     return [], None
+    #
+    # # if not period:
+    # #     period = semester_periods.first()
+    #
+    # detail_qs = AssignmentDetail.objects.filter(
+    #     assignment_head__course__subject=subject,
+    #     assignment_head__course__academic_year=academic_year,
+    #     assignment_head__assignment_id__in=allowed_assignment_ids
+    # )
+    #
+    # # ========================================================
+    # # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
+    # # ========================================================
+    # ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
+    #
+    # # Ambil periode, jika kosong gunakan periode default dari 'period'
+    # if ordered_periods.exists():
+    #     term_period = ordered_periods.first() if is_mid else ordered_periods.last()
+    # else:
+    #     term_period = period
+    #
+    #
+    #
+    # totals = Weighting.objects.aggregate(
+    #     sum1 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=is_mid)),
+    #     sum2 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=True) & Q(assignment__short_name='SUMM'))
+    # )
+    #
+    # grand_total = (totals['sum1'] or 0) + (totals['sum2'] or 0)
+    #
+    # # sum = bobot_formatif_sem_jalan + bobot_sumatif_sem_akhir
+    #
+    # results = 1 - grand_total
+    #
+    from decimal import Decimal
+    # return str(Decimal(results)), term_period
+
+    bobot_sem_jalan = Weighting.objects.filter(
+        academic_year=academic_year,
+        level=level,
+        subject=subject,
+        period=period,
+        is_mid=is_mid
+    )
+
+    weight_map = {w.assignment_id: w.weight for w in bobot_sem_jalan}
+    allowed_assignment_ids = list(weight_map.keys())
+
+    print(weight_map)
+
+    if not allowed_assignment_ids:
+        return [], None
+
+    # ========================================================
+    # 2. HITUNG SISA BOBOT UNTUK MID SEMESTER (Hasilnya 30%)
+    # ========================================================
+    # Kita totalin bobot yang aktif saat ini (Misal: 0.50 + 0.20 = 0.70)
+    current_total_weight = bobot_sem_jalan.aggregate(
+        weight_map=Sum('weight')
+    )['weight_map'] or Decimal('0.00')
+
+    # Cari sisanya (100% - Total Saat Ini)
+    # Catatan: Karena db lu pakai max_digits=2 (skala 0.00 - 0.99), 100% itu ditulis '1.0'
+    sisa_bobot = Decimal('1.0') - current_total_weight
+
+    # Pengaman biar nggak minus kalau kebetulan total bobotnya nyentuh/lebih dari 100%
+    if sisa_bobot < Decimal('0.00'):
+        sisa_bobot = Decimal('0.00')
+
+    # ========================================================
+    # 3. LANJUTAN LOGIKA QUERY DETAIL & TERM
+    # ========================================================
+    detail_qs = AssignmentDetail.objects.filter(
+        assignment_head__course__subject=subject,
+        assignment_head__course__academic_year=academic_year,
+        assignment_head__assignment_id__in=allowed_assignment_ids
+    )
+
+    selected_periods = LearningPeriod.objects.filter(
+        academic_year=academic_year,
+        date_start__lte=period.date_end,
+        date_end__gte=period.date_start
+    )
+
+    ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
+
+    # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
+    if ordered_periods.exists():
+        term_period = ordered_periods.first() if is_mid else ordered_periods.last()
+    else:
+        term_period = period
+
+    # Mengembalikan nilai sisa bobot (str) dan term_period
+    return str(sisa_bobot), term_period
 
 
 class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
@@ -2623,16 +2737,17 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
             period = semester_periods.first()
 
         # Tangkap 2 nilai: student_results dan decided_period
+        # student_results, decided_period = calc_student_avg_redone(academic_year=academic_year,
+        #                                                                        subject=subject, level=level,
+        #                                                                        is_mid=is_mid, period=period)
         student_results, decided_period = calculate_student_averages_optimized(academic_year=academic_year,
                                                                                subject=subject, level=level,
                                                                                is_mid=is_mid, period=period)
-
-        print(academic_year)
-        print(level)
-        # print(kelas)
-        print(subject)
-        print(is_mid)
-        print(period)
+        # print(academic_year)
+        # print(level)
+        # print(subject)
+        # print(is_mid)
+        # print(period)
 
 
 
