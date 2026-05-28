@@ -2431,25 +2431,6 @@ from django.core.serializers.json import DjangoJSONEncoder
 
 # KALKULASI NILAI AKHIR (UTS & UAS)
 def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period):
-    # ========================================================
-    # FIX 1: PENCARIAN BOBOT (WEIGHTING) LINTAS PERIODE
-    # ========================================================
-    # Cari SEMUA periode yang beririsan. Kalau user generate rapot Term 1,
-    # sistem tetep bisa narik tabel Weighting yang nyantol di Semester 1.
-
-    # if period is None:
-    #     semester_periods = LearningPeriod.objects.filter(
-    #         academic_year=academic_year,
-    #         period_name__icontains='Semester'
-    #     ).order_by('date_start')
-    #     # LANGSUNG ASSIGN KE PERIOD SUPAYA TIDAK NONE DI BAWAH
-    #     period = semester_periods.first()
-
-        # Pengaman jika database benar-benar kosong/tidak ada data Semester
-    # if not period:
-    #     return [], None
-
-        # Sekarang baris ini dijamin aman dari AttributeError
     selected_periods = LearningPeriod.objects.filter(
         academic_year=academic_year,
         date_start__lte=period.date_end,
@@ -2539,13 +2520,17 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             assignment__short_name='SUMM'  # Sesuaikan field ini
         ).first()
 
+        print(uts_weight_obj)
+
         if uts_weight_obj:
             uts_weight = float(uts_weight_obj.weight)
 
             # PENTING: Kalau di DB nyimpennya "30.00" (bukan "0.30"),
             # kita harus bagi 100 biar jadi desimal 0.30 untuk pengali.
             if uts_weight > 1:
-                uts_weight = uts_weight / 100.0
+                uts_weight = uts_weight / 30.0
+
+        print(uts_weight)
 
     # ========================================================
     # 2. TARIK NILAI UTS YANG UDAH DI-POST DARI DB
@@ -2582,6 +2567,8 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
                     total_weighted_avg /= uas_weight_total
             else:
                 total_weighted_avg = 0  # Pengaman
+
+            print(uas_weight_total)
 
         results.append({
             'student_obj': student_obj,

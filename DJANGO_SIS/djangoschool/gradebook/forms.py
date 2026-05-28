@@ -35,15 +35,15 @@ class GradeEntryForm(forms.ModelForm):
     class Meta:
         model = GradeEntry
         fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_type"]
-        labels = {
-            'academic_year': 'Tahun Ajaran',
-            'period': 'Periode Pembelajaran / Semester',
-            'teacher': 'Nama Guru',
-            'subject': "Mata Pelajaran",
-            'level': "Level Pembelajaran",
-            'course': "Sub-level",
-            'assignment_type': "Tipe Tugas",
-        }
+        # labels = {
+        #     'academic_year': 'Tahun Ajaran',
+        #     'period': 'Periode Pembelajaran / Semester',
+        #     'teacher': 'Nama Guru',
+        #     'subject': "Mata Pelajaran",
+        #     'level': "Level Pembelajaran",
+        #     'course': "Sub-level",
+        #     'assignment_type': "Tipe Tugas",
+        # }
         
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
@@ -343,12 +343,12 @@ class AttendanceForm(forms.ModelForm):
         widgets = {
             'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
         }
-        labels = {
-            'attendance_date': 'Tanggal Absensi',
-            'student': 'Nama Murid',
-            'attendance_type': 'Tipe Absensi',
-            'notes': 'Catatan',
-        }
+        # labels = {
+        #     'attendance_date': 'Tanggal Absensi',
+        #     'student': 'Nama Murid',
+        #     'attendance_type': 'Tipe Absensi',
+        #     'notes': 'Catatan',
+        # }
 
 # Form Step 2
 class AssignmentHeadForm(forms.ModelForm):
@@ -360,11 +360,11 @@ class AssignmentHeadForm(forms.ModelForm):
             'topic': forms.TextInput()
         }
 
-        labels = {
-            'date': 'Tanggal',
-            'topic': 'Topik',
-            'max_score': 'Nilai Maksimal'
-        }
+        # labels = {
+        #     'date': 'Tanggal',
+        #     'topic': 'Topik',
+        #     'max_score': 'Nilai Maksimal'
+        # }
 
 
 
@@ -539,14 +539,14 @@ AssignmentDetailFormSet = formset_factory(AssignmentDetailItemForm, formset=Assi
 class StudentReportcardForm(forms.ModelForm):
     academic_year = forms.ModelChoiceField(
         queryset=AcademicYear.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select'}),
-        label='Tahun Ajaran'
+        widget=forms.Select(attrs={'class': 'form-select'})
+        # label='Tahun Ajaran'
     )
 
     period = forms.ModelChoiceField(
         queryset=LearningPeriod.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'period-select'}),
-        label='Periode Pembelajaran / Semester'
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'period-select'})
+        # label='Periode Pembelajaran / Semester'
     )
 
     is_mid = forms.BooleanField(
@@ -557,8 +557,8 @@ class StudentReportcardForm(forms.ModelForm):
 
     level = forms.ModelChoiceField(
         queryset=GradeLevel.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'}),
-        label='Level Pembelajaran'
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
+        # label='Level Pembelajaran'
     )
 
     class Meta:
@@ -567,12 +567,12 @@ class StudentReportcardForm(forms.ModelForm):
         widgets = {
             'student': forms.Select(attrs={'class': 'form-select select2'}), # Assuming you use select2
         }
-        labels = {
-            'academic_year': 'Tahun Ajaran',
-            'period': 'Periode Pembelajaran / Semester',
-            'is_mid': 'Tengah Semester',
-            'level': 'Level Pembelajaran'
-        }
+        # labels = {
+        #     'academic_year': 'Tahun Ajaran',
+        #     'period': 'Periode Pembelajaran / Semester',
+        #     'is_mid': 'Tengah Semester',
+        #     'level': 'Level Pembelajaran'
+        # }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -630,10 +630,10 @@ class CourseByTeacher(forms.ModelForm):
     class Meta:
         model = GradeEntry
         fields = ["subject", "course"]
-        labels = {
-            'subject': 'Mata Pelajaran',
-            'course': 'Sub-level'
-        }
+        # labels = {
+        #     'subject': 'Mata Pelajaran',
+        #     'course': 'Sub-level'
+        # }
         
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
