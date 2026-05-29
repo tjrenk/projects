@@ -1,0 +1,14 @@
+{% for p in period %}
+    <div class="form-check">
+        <input class="form-check-input"
+               type="radio"
+               name="0-period"
+               id="id_0-period_{{ forloop.counter0 }}"
+               value="{{ p.id }}">
+        <label class="form-check-label" for="id_0-period_{{ forloop.counter0 }}">
+            {{ p.period_name }}
+        </label>
+    </div>
+{% empty %}
+    <small class="text-muted">No periods available for this academic year.</small>
+{% endfor %}

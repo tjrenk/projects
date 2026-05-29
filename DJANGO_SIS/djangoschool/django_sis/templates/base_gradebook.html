@@ -84,12 +84,12 @@
             </div>
 
             <div class="navbar-center max-sm:hidden">
-                <a class="btn btn-ghost text-xl" href="{% url 'gb-index' %}">Buku Nilai</a>
+                <a class="btn btn-ghost text-xl" href="{% url 'gb-index' %}">Gradebook</a>
             </div>
 
             <div class="navbar-end">
                         {% if user.is_authenticated %}
-            <p style="font-size: 15px;"><strong>Halo, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></p>
+            <p style="font-size: 15px;"><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></p>
         {% else %}
             &nbsp;
         {% endif %}
@@ -152,7 +152,14 @@
                             </ul>
                         </details>
                     </li>
-
+                <li class="mb-2">
+                        <details open>
+                            <summary><i class="fa-solid fa-calculator"></i>Processes</summary>
+                            <ul>
+                                <li><a href="{% url 'assignment-avg-wizard' %}">Final Grade Avg</a></li>
+                            </ul>
+                        </details>
+                    </li>
                     <li class="mb-2">
                         <details open>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
@@ -160,7 +167,7 @@
                                 <li><a href="{% url 'grade-entry-table' %}">Student Grade</a></li>
                                 <li><a href="{% url 'report-card-table' %}">Teacher's Comments</a></li>
                                 <li><a href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
-                                <li><a href="{% url 'grades-wizard' %}">Daftar Nilai</a></li>
+                                <li><a href="{% url 'grades-wizard' %}">Grades List</a></li>
 <!--                                {% if user.is_staff %}-->
 <!--                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>-->
 <!--                                {% endif %}-->
@@ -168,14 +175,7 @@
                         </details>
                     </li>
                                     {% if user.is_staff %}
-                <li class="mb-2">
-                        <details open>
-                            <summary><i class="fa-solid fa-calculator"></i>Calculations</summary>
-                            <ul>
-                                <li><a href="{% url 'assignment-avg-wizard' %}">Final Grade Avg</a></li>
-                            </ul>
-                        </details>
-                    </li>
+
                 {% endif %}
                 </ul>
             </div>

@@ -65,6 +65,9 @@ urlpatterns = [
     path('get-academic_year-tgrade/', views.get_academic_year_totalg, name='get-academic_year-tgrade'),
     path('get-period-tgrade/', views.get_period_tgrade, name='get-period_tgrade'),
 
+    # REPORT CARD LEDGER
+    path('get_period_ledger/', views.get_period_ledger, name='get_period_ledger'),
+
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")

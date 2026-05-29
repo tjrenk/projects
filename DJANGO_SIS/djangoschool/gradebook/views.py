@@ -1257,6 +1257,11 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         "reportcard__student__registration_data__last_name"
     ]
 
+def get_period_ledger(request):
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    period = LearningPeriod.objects.all()
+    context = {'period': period}
+    return render(request, "partials/gradebook/rcledger_partials/period.html", context)
 
 # @login_required
 # @require_POST
@@ -2211,11 +2216,10 @@ def get_kelas_extra(request):
 
 
 def get_period_extra(request):
-    ay_id = request.GET.get('academic_year_id')
-    if ay_id:
-        periods = LearningPeriod.objects.all()
-    else:
-        periods = LearningPeriod.objects.none()
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    period = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
+    context = {'period': period}
+    return render(request, "partials/gradebook/totalgrade_partials/period.html", context)
 
     return render(request, "partials/gradebook/reportextra_partials/period.html", {'periods': periods})
 
@@ -2431,149 +2435,82 @@ from django.core.serializers.json import DjangoJSONEncoder
 
 # KALKULASI NILAI AKHIR (UTS & UAS)
 def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period):
-    selected_periods = LearningPeriod.objects.filter(
-        academic_year=academic_year,
-        date_start__lte=period.date_end,
-        date_end__gte=period.date_start
-    )
+    # 1. AMBIL BOBOT NILAI YANG AKTIF
+    weightings = Weighting.objects.filter(academic_year=academic_year, level=level, subject=subject, period=period,
+                                          is_mid=is_mid)
+    weight_map = {w.assignment_id: float(w.weight) for w in weightings}
 
-    weightings = Weighting.objects.filter(
-        academic_year=academic_year,
-        level=level,
-        subject=subject,
-        is_mid=is_mid,
-        period=period  # <-- KUNCI BARU: Fleksibel cari bobot di Term maupun Semester
-    )
-
-    weight_map = {w.assignment_id: w.weight for w in weightings}
-    allowed_assignment_ids = list(weight_map.keys())
-
-    if not allowed_assignment_ids:
+    if not weight_map:
         return [], None
 
-    # if not period:
-    #     period = semester_periods.first()
+    # 2. TENTUKAN RENTANG TANGGAL PERIODE (TERM / SEMESTER)
+    terms = LearningPeriod.objects.filter(academic_year=academic_year, date_start__lte=period.date_end,
+                                          date_end__gte=period.date_start, period_name__icontains='term').order_by('date_start')
+    term_period = terms.first() if is_mid else terms.last()
+    term_period = term_period or period
 
-    detail_qs = AssignmentDetail.objects.filter(
+    # 3. AMBIL RATA-RATA NILAI TUGAS MURID LANGSUNG DARI DB
+    grades_data = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
         assignment_head__course__academic_year=academic_year,
-        assignment_head__assignment_id__in=allowed_assignment_ids
-    )
+        assignment_head__assignment_id__in=weight_map.keys(),
+        assignment_head__date__range=(term_period.date_start, term_period.date_end)
+    ).values('student_id', 'assignment_head__assignment_id').annotate(avg_score=Avg('score'))
 
-    # ========================================================
-    # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
-    # ========================================================
-    ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
-
-    # Ambil periode, jika kosong gunakan periode default dari 'period'
-    if ordered_periods.exists():
-        term_period = ordered_periods.first() if is_mid else ordered_periods.last()
-    else:
-        term_period = period
-
-        # Tambahkan pengaman ekstra: kalau masih None, pakai period yang dikirim
-    target_start = term_period.date_start if term_period else period.date_start
-    target_end = term_period.date_end if term_period else period.date_end
-
-    # Filter tugas berdasarkan rentang tanggal
-    detail_qs = detail_qs.filter(
-        assignment_head__date__range=(target_start, target_end)
-    )
-    # ========================================================
-    # FIX 3: KALKULASI RATA-RATA & BOBOT
-    # ========================================================
-    # .order_by() kosong untuk reset grouping bawaan Django
-    aggregated_data = detail_qs.order_by().values(
-        'student_id',
-        'assignment_head__assignment_id'
-    ).annotate(
-        avg_score=Avg('score')
-    )
-
-    student_records = {}
-    for row in aggregated_data:
-        s_id = row['student_id']
-        a_id = row['assignment_head__assignment_id']
-        score = float(row['avg_score'] or 0)
-
-        if s_id not in student_records:
-            student_records[s_id] = {'raw_total': 0, 'raw_count': 0, 'weighted_total': 0.0}
-
-        student_records[s_id]['raw_total'] += score
-        student_records[s_id]['raw_count'] += 1
-
-        # Ditarik pakai float biar gak bentrok sama format Decimal dari DB
-        weight = float(weight_map.get(a_id, 0))
-        student_records[s_id]['weighted_total'] += (score * weight)
-
-    students = Student.objects.filter(id__in=student_records.keys())
-    student_dict = {s.id: s for s in students}
-
+    # 4. KHUSUS AKHIR SEMESTER (UAS): TARIK NILAI UTS (30%) DARI DB
+    uts_scores = {}
     uts_weight = 0.0
-    uts_posted_scores = {}
 
     if not is_mid:
-        # 6A. Cari Bobot UTS
-        uts_weight_obj = Weighting.objects.filter(
-            academic_year=academic_year,
-            level=level,
-            subject=subject,
-            period=period,
-            is_mid=True,
-            assignment__short_name='SUMM'
-        ).first()
+        # Ambil bobot UTS-nya
+        uts_w_obj = Weighting.objects.filter(academic_year=academic_year, level=level, subject=subject, period=period,
+                                             is_mid=True, assignment__short_name='SUMM').first()
+        if uts_w_obj:
+            uts_weight = float(uts_w_obj.weight) / 100.0 if float(uts_w_obj.weight) > 1 else float(uts_w_obj.weight)
 
-        if uts_weight_obj:
-            uts_weight = float(uts_weight_obj.weight)
-            if uts_weight > 1:
-                uts_weight = uts_weight / 100.0  # Diubah jadi 100.0 biar jadi desimal yang benar (0.30)
+        # Ambil semua nilai rapot UTS yang dulu pernah di-save
+        uts_grades = ReportcardGrade.objects.filter(reportcard__academic_year=academic_year, reportcard__period=period,
+                                                    reportcard__is_mid=True, subject=subject)
+        uts_scores = {g.reportcard.student_id: float(g.final_score) for g in uts_grades}
 
-        # 6B. Cari Nilai Rapot UTS yang udah di-save
-        # Relasi: ReportcardGrade punya ForeignKey 'reportcard' ke StudentReportcard
-        posted_mid_grades = ReportcardGrade.objects.filter(
-            reportcard__student__id__in=student_records.keys(),
-            reportcard__academic_year=academic_year,
-            reportcard__period=period,
-            reportcard__is_mid=True,  # Ini nyari header UTS
-            subject=subject  # Ini nyari mapelnya
-        ).select_related('reportcard')
+    # 5. HITUNG TOTAL NILAI AKHIR PER MURID
+    student_records = {}
+    for row in grades_data:
+        s_id = row['student_id']
+        score = float(row['avg_score'] or 0)
+        weight = weight_map.get(row['assignment_head__assignment_id'], 0)
 
-        for grade in posted_mid_grades:
-            # Simpan skor akhir UTS berdasarkan ID muridnya
-            uts_posted_scores[grade.reportcard.student_id] = float(grade.final_score)
+        if s_id not in student_records:
+            student_records[s_id] = {'raw_sum': 0, 'count': 0, 'weighted_sum': 0.0}
 
-    # ========================================================
-    # BLOK 7: FINALISASI & GABUNGAN NILAI UAS + UTS
-    # ========================================================
+        student_records[s_id]['raw_sum'] += score
+        student_records[s_id]['count'] += 1
+        student_records[s_id]['weighted_sum'] += (score * weight)
+
+    # 6. BUNGKUS HASIL AKHIR UNTUK DITAMPILKAN KE LAYAR
     results = []
+    students = {s.id: s for s in Student.objects.filter(id__in=student_records.keys())}
+
     for s_id, record in student_records.items():
-        student_obj = student_dict.get(s_id)
+        student_obj = students.get(s_id)
         if not student_obj: continue
 
-        raw_avg = record['raw_total'] / record['raw_count'] if record['raw_count'] > 0 else 0
+        raw_avg = record['raw_sum'] / record['count'] if record['count'] > 0 else 0
+        final_score = record['weighted_sum']
 
-        # Ini total dari UAS saja (yang bobotnya 70%)
-        total_weighted_avg = record['weighted_total']
-
+        # JIKA UAS: Tambahkan nilai UTS (Hasil kali Nilai UTS * 30%)
         if not is_mid:
-            # Ambil nilai UTS murid ini dari dictionary (default 0 kalau belum dapet)
-            student_uts_score = uts_posted_scores.get(s_id, 0.0)
-
-            # Kalikan nilai rapot UTS dengan 30%
-            uts_contribution = student_uts_score * uts_weight
-
-            # Langsung tambahin ke nilai UAS
-            total_weighted_avg += uts_contribution
+            final_score += (uts_scores.get(s_id, 0.0) * uts_weight)
 
         results.append({
             'student_obj': student_obj,
-            'nisn': getattr(student_obj, 'nisn', '-'),
             'student_name': str(student_obj),
+            'nisn': getattr(student_obj, 'nisn', '-'),
             'subject': subject,
             'level': level,
             'raw_avg': raw_avg,
-            'weighted_avg': total_weighted_avg,
-            'final_score_preview': round(total_weighted_avg),
+            'weighted_avg': final_score,
+            'final_score_preview': round(final_score),
             'period': period
         })
 
@@ -2775,7 +2712,8 @@ def save_assignment_results(request):
     sub_id = request.POST.get('subject_id')
     lvl_id = request.POST.get('level_id')
     period_id = request.POST.get('period_id')
-    is_mid = request.POST.get('is_mid')
+    is_mid_str = request.POST.get('is_mid', 'False')
+    is_mid = is_mid_str.lower() == 'true'
 
     # Validasi biar server lu aman dari crash kalau misal ke-skip
     if not period_id:
@@ -2808,9 +2746,10 @@ def save_assignment_results(request):
             ReportcardGrade.objects.update_or_create(
                 reportcard=reportcard,
                 subject=subject,
-                defaults={
-                    'final_score': final_score_int,
-                }
+                # defaults={
+                #     'final_score': final_score_int,
+                # }
+                final_score=final_score_int
             )
 
     messages.success(request, f"Successfully saved grades for {subject.subject_name} ({period.period_name})!")

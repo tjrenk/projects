@@ -7,9 +7,9 @@
 
         <!-- Optional: Top summary bar -->
         <div class="flex gap-10 mb-6 text-sm bg-base-200 p-3 rounded-lg">
-            <div><strong>Tahun Ajaran:</strong>&nbsp;{{ selected_academic_year }}</div>
+            <div><strong>Academic Year:</strong>&nbsp;{{ selected_academic_year }}</div>
             <div><strong>Level:</strong>&nbsp;{{ selected_level }}</div>
-            <div><strong>Tengah Semester / Midterm:</strong>&nbsp;{% if is_mid %}Yes{% else %}No{% endif %}</div>
+            <div><strong>Mid Terms:</strong>&nbsp;{% if is_mid %}Yes{% else %}No{% endif %}</div>
             <div><strong>Subject:</strong>&nbsp;{{ selected_subject }}</div>
         </div>
 
@@ -18,7 +18,7 @@
                 <thead>
                     <tr class="bg-base-300 text-base-content">
                         <th>NISN</th>
-                        <th>Nama Siswa</th>
+                        <th>Student Name</th>
 <!--                        <th>Kelas</th>-->
 <!--                        <th>Mata Pelajaran</th>-->
 <!--                        <th>Sub-level</th>-->
@@ -65,10 +65,10 @@
         <input type="hidden" name="period_id" value="{{ selected_period.id }}">
 
         <button type="submit" class="btn btn-secondary">
-            Simpan ke Tabel
+            Save to Table
         </button>
     </form>
-            <a href="{% url 'assignment-avg-wizard' %}" class="btn btn-primary">Kembali</a>
+            <a href="{% url 'assignment-avg-wizard' %}" class="btn btn-primary">Go Back</a>
 <!--            <a href="{% url 'gb-index' %}" class="btn btn-secondary">Back to Index</a>-->
         </div>
     </div>

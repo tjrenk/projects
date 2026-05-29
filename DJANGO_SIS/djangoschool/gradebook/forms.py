@@ -905,7 +905,7 @@ class RequestLogForm(BaseReportForm, forms.Form):
         queryset = LearningPeriod.objects.all(),
         required=False,
         widget=forms.RadioSelect(attrs={
-            'class': 'form-control'           # Must match hx-target above
+            'class': 'form-control'
         })
     )
 
@@ -931,16 +931,28 @@ class RequestLogForm(BaseReportForm, forms.Form):
         # 2. Logic: Period depends on Academic Year
 
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
-            self.fields['level'].queryset = GradeLevel.objects.all()
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
-            # self.fields['level'].queryset = GradeLevel.objects.none()
 
 
         # self.fields["start_date"].widget.is_hidden = True
-        self.fields['period'].queryset = LearningPeriod.objects.all()
+        # self.fields['period'].queryset = LearningPeriod.objects.all()
 
+
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'acayear-select-ledger',  # Vital for the listener
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_period_ledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#period-select-ledger', # Updates Period normally
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'id': 'period-select-ledger',
+            'class': 'form-check-input mb-2',
+        })
 
 
     def get_filters(self):
@@ -1323,7 +1335,7 @@ class ExtraGradeItemForm(forms.ModelForm):
         
         # Period depends on Academic Year
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear)
+            self.fields['period'].queryset = LearningPeriod.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 

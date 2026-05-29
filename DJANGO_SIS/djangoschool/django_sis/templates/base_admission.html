@@ -84,7 +84,7 @@
             </div>
 
             <div class="navbar-center max-sm:hidden">
-                <a href="admission/" class="btn btn-ghost text-xl">Admisi</a>
+                <a href="admission/" class="btn btn-ghost text-xl">Admission</a>
             </div>
 
             <div class="navbar-end">
@@ -116,12 +116,12 @@
                         <i class="fa-regular fa-user text-lg"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content rounded-md bg-base-300 z-20 w-48 p-2 shadow-2xl">
-                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" href="/admin/password_change/">Ubah password</a></li>
-                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Keluar</a></li>
+                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" href="/admin/password_change/">Change Password</a></li>
+                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Log Out</a></li>
                     </ul>
                 </div>
                 {% else %}
-                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Masuk</a>
+                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Log In</a>
                 {% endif %}
             </div>
         </div>
@@ -132,7 +132,7 @@
                 <ul class="menu rounded-box mb-auto w-56">
                     <li class="mb-2">
                         <a href="{% url 'adm-index' %}">
-                            <i class="fa fa-th"></i> Menu Utama
+                            <i class="fa fa-th"></i> Main Menu
                         </a>
                     </li>
                     
@@ -140,18 +140,18 @@
                     
                     <li class="mb-2">
                         <details open>
-                            <summary><i class="fa-solid fa-users-gear"></i> Operasional</summary>
+                            <summary><i class="fa-solid fa-users-gear"></i> Data Entry</summary>
                             <ul>
-                                <li><a href="{% url 'registration-form' %}">Form Pendaftaran</a></li>
+                                <li><a href="{% url 'registration-form' %}">Registration Form</a></li>
                             </ul>
                         </details>
                     </li>
                     
                     <li class="mb-2">
                         <details open>
-                            <summary><i class="fa-solid fa-users-gear"></i> Laporan</summary>
+                            <summary><i class="fa-solid fa-users-gear"></i> Reporting</summary>
                             <ul>
-                                <li><a href="{% url 'student-table' %}">Daftar Siswa</a></li>
+                                <li><a href="{% url 'student-table' %}">Students List</a></li>
                             </ul>
                         </details>
                     </li>
