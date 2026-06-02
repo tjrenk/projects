@@ -1,6 +1,10 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade
+from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade, StudentBehaviourReport, ReportcardRubricTemplate
+
+from django.db.models.functions import Replace
+from django.db.models import Value
+from django.db.models import ExpressionWrapper, F, TextField, CharField
 
 def new_subject(sender, instance, created, **kwargs):
     if created:
@@ -84,6 +88,33 @@ def set_final_grade(sender, instance, **kwargs):
         else:
             instance.final_grade = "E"
 
+# pemetaan grading untuk nilai sikap
+def set_rubric_grade(sender, instance, **kwargs):
+    if not instance.grade:
+        if (instance.score > 92) and (instance.score < 101):
+            instance.grade = "A"
+        elif (instance.score > 85) and (instance.score < 93):
+            instance.grade = "B"
+        elif (instance.score > 81) and (instance.score < 86):
+            instance.grade = "C"
+        elif (instance.score > 69) and (instance.score < 82):
+            instance.grade = "D"
+        else:
+            instance.grade = "E"
+
+def set_rubric_desc(sender, instance, **kwargs):
+    if not instance.description:
+        if instance.grade == "A":
+            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='A', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
+        elif instance.grade == "B":
+            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='B', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
+        elif instance.grade == "C":
+            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='C', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
+        elif instance.grade == "D":
+            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='D', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
+        else:
+            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='E', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
+
 def tambah_record_rubriksiswa(sender, instance, created, **kwargs):
     if created:
         id_nilai_rapor = instance.id
@@ -101,4 +132,9 @@ post_save.connect(new_grade_entry, GradeEntry)
 pre_save.connect(set_final_grade, ReportcardGrade)
 
 #buat record rubrik untuk tiap 1 nilai raport
-post_save.connect(tambah_record_rubriksiswa, ReportcardGrade)
+# post_save.connect(tambah_record_rubriksiswa, ReportcardGrade)
+
+# konversi nilai sikap ke huruf
+pre_save.connect(set_rubric_grade, StudentBehaviourReport)
+
+pre_save.connect(set_rubric_desc, StudentBehaviourReport)

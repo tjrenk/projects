@@ -2,7 +2,7 @@ from django.contrib import admin
 import decimal
 from django import forms
 
-from .models import Subject, Course, CourseMember, AssignmentType, Weighting, GradeEntry, PassingGrade, Rubric, RubricIndicator, StudentReportcard, ReportcardGrade, GradeLevel, StudentReportExtra, LearningPeriod
+from .models import *
 from simple_history.admin import SimpleHistoryAdmin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
@@ -43,8 +43,8 @@ class AssignmentTypeAdmin(admin.ModelAdmin):
 class WeightingForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        acayear = self.instance.academic_year.id
-        self.fields["period"].queryset = LearningPeriod.objects.filter(academic_year=acayear, period_name__icontains='semester')
+        # acayear = self.instance.academic_year.id
+        # self.fields["period"].queryset = LearningPeriod.objects.filter(academic_year=acayear, period_name__icontains='semester')
 
 class WeightingAdmin(admin.ModelAdmin):
     list_display = ["academic_year","period","mid_sem","subject","assignment","format_percentage"]
@@ -55,14 +55,14 @@ class WeightingAdmin(admin.ModelAdmin):
         return obj.weight*100
     format_percentage.short_description = "Weight %"
 
-    def filter_period(self, request, obj=None, **kwargs):
-        qs = super().get_queryset(request)
-        if obj and obj.academic_year:  # If the object exists and has a value
-            # Filter the 'related_item' field based on the 'category' field
-            qs.base_fields['academic_year'].queryset = LearningPeriod.objects.filter(
-                academic_year=obj.academic_year
-            )
-        return qs
+    # def filter_period(self, request, obj=None, **kwargs):
+    #     qs = super().get_queryset(request)
+    #     if obj and obj.academic_year:  # If the object exists and has a value
+    #         # Filter the 'related_item' field based on the 'category' field
+    #         qs.base_fields['academic_year'].queryset = LearningPeriod.objects.filter(
+    #             academic_year=obj.academic_year
+    #         )
+    #     return qs
 
     @admin.display(description="Mid Semester?")
     def mid_sem(self, obj):
@@ -119,6 +119,10 @@ class StudentReportExtraAdmin(admin.ModelAdmin):
     list_display = ("reportcard", "extra_type", "extra_description", "extra_score", "extra_notes")
     list_filter = ["reportcard", "extra_type", "extra_description", "extra_score", "extra_notes"]
 
+class ReportcardRubricTemplateAdmin(admin.ModelAdmin):
+    list_display = ("academic_year","rubric","lookup_grade","text")
+    list_filter = ["academic_year","rubric","lookup_grade","text"]
+
 
 @staff_member_required
 def admin_statistics_view(request):
@@ -170,3 +174,4 @@ admin.site.register(StudentReportExtra, StudentReportExtraAdmin)
 # admin.site.register(StudentReportcard, StudentReportcardHistory)
 admin.site.register(ReportcardGrade, ReportCardGradeHistory)
 # admin.site.register(GradeLevel, GradeLevelAdmin)
+admin.site.register(ReportcardRubricTemplate, ReportcardRubricTemplateAdmin)

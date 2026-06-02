@@ -35,15 +35,9 @@ class GradeEntryForm(forms.ModelForm):
     class Meta:
         model = GradeEntry
         fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_type"]
-        # labels = {
-        #     'academic_year': 'Tahun Ajaran',
-        #     'period': 'Periode Pembelajaran / Semester',
-        #     'teacher': 'Nama Guru',
-        #     'subject': "Mata Pelajaran",
-        #     'level': "Level Pembelajaran",
-        #     'course': "Sub-level",
-        #     'assignment_type': "Tipe Tugas",
-        # }
+        labels = {
+            'course': "Sub-level",
+        }
         
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
@@ -69,7 +63,7 @@ class GradeEntryForm(forms.ModelForm):
             curr_ay = AcademicYear.objects.order_by('-id').first()
             if curr_ay:
                 self.initial['academic_year'] = curr_ay.id
-                curr_period = LearningPeriod.objects.filter(academic_year=curr_ay).order_by('-id').first()
+                curr_period = LearningPeriod.objects.filter(Q(academic_year=curr_ay) & Q(period_name__icontains='semester')).order_by('-id').first()
                 if curr_period:
                     self.initial['period'] = curr_period.id
         
@@ -630,10 +624,9 @@ class CourseByTeacher(forms.ModelForm):
     class Meta:
         model = GradeEntry
         fields = ["subject", "course"]
-        # labels = {
-        #     'subject': 'Mata Pelajaran',
-        #     'course': 'Sub-level'
-        # }
+        labels = {
+            'course': 'Sub-level'
+        }
         
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
@@ -1003,14 +996,14 @@ class RubricEntryForm(forms.ModelForm):
         queryset=Teacher.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Nama Guru'
+        # label='Nama Guru'
     )
     
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Kelas'
+        # label='Kelas'
     )
 
 
@@ -1018,11 +1011,11 @@ class RubricEntryForm(forms.ModelForm):
     class Meta:
         model = ReportcardBehaviour
         fields = ['academic_year', 'period', 'level']
-        labels = {
-            'academic_year': 'Tahun Ajaran',
-            'period': 'Periode Pembelajaran / Semester',
-            'level': 'Level Pembelajaran'
-        }
+        # labels = {
+        #     'academic_year': 'Tahun Ajaran',
+        #     'period': 'Periode Pembelajaran / Semester',
+        #     'level': 'Level Pembelajaran'
+        # }
     
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)

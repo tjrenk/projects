@@ -178,6 +178,8 @@ class StudentBehaviourReport(models.Model):
     behaviour = models.ForeignKey(ReportcardBehaviour, on_delete=models.CASCADE)
     rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
     score = models.IntegerField(default=0)
+    grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
+    description = models.TextField(null=True, blank=True)
 
 class StudentReportExtra(models.Model):
     reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
@@ -185,3 +187,9 @@ class StudentReportExtra(models.Model):
     extra_description = models.TextField(null=True, blank=True)
     extra_score = models.IntegerField(default=0)
     extra_notes = models.TextField(null=True, blank=True)
+
+class ReportcardRubricTemplate(models.Model):
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
+    lookup_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
+    text = models.TextField(null=True, blank=True)

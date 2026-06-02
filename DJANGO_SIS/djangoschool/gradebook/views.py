@@ -1775,6 +1775,9 @@ def student_behavior_grading(request, pk):
     # Ambil rubrik
     rubrics = list(Rubric.objects.all())
 
+    # Ambil teks narasi
+    desc = ReportcardRubricTemplate.objects.values_list('text', flat=True)
+
     # Ambil container Behaviour
     behaviour, _ = ReportcardBehaviour.objects.get_or_create(
         academic_year=academic_year,
@@ -1805,6 +1808,8 @@ def student_behavior_grading(request, pk):
                        StudentBehaviourReport.objects.filter(student=student, behaviour=behaviour)}
     for rubric in rubrics:
         rubric.existing_score = existing_scores.get(rubric.id)
+
+
 
     context = {
         'student': student,
