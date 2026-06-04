@@ -116,12 +116,12 @@
                         <i class="fa-regular fa-user text-lg"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content rounded-md bg-base-300 z-20 w-48 p-2 shadow-2xl">
-                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" href="/admin/password_change/">Ubah password</a></li>
-                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Keluar</a></li>
+                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" href="/admin/password_change/">Change Password</a></li>
+                        <li><a class="btn btn-sm btn-block btn-ghost justify-start" onclick="$('#logout-form').submit()" href="#">Log Out</a></li>
                     </ul>
                 </div>
                 {% else %}
-                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Masuk</a>
+                <a class="btn btn-ghost btn-sm m-1" href="{% url 'login' %}">Login</a>
                 {% endif %}
             </div>
         </div>
@@ -152,6 +152,7 @@
                             </ul>
                         </details>
                     </li>
+                    {% if user.is_staff %}
                 <li class="mb-2">
                         <details open>
                             <summary><i class="fa-solid fa-calculator"></i>Processes</summary>
@@ -160,6 +161,7 @@
                             </ul>
                         </details>
                     </li>
+                    {% endif %}
                     <li class="mb-2">
                         <details open>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>

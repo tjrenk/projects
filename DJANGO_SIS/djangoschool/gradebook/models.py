@@ -181,6 +181,10 @@ class StudentBehaviourReport(models.Model):
     grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
     description = models.TextField(null=True, blank=True)
 
+    def rendered_sentence(self):
+        """Convenience method: render the linked template with this entry's data."""
+        return self.student.render(self)
+
 class StudentReportExtra(models.Model):
     reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
     extra_type = models.CharField(max_length=2, choices=EXTRA_CHOICES)
@@ -193,3 +197,7 @@ class ReportcardRubricTemplate(models.Model):
     rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
     lookup_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
     text = models.TextField(null=True, blank=True)
+
+    def render(self, data_entry):
+        """Fill this template's pattern using a DataEntry instance's fields."""
+        return self.text

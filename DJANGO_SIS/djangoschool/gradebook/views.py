@@ -868,9 +868,10 @@ def get_levels_ge(request):
 
 def get_teachers(request):
     period_id = request.GET.get('0-period') or request.GET.get('period')
+    user = request.user
 
     if period_id:
-        teachers = Teacher.objects.all()
+        teachers = Teacher.objects.filter(user=user).all()
     else:
         teachers = Teacher.objects.none()
 
@@ -956,12 +957,13 @@ def get_kelas_ge(request):
 
 
 def get_courses_ge(request):
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get('academic_year')
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
     selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
-    if subject_id:
-        courses = Course.objects.filter(subject_id=subject_id)
+    if subject_id and acayear_id:
+        courses = Course.objects.filter(subject_id=subject_id, academic_year_id=acayear_id)
     else:
-        courses = Course.objects.all()
+        courses = Course.objects.none()
     context = {
         'courses': courses,
         'selected_course': selected_course
@@ -1289,7 +1291,7 @@ def ge_table(request):
     if teach:
         ah = AssignmentHead.objects.filter(course__teacher=teach).order_by('-date')
     else:
-        ah = AssignmentHead.objects.all().order_by('-date')
+        ah = AssignmentHead.objects.all()
 
     pnation = Paginator(ah, 15)  # Show 10 aktivitas per page
     page = request.GET.get('page')
@@ -1379,7 +1381,9 @@ def ge_edit(request, pk):
     return render(request, 'partials/gradebook/grade_entry_edit.html', {
         'formset': formset,
         'parent_head': parent_head,
-        'title': f'Edit Grades: {parent_head.topic}',
+        'title': f'Topic: {parent_head.topic}',
+        'date': f'Date Uploaded: {parent_head.date}',
+        'max_score': f'Max Score: {parent_head.max_score}'
     })
 
 
@@ -1693,56 +1697,68 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         return redirect('rubric-entry')
 
 
-# def get_kelas_rubric(request):
-#     class_id = request.GET.get('class_id')
-#     if class_id:
-#         kelas = Class.objects.filter(is_home_class=True, id=class_id)
-#     else:
-#         kelas = Class.objects.none()
-#
-#     return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", {'kelas': kelas})
-
 def get_kelas_rubric(request):
-    rubric.existing_score = existing_scores.get(rubric.id, None)
-
-    # Process form submission
-
-
-    if request.method == 'POST':
-        # 1. Ensure the container exists
-        if academic_year and period and level:
-            behaviour_obj, _ = ReportcardBehaviour.objects.get_or_create(
-                academic_year=academic_year,
-                period=period,
-                level=level,
-                is_mid=False
-            )
-
-            # 2. Save each score from the radio buttons
-            for rubric in rubrics:
-                score_val = request.POST.get(f'rubric_{rubric.id}')
-                if score_val:
-                    StudentBehaviourReport.objects.update_or_create(
-                        student=student,
-                        behaviour=behaviour_obj,
-                        rubric=rubric,
-                        defaults={'score': int(score_val)}
-                    )
-
-        # 3. Manually set wizard back to Step 1 (the table screen)
-        wizard_key = 'wizard_rubric_entry_wizard'
-
-        if wizard_key in request.session:
-            data = request.session[wizard_key]
-            data['step'] = '1'
-            request.session[wizard_key] = data
-            request.session.modified = True
-
-            return redirect('rubric-entry')
-
+    # class_id = request.GET.get('class_id')
+    # if class_id:
+    #     kelas = Class.objects.filter(id=class_id)
+    # else:
+    #     kelas = Class.objects.none()
+    #
+    # return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", {'kelas': kelas})
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+    if teacher_id:
+        # Filter classes where the teacher is the homeroom teacher
+        classes = Class.objects.filter(teacher__id=teacher_id).distinct()
+    else:
+        classes = Class.objects.none()
     context = {
-                  'student': student,
+        'classes': classes,
+        'selected_kelas': selected_kelas
     }
+    return render(request, "partials/gradebook/gradeentry_partials/kelas.html", context)
+
+# def get_kelas_rubric(request):
+#     rubric.existing_score = existing_scores.get(rubric.id, None)
+#
+#     # Process form submission
+#
+#
+#     if request.method == 'POST':
+#         # 1. Ensure the container exists
+#         if academic_year and period and level:
+#             behaviour_obj, _ = ReportcardBehaviour.objects.get_or_create(
+#                 academic_year=academic_year,
+#                 period=period,
+#                 level=level,
+#                 is_mid=False
+#             )
+#
+#             # 2. Save each score from the radio buttons
+#             for rubric in rubrics:
+#                 score_val = request.POST.get(f'rubric_{rubric.id}')
+#                 if score_val:
+#                     StudentBehaviourReport.objects.update_or_create(
+#                         student=student,
+#                         behaviour=behaviour_obj,
+#                         rubric=rubric,
+#                         defaults={'score': int(score_val)}
+#                     )
+#
+#         # 3. Manually set wizard back to Step 1 (the table screen)
+#         wizard_key = 'wizard_rubric_entry_wizard'
+#
+#         if wizard_key in request.session:
+#             data = request.session[wizard_key]
+#             data['step'] = '1'
+#             request.session[wizard_key] = data
+#             request.session.modified = True
+#
+#             return redirect('rubric-entry')
+#
+#     context = {
+#                   'student': student,
+#     }
 
 
 @login_required
@@ -2222,11 +2238,17 @@ def get_kelas_extra(request):
 
 def get_period_extra(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
-    period = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
+    # period = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
+    period = LearningPeriod.objects.all()
     context = {'period': period}
-    return render(request, "partials/gradebook/totalgrade_partials/period.html", context)
+    # return render(request, "partials/gradebook/totalgrade_partials/period.html", context)
 
-    return render(request, "partials/gradebook/reportextra_partials/period.html", {'periods': periods})
+    return render(request, "partials/gradebook/reportextra_partials/period.html", {'periods': period})
+
+def get_teachers_extra(request):
+    teachers = Teacher.objects.all()
+    context = {'teachers': teachers}
+    return render(request, "partials/gradebook/reportextra_partials/teacher.html", context)
 
 
 def get_level_extra(request):
@@ -2451,6 +2473,14 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     # 2. TENTUKAN RENTANG TANGGAL PERIODE (TERM / SEMESTER)
     terms = LearningPeriod.objects.filter(academic_year=academic_year, date_start__lte=period.date_end,
                                           date_end__gte=period.date_start, period_name__icontains='term').order_by('date_start')
+
+    print("============= DEBUG TANGGAL =============")
+    print(f"Periode yang dicek: {period.period_name}")
+    print(f"Academic Year: {academic_year}")
+    print(f"Start: {period.date_start}, End: {period.date_end}")
+    print(f"Hasil Query 'terms': {terms}")
+    print("=========================================")
+
     term_period = terms.first() if is_mid else terms.last()
     term_period = term_period or period
 

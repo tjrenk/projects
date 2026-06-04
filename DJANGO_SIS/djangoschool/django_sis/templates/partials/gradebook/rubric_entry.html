@@ -117,9 +117,9 @@
 
         <td>
             {% if form.initial.is_graded %}
-                <span class="badge badge-success text-white">Sudah Dinilai</span>
+                <span class="badge badge-success text-white">Graded</span>
             {% else %}
-                <span class="badge badge-warning">Belum Dinilai</span>
+                <span class="badge badge-warning">Not Graded</span>
             {% endif %}
 
             <div class="hidden">{{ form.is_graded }}</div>
@@ -129,9 +129,9 @@
             <a href="{% url 'student-behavior-grading' pk=form.student.value %}"
                class="btn btn-sm {% if form.initial.is_graded %}btn-outline btn-secondary{% else %}btn-outline btn-primary{% endif %}">
                 {% if form.initial.is_graded %}
-                    Ubah
+                    Edit
                 {% else %}
-                    Mulai
+                    Grade
                 {% endif %}
             </a>
         </td>
@@ -222,7 +222,7 @@
                     {% if wizard.steps.prev %}
                     {% comment %} <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0"> {% endcomment %}
                     {% comment %} <div class="text-start flex  gap-2"> {% endcomment %}
-                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
+                        <button name="wizard_goto_step" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
                             &laquo; Back
                         </button>
                     {% else %}

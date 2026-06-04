@@ -123,6 +123,10 @@ class ReportcardRubricTemplateAdmin(admin.ModelAdmin):
     list_display = ("academic_year","rubric","lookup_grade","text")
     list_filter = ["academic_year","rubric","lookup_grade","text"]
 
+class StudentBehaviourReportAdmin(admin.ModelAdmin):
+    list_display = ("score","rubric","student","description","grade")
+    list_filter = ["score","rubric","student","description","grade"]
+
 
 @staff_member_required
 def admin_statistics_view(request):
@@ -175,3 +179,4 @@ admin.site.register(StudentReportExtra, StudentReportExtraAdmin)
 admin.site.register(ReportcardGrade, ReportCardGradeHistory)
 # admin.site.register(GradeLevel, GradeLevelAdmin)
 admin.site.register(ReportcardRubricTemplate, ReportcardRubricTemplateAdmin)
+admin.site.register(StudentBehaviourReport, StudentBehaviourReportAdmin)

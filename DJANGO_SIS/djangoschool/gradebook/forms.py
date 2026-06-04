@@ -60,12 +60,14 @@ class GradeEntryForm(forms.ModelForm):
                     self.initial['subject'] = teacher_subjects.first().id
 
             # Default to the most recent Academic Year and Period
-            curr_ay = AcademicYear.objects.order_by('-id').first()
-            if curr_ay:
-                self.initial['academic_year'] = curr_ay.id
-                curr_period = LearningPeriod.objects.filter(Q(academic_year=curr_ay) & Q(period_name__icontains='semester')).order_by('-id').first()
-                if curr_period:
-                    self.initial['period'] = curr_period.id
+            # curr_ay = AcademicYear.objects.order_by('-id').first()
+            # if curr_ay:
+            #     self.initial['academic_year'] = curr_ay.id
+            # curr_period = LearningPeriod.objects.filter(Q(academic_year=curr_ay) & Q(period_name__icontains='semester')).order_by('-id').first()
+            curr_period = LearningPeriod.objects.filter(
+                Q(period_name__icontains='semester')).order_by('-id').first()
+            if curr_period:
+                self.initial['period'] = curr_period.id
         
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
@@ -108,7 +110,7 @@ class GradeEntryForm(forms.ModelForm):
 
         if subject:
             # Using your existing filtering logic
-            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher).distinct()
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear).distinct()
             if is_admin and not teacher_obj:
                 self.fields['course'].queryset = Course.objects.all()
         else:
@@ -1055,7 +1057,7 @@ class RubricEntryForm(forms.ModelForm):
 
         # Teacher depends on Period
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
+            self.fields['teacher'].queryset = Teacher.objects.filter(user=user)
             if is_admin:
                 self.fields['teacher'].queryset = Teacher.objects.all()
         else:
@@ -1063,7 +1065,7 @@ class RubricEntryForm(forms.ModelForm):
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
-            self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher, is_home_class=True).distinct()
+            self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher).distinct()
             if is_admin:
                 self.fields['kelas'].queryset = Class.objects.all()
         else:

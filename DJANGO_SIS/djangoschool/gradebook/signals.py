@@ -102,18 +102,36 @@ def set_rubric_grade(sender, instance, **kwargs):
         else:
             instance.grade = "E"
 
+
+# def set_rubric_desc(sender, instance, **kwargs):
+#     if not instance.description:
+#         if instance.grade == "A":
+#             # Filter:
+#             # Lookup Grade depends on the grade gotten
+#             # Rubric FK = Rubric's Description Field
+#             instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='A', rubric__type=instance.rubric.description).values_list('text', flat=True).annotate(description=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=CharField())).first()
+#             # instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='A',
+#             #                                                                rubric__type=instance.rubric.type).update(
+#             #     text=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student.registration_data.first_name))))
+#         elif instance.grade == "B":
+#             instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='B', rubric__type=instance.rubric.description).values_list('text', flat=True).annotate(description=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=CharField())).first()
+#         elif instance.grade == "C":
+#             instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='C', rubric__type=instance.rubric.description).values_list('text', flat=True).annotate(description=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=CharField())).first()
+#         elif instance.grade == "D":
+#             instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='D', rubric__type=instance.rubric.description).values_list('text', flat=True).annotate(description=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=CharField())).first()
+#         else:
+#             instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='E', rubric__type=instance.rubric.description).values_list('text', flat=True).annotate(description=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=CharField())).first()
+
 def set_rubric_desc(sender, instance, **kwargs):
     if not instance.description:
-        if instance.grade == "A":
-            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='A', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
-        elif instance.grade == "B":
-            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='B', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
-        elif instance.grade == "C":
-            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='C', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
-        elif instance.grade == "D":
-            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='D', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
-        else:
-            instance.description = ReportcardRubricTemplate.objects.filter(lookup_grade='E', rubric__type=instance.rubric.type).values_list('text', flat=True).annotate(modified_field=Replace('text', Value('[Nama Siswa]'), Value(str(instance.student)), output_field=TextField())).first()
+        template_text = ReportcardRubricTemplate.objects.filter(
+            lookup_grade=instance.grade,
+            rubric=instance.rubric
+        ).values_list('text', flat=True).first()
+
+        if template_text:
+            student_name = f"{instance.student.registration_data.first_name} {instance.student.registration_data.last_name}"
+            instance.description = template_text.replace("[Nama Siswa]", student_name)
 
 def tambah_record_rubriksiswa(sender, instance, created, **kwargs):
     if created:
