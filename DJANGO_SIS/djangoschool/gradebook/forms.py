@@ -110,7 +110,7 @@ class GradeEntryForm(forms.ModelForm):
 
         if subject:
             # Using your existing filtering logic
-            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear).distinct()
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear)
             if is_admin and not teacher_obj:
                 self.fields['course'].queryset = Course.objects.all()
         else:
@@ -571,10 +571,12 @@ class StudentReportcardForm(forms.ModelForm):
         # }
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         # BIAR NGGAK ERROR PAS MAU LANJUT KE STEP BERIKUTNYA
         data = self.data
         initial = self.initial
+
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
         period = data.get('0-period') or initial.get('period')
@@ -709,94 +711,17 @@ class CourseByTeacher(forms.ModelForm):
         return cleaned_data
 
 
-class ReportCardGradeForm(forms.ModelForm):
-    # Dummy field for display purposes only
-    subject_name = forms.CharField(
-        required=False,
-        # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
-        widget=PlainTextWidget
-    )
-
+class ReportCardGradeForm(forms.Form):  # plain Form, not ModelForm
+    student_id = forms.IntegerField(widget=forms.HiddenInput())
     student_name = forms.CharField(
         required=False,
-        # widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
-        widget=PlainTextWidget
+        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
     )
-    
-
-    # This must be required=False, as you haven't entered a score yet
-    final_score = forms.DecimalField(required=False, max_digits=5, decimal_places=2)
-    
-    # This must be required=False, as you haven't entered a grade yet
-    final_grade = forms.ChoiceField(choices=FINAL_GRADE_CHOICES, required=False) 
-    
-    # Hidden field for the Subject ID: MUST NOT BE required=True
-    subject = forms.ModelChoiceField(queryset=Subject.objects.all(), required=False)
-
-    teacher_notes = forms.CharField(
-        widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
-        required=False
+    ht_comment = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2})
     )
 
-    student_id = forms.IntegerField(widget=forms.HiddenInput(), required=False)
-
-    class Meta:
-        model = ReportcardGrade
-        fields = ['student_name', 'subject', 'final_score', 'final_grade', 'teacher_notes']
-        widgets = {
-            'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-            'subject': forms.HiddenInput(),
-            'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
-            'final_grade': forms.Select(attrs={'class': 'form-select'}),
-            'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-        }
-        exclude = ('reportcard',)
-
-    def __init__(self, *args, subject_queryset=None, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Apply a filtered queryset when provided (passed via formset form_kwargs)
-        if subject_queryset:
-            self.fields['subject'].queryset = subject_queryset
-        else:
-            self.fields['subject'].queryset = Subject.objects.all()
-
-        # UI tweaks
-        # Keep the subject value submitted: use readonly/display field for name
-        self.fields['subject'].widget.attrs.pop('disabled', None)
-        self.fields['subject'].widget.attrs['readonly'] = True
-        self.fields['subject'].widget.attrs['class'] = 'form-control bg-light'
-
-        self.fields['final_score'].widget.attrs.pop('disabled', None)
-        # self.fields['final_score'].widget.attrs['readonly'] = True
-        self.fields['final_score'].widget.attrs['class'] = 'form-control'
-
-        self.fields['final_grade'].disabled = False
-        # self.fields['final_grade'].widget.attrs['readonly'] = True
-        # self.fields['final_grade'].widget.attrs['class'] = 'form-control bg-light'
-
-        # Populate subject_name for display if initial data exists
-        if self.initial.get('subject'):
-            try:
-                subj = Subject.objects.get(pk=self.initial['subject'])
-                self.fields['subject_name'].initial = subj.subject_name
-            except Subject.DoesNotExist:
-                pass
-
-        # Populate student_name for display if initial data exists
-        if self.initial.get('student_name'):
-            self.fields['student_name'].initial = self.initial['student_name']
-
-        if self.initial.get('final_score') is not None:
-            self.fields['final_score'].initial = self.initial['final_score']
-
-        if self.initial.get('final_grade') is not None:
-            self.fields['final_grade'].initial = self.initial['final_grade']
-
-
-
-
-# Formset for ReportCardGradeForm
 ReportCardGradeFormset = formset_factory(ReportCardGradeForm, extra=0)
 
 
@@ -1051,7 +976,7 @@ class RubricEntryForm(forms.ModelForm):
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
             if is_admin:
-                self.fields['period'].queryset = LearningPeriod.objects.all()
+                self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
@@ -1298,7 +1223,7 @@ class ExtraGradeItemForm(forms.ModelForm):
     )
     
     kelas = forms.ModelChoiceField(
-        queryset=Class.objects.filter(is_activity=True),
+        queryset=Class.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
@@ -1317,9 +1242,22 @@ class ExtraGradeItemForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        user = kwargs.pop('user', None)
         
         data = self.data
         initial = self.initial
+
+        is_admin = user and (user.is_staff or user.is_superuser)
+
+        if user and not self.is_bound and not is_admin:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+            if teacher_obj:
+                self.initial['teacher'] = teacher_obj.id
+
+                # Filter and potentially default Subject
+                teacher_subjects = Subject.objects.filter(course__teacher=teacher_obj).distinct()
+                if teacher_subjects.count() == 1:
+                    self.initial['subject'] = teacher_subjects.first().id
         
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
@@ -1330,7 +1268,10 @@ class ExtraGradeItemForm(forms.ModelForm):
         
         # Period depends on Academic Year
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.all()
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear,
+                                                                           period_name__icontains='semester')
+            if is_admin and not teacher_obj:
+                self.fields['period'].queryset = LearningPeriod.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
@@ -1382,6 +1323,10 @@ class ExtraGradeItemForm(forms.ModelForm):
         self.fields['kelas'].widget.attrs.update({
             'id': 'rubric-kelas-select',
             'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-act-subj/',
+            'hx-trigger': 'change',
+            'hx-target': '#extra-type-select',
+            'hx-swap': 'innerHTML',
         })
 
         self.fields['act_subj'].widget.attrs.update({

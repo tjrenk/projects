@@ -16,9 +16,23 @@
 <form method="post" class="w-full h-full">
     {% csrf_token %}
     {{ formset.management_form }}  {# REQUIRED: Handles the row counts #}
-<h1 class="text-2xl font-bold">{{ title }}</h1>
-    <h3 class="font-bold">{{ date }}</h3>
-    <h3 class="font-bold mb-4">{{ max_score }}</h3>
+    <table class="mb-4">
+        <tr>
+            <td><h1 class="text-2xl font-bold">Topic        :</h1></td>
+            <td><h1 class="text-2xl font-bold">{{ title }}</h1></td>
+        </tr>
+        <tr>
+            <td><h3 class="font-bold">Date         :</h3></td>
+            <td><h3 class="font-bold">{{ date }}</h3></td>
+        </tr>
+        <tr>
+            <td><h3 class="font-bold">Max Score    :</h3></td>
+            <td><h3 class="font-bold">{{ max_score }}</h3></td>
+        </tr>
+    </table>
+<!--<h1 class="text-2xl font-bold">{{ title }}</h1>-->
+<!--    <h3 class="font-bold">{{ date }}</h3>-->
+<!--    <h3 class="font-bold mb-4">{{ max_score }}</h3>-->
     <div class="table-responsive">
 
         <table class="table table-hover table-bordered align-middle">

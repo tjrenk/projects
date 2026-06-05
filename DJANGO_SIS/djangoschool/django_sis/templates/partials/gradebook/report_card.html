@@ -13,9 +13,6 @@
                 Select Academic Year
             </li>
             <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">
-                Subject & Course Details
-            </li>
-            <li class="step {% if wizard.steps.step1 >= 3 %}step-primary{% endif %}">
                 Input Comment
             </li>
         </ul>
@@ -27,6 +24,7 @@
         </div> {% endcomment %}
 
         <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: 100%; height: auto; padding: 20px;">
+            <h1 class="font-bold mb-4">Homeroom Class: {{ homeroom_class }}</h1>
             {% comment %} <div class="card-body bg-secondary bg-opacity-3" style="width: 600px;"> {% endcomment %}
             {% if selected_student %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
@@ -46,7 +44,7 @@
                 {{ wizard.management_form }}
                 
                 {# === STEP 1 (index '1'): List of Subjects === #}
-                {% if wizard.steps.current == '2' %}
+                {% if wizard.steps.current == '1' %}
                 
                     {{ wizard.form.management_form }}
 
@@ -56,9 +54,7 @@
                                 <thead class="bg-base-200 rounded-md">
                                     <tr>
                                         <th style="width: 20%;">Student Name</th>
-                                        {% comment %} <th style="width: 20%;">Subject</th> {% endcomment %}
-                                        <th style="width: 7%;">Score</th>
-                                        <th style="width: 10%;">Grade</th>
+
                                         <th style="width: 30%;">Comment</th>
                                     </tr>
                                 </thead>
@@ -70,7 +66,7 @@
                                         {% endfor %}
                                         
                                         <td>
-                                            {{ form.student_name }}
+                                            {{ form.initial.student_name }}
                                         </td>
 
                                         {% comment %} <td>
@@ -78,23 +74,23 @@
                                             {% comment %} {{ form.subject_name }}
                                         </td> {% endcomment %}
 
-                                        <td>
-                                        <div style="width: 80px; ">
-                                            {{ form.final_score }}
-                                            {% if form.final_score.errors %}
-                                                <div class="text-danger small">{{ form.final_score.errors }}</div>
-                                            {% endif %}
-                                        </div>
-                                        </td>
+<!--                                        <td>-->
+<!--                                        <div style="width: 80px; ">-->
+<!--                                            {{ form.final_score }}-->
+<!--                                            {% if form.final_score.errors %}-->
+<!--                                                <div class="text-danger small">{{ form.final_score.errors }}</div>-->
+<!--                                            {% endif %}-->
+<!--                                        </div>-->
+<!--                                        </td>-->
+
+<!--                                        <td>-->
+<!--                                        <div style="width: 65px; ">-->
+<!--                                            {{ form.initial.student_name }}-->
+<!--                                        </div>-->
+<!--                                        </td>-->
 
                                         <td>
-                                        <div style="width: 65px; ">
-                                            {{ form.final_grade }}
-                                        </div>
-                                        </td>
-
-                                        <td>
-                                            {{ form.teacher_notes }}
+                                            {{ form.ht_comment }}
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -107,28 +103,7 @@
                         </div>
                     {% endif %}
 
-                {% elif wizard.steps.current == '1' %}
-                {{ wizard.form.management_form }}
-                <div class="col-md-8 offset-md-2">
-                <fieldset class="module aligned   mb-4 overflow-visible">
-                <div class="form-row flex flex-wrap justify-start gap-4 mb-3   field-name ">
-                <div class="mb-1 basis-full md:flex-1">
-                {% comment %} <div> {% endcomment %}
-                {% comment %} <table> {% endcomment %}
-                {% comment %} <tr> {% endcomment %}
-                {% comment %} <td> {% endcomment %}
-                {{ wizard.form.subject.label }}
-                {% comment %} </td> {% endcomment %}
-                {{ wizard.form.subject }}
 
-                {{ wizard.form.course.label }}
-                {{ wizard.form.course }}
-
-                {% comment %} </table> {% endcomment %}
-                </div>
-                </div>
-                </fieldset>
-                </div>
             
                 {# === STEP 0: Student Selection === #}
                 {% comment %} {% else %}
@@ -214,7 +189,7 @@
                     {% endif %}
                     
                     <button type="submit" class="btn-sm btn-success px-4 primary-content  btn rounded-md legitRipple">
-                        {% if wizard.steps.current == '2' %}
+                        {% if wizard.steps.current == '1' %}
                             Save
                         {% else %}
                             Next &raquo;

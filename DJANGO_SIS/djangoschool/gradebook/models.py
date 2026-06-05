@@ -134,6 +134,7 @@ class StudentReportcard(models.Model):
     is_mid = models.BooleanField(default=False)
     level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE, related_name="students_level_reportcard")
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    ht_comment = models.TextField(null=True, blank=True)
 
 class ReportcardGrade(models.Model):
     reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
@@ -146,7 +147,7 @@ class ReportcardGrade(models.Model):
         return f"{self.reportcard.student}"
 
 class StudentAttendance(models.Model):
-    ATTD_CHOICES = [("S", "Sick"), ("P", "Permit"), ("A", "Absent"), ("L", "Late")]
+    ATTD_CHOICES = [("S", "Sick"), ("P", "Permit"), ("A", "Absent")]
     attendance_date = models.DateField(null=True, blank=True)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     attendance_type = models.CharField(max_length=1, choices=ATTD_CHOICES)

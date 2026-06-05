@@ -701,80 +701,63 @@ def midterm_report_pdf(request, student_id=None):
 
 
 class ReportCardForm(LoginRequiredMixin, SessionWizardView):
-    # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
     template_name = "partials/gradebook/report_card.html"
 
     form_list = [
         ("0", StudentReportcardForm),
-        ("1", CourseByTeacher),
-        ("2", ReportCardGradeFormset),
+        ("1", ReportCardGradeFormset),
     ]
 
     def get_form_kwargs(self, step=None):
         kwargs = super().get_form_kwargs(step)
-        # Pass the logged-in user to the second step (CourseByTeacher form)
-        if step == '1':
+        if step == '0':
             kwargs['user'] = self.request.user
         return kwargs
 
-    # def get_template_names(self):
-    #     return [self.templates[self.steps.current]]
-
-    # def get_form(self, step=None, data=None, files=None):
-    #     form = super().get_form(step, data, files)
-    #     if step == '1' and form.initial.get('subject'):
-    #         form.fields['course'].queryset = Course.objects.filter(subject=form.initial['subject'])
-    #     return form
+    def _get_homeroom_class(self):
+        """Get the homeroom class of the currently logged in teacher."""
+        return Class.objects.filter(
+            teacher__user=self.request.user,
+            is_home_class=True,
+        ).first()
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
 
-        if step == '2':
-            data0 = self.get_cleaned_data_for_step('0')  # Academic Year, Period, Is Mid, Level
-            data1 = self.get_cleaned_data_for_step('1')  # Subject, Course
+        if step == '1':
+            data0 = self.get_cleaned_data_for_step('0')
+            homeroom_class = self._get_homeroom_class()
 
-            if not data0 or not data1:
+            if not data0 or not homeroom_class:
                 return initial
 
-            subject = data1.get('subject')
-            course = data1.get('course')
+            academic_year = data0.get('academic_year')
+            period = data0.get('period')
+            is_mid = data0.get('is_mid')
+            level = data0.get('level')
 
-            # Filter member kelas
-            members = CourseMember.objects.filter(course=course).select_related('student')
+            members = ClassMember.objects.filter(
+                kelas=homeroom_class,
+                is_active=True,
+            ).select_related('student__registration_data')
+
             initial_list = []
-
             for member in members:
-                # KRUSIAL: Filter ini harus match persis dengan cara kamu simpan nilai akhir
-                existing_grade = ReportcardGrade.objects.filter(
-                    reportcard__student=member.student,
-                    reportcard__academic_year=data0['academic_year'],
-                    reportcard__period=data0['period'],
-                    reportcard__is_mid=data0['is_mid'],
-                    subject=subject  # Ini pengunci agar mapel lain tidak ikut terbawa
+                student = member.student
+
+                # Check if a reportcard already exists for this student
+                existing_reportcard = StudentReportcard.objects.filter(
+                    student=student,
+                    academic_year=academic_year,
+                    period=period,
+                    is_mid=is_mid,
                 ).first()
 
-                # Jika kamu hanya mau menampilkan siswa yang SUDAH punya nilai:
-                if existing_grade:
-                    initial_list.append({
-                        'student_id': member.student.id,
-                        'student_name': f"{member.student.id_number} - {member.student.registration_data.first_name} {member.student.registration_data.last_name}",
-                        'subject': subject.id,
-                        'final_score': existing_grade.final_score,
-                        'final_grade': existing_grade.final_grade,
-                        'teacher_notes': existing_grade.teacher_notes,
-                        'grade_id': existing_grade.id,
-                    })
-                else:
-                    # Opsi jika nilai belum ada: tampilkan siswa tapi beri tanda 0
-                    # (Atau jangan append kalau mau filter benar-benar ketat)
-                    initial_list.append({
-                        'student_id': member.student.id,
-                        'student_name': str(member.student),
-                        'subject': subject.id,
-                        'final_score': 0,
-                        'final_grade': '-',
-                        'teacher_notes': 'NILAI BELUM DIKALKULASI',
-                    })
+                initial_list.append({
+                    'student_id': student.id,
+                    'student_name': f"{student.id_number} - {student.registration_data.first_name} {student.registration_data.last_name}",
+                    'ht_comment': existing_reportcard.ht_comment if existing_reportcard else '',
+                })
 
             return initial_list
         return initial
@@ -782,72 +765,52 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
 
-        if self.steps.current != '0':
-            data_step0 = self.get_cleaned_data_for_step('1')
-            if data_step0:
-                context['selected_course'] = data_step0.get('course')
-                context['selected_subject'] = data_step0.get('subject')
-                context['selected_level'] = data_step0.get('level')
-                context['selected_period'] = data_step0.get('period')
+        data0 = self.get_cleaned_data_for_step('0')
+        if data0:
+            context['selected_academic_year'] = data0.get('academic_year')
+            context['selected_period'] = data0.get('period')
+            context['selected_is_mid'] = data0.get('is_mid')
+            context['selected_level'] = data0.get('level')
 
-        if self.steps.current == '1':
-            subject = Subject.objects.all()
-            course = Course.objects.all().select_related('subject')
-            level = GradeLevel.objects.all()
-            period = LearningPeriod.objects.all().select_related('academic_year')
-            context['selected_period'] = period
-            context['selected_level'] = level
-            context['selected_subject'] = subject
-            context['selected_course'] = course
-
-        # Kirim data head untuk display di step 3 (index '2')
-        if self.steps.current == '2':
-            data_step1 = self.get_cleaned_data_for_step('1')
-            if data_step1:
-                context['assignment_head_data'] = data_step1
-                # context['final_score'] = ReportcardGrade.objects.get(final_score=rep)
-
+        if self.steps.current == '0' or self.steps.current == '1':
+            context['homeroom_class'] = self._get_homeroom_class()
 
         return context
 
     def done(self, form_list, **kwargs):
-        form_data_0 = form_list[0].cleaned_data
-        form_data_1 = form_list[1].cleaned_data
-        formset = form_list[2]
+        data0 = form_list[0].cleaned_data
+        formset = form_list[1]
 
-        course = form_data_1['course']
-        subject = form_data_1['subject']
+        academic_year = data0['academic_year']
+        period = data0['period']
+        is_mid = data0['is_mid']
+        level = data0['level']
+
+        homeroom_class = self._get_homeroom_class()
+        if not homeroom_class:
+            messages.error(self.request, "No homeroom class found for this teacher.")
+            return redirect('report-card')
 
         with transaction.atomic():
             for form in formset:
                 if form.is_valid() and form.cleaned_data:
                     data = form.cleaned_data
-
-                    # 1. Cari atau buat Head (Report Card)
-                    # Kita cari berdasarkan student_id yang kita simpan di initial tadi
                     student_id = data.get('student_id')
 
-                    reportcard, _ = StudentReportcard.objects.update_or_create(
+                    # Save the homeroom teacher comment into ht_comment on StudentReportcard
+                    StudentReportcard.objects.update_or_create(
                         student_id=student_id,
-                        academic_year=form_data_0['academic_year'],
-                        period=form_data_0['period'],
-                        is_mid=form_data_0['is_mid'],
-                        defaults={'level': form_data_0['level']}
-                    )
-
-                    # 2. Update Komentar di ReportcardGrade
-                    # Kita tidak create baru, tapi update yang sudah ada (hasil hitungan wizard)
-                    ReportcardGrade.objects.update_or_create(
-                        reportcard=reportcard,
-                        subject=subject,
+                        academic_year=academic_year,
+                        period=period,
+                        is_mid=is_mid,
                         defaults={
-                            'teacher_notes': data.get('teacher_notes'),
-                            # Score & Grade tidak diupdate di sini (biar tetap hasil wizard)
+                            'level': level,
+                            'ht_comment': data.get('ht_comment'),
                         }
                     )
 
-        messages.success(self.request, "Teacher's notes updated successfully!")
-        return redirect('report-card')  # Ganti ke nama URL yang sesuai
+        messages.success(self.request, "Homeroom comments saved successfully!")
+        return redirect('report-card')
 
 # Grade Entry dynamic fields
 def get_levels_ge(request):
@@ -961,14 +924,15 @@ def get_courses_ge(request):
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
     selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
     if subject_id and acayear_id:
-        courses = Course.objects.filter(subject_id=subject_id, academic_year_id=acayear_id)
+        courses = Course.objects.filter(academic_year_id=acayear_id)
     else:
         courses = Course.objects.none()
     context = {
         'courses': courses,
         'selected_course': selected_course
     }
-    return render(request, "partials/gradebook/course_list.html", context)
+    # return render(request, "partials/gradebook/course_list.html", context)
+    return render(request, "partials/gradebook/gradeentry_partials/course.html", context)
 
 
 def get_assignment_types_ge(request):
@@ -1381,9 +1345,9 @@ def ge_edit(request, pk):
     return render(request, 'partials/gradebook/grade_entry_edit.html', {
         'formset': formset,
         'parent_head': parent_head,
-        'title': f'Topic: {parent_head.topic}',
-        'date': f'Date Uploaded: {parent_head.date}',
-        'max_score': f'Max Score: {parent_head.max_score}'
+        'title': parent_head.topic,
+        'date': parent_head.date,
+        'max_score': parent_head.max_score
     })
 
 
@@ -2226,29 +2190,47 @@ def student_act_other_grading(request, pk):
     return render(request, 'partials/gradebook/report_extra_other_grade.html', context)
 
 
-def get_kelas_extra(request):
-    class_id = request.GET.get('class_id')
-    if class_id:
-        kelas = Class.objects.all().filter(is_activity=True).distinct().filter(id=class_id)
-    else:
-        kelas = Class.objects.none()
 
-    return render(request, "partials/gradebook/reportextra_partials/kelas.html", {'kelas': kelas})
 
 
 def get_period_extra(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
     # period = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
-    period = LearningPeriod.objects.all()
+    if acayear_id:
+        period = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
+    else:
+        period = LearningPeriod.objects.none()
     context = {'period': period}
     # return render(request, "partials/gradebook/totalgrade_partials/period.html", context)
 
     return render(request, "partials/gradebook/reportextra_partials/period.html", {'periods': period})
 
 def get_teachers_extra(request):
-    teachers = Teacher.objects.all()
+    period_id = request.GET.get('0-period') or request.GET.get('period')
+    user = request.user
+
+    if period_id:
+        teachers = Teacher.objects.filter(user=user).all()
+    else:
+        teachers = Teacher.objects.none()
     context = {'teachers': teachers}
     return render(request, "partials/gradebook/reportextra_partials/teacher.html", context)
+
+def get_kelas_extra(request):
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+    if teacher_id:
+        # Filter classes where the teacher is the homeroom teacher
+        classes = Class.objects.filter(teacher__id=teacher_id, is_activity=True).distinct()
+    else:
+        classes = Class.objects.none()
+    context = {
+        'classes': classes,
+        'selected_kelas': selected_kelas
+    }
+
+    return render(request, "partials/gradebook/reportextra_partials/kelas.html", context)
 
 
 def get_level_extra(request):
@@ -2258,9 +2240,19 @@ def get_level_extra(request):
 
 
 def get_act_subj(request):
-    act_subj = Subject.objects.all().filter(is_activity=True)
-    context = {'act_subj': act_subj}
-    return render(request, "partials/gradebook/extrainfo_partials/act_subj.html", context)
+    kelas_id = request.GET.get('0-kelas') or request.GET.get('kelas')
+    selected_extra_type = request.GET.get('0-subject') or request.GET.get('subject')
+    if kelas_id:
+        # Filter classes where the teacher is the homeroom teacher
+        subject = Subject.objects.filter(is_activity=True)
+    else:
+        subject = Subject.objects.none()
+    context = {
+        'act_subject': subject,
+        'selected_extra_type': selected_extra_type
+    }
+
+    return render(request, "partials/gradebook/reportextra_partials/act_subj.html", context)
 
 
 class TotalGrading(LoginRequiredMixin, SessionWizardView):
