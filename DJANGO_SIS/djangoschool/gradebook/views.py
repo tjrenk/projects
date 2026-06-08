@@ -775,6 +775,11 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         if self.steps.current == '0' or self.steps.current == '1':
             context['homeroom_class'] = self._get_homeroom_class()
 
+        if self.steps.current == '1':
+            context['selected_academic_year'] = data0.get('academic_year')
+            context['selected_period'] = data0.get('period')
+            context['selected_is_mid'] = data0.get('is_mid')
+
         return context
 
     def done(self, form_list, **kwargs):
@@ -1225,7 +1230,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
 def get_period_ledger(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
-    period = LearningPeriod.objects.all()
+    period = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
     context = {'period': period}
     return render(request, "partials/gradebook/rcledger_partials/period.html", context)
 
@@ -1261,14 +1266,14 @@ def ge_table(request):
     page = request.GET.get('page')
     pnation_ah = pnation.get_page(page)
 
-    context = {
+    context_table = {
         'ge': ge,
         'ah': ah,
         'ad': ad,
         'pnation_ah': pnation_ah
     }
 
-    return render(request, 'partials/gradebook/grade_entry_table.html', context)
+    return render(request, 'partials/gradebook/grade_entry_table.html', context_table)
 
 
 from .models import AssignmentDetail, CourseMember
@@ -1386,7 +1391,8 @@ def tc_edit(request, pk):
     # 1. Get the reference detail to find the 'Head' assignment
     # target_detail = get_object_or_404(AssignmentDetail, pk=pk)
     parent_head = get_object_or_404(StudentReportcard, pk=pk)
-    # current_subject = parent_head.subject
+    selected_student = parent_head.student
+    selected_ismid = parent_head.is_mid
 
     # # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
     # # This fixes the issue where only 1 student shows up.
@@ -1406,36 +1412,23 @@ def tc_edit(request, pk):
 
     # 3. Create the Queryset containing ALL students for this assignment
     # We order by student ID (or name if available) to keep the list stable
-    queryset = ReportcardGrade.objects.filter(
-        reportcard=parent_head
-    )
+    queryset = StudentReportcard.objects.filter(student=selected_student, is_mid=selected_ismid)
 
     # 4. Define the Formset
     class OptionalGradeForm(forms.ModelForm):
         class Meta:
-            model = ReportcardGrade
+            model = StudentReportcard
             # Include all fields you plan to use in the factory
-            fields = ('subject', 'final_score', 'final_grade', 'teacher_notes')
-            widgets = {
-                'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-                'subject': forms.HiddenInput(),
-                'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
-                'final_grade': forms.Select(attrs={'class': 'form-select'}),
-                'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-            }
+            fields = ('student', 'ht_comment')
+            # widgets = {
+            #     'student': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+            #     'ht_comment': forms.TextInput(attrs={'class': 'form-control', 'rows': 1}),
+            # }
 
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            # Disable the "required" check for these specific fields
-            self.fields['subject'].required = False
-            self.fields['subject'].disabled = True
-            self.fields['final_grade'].required = False
-            self.fields['final_grade'].disabled = True
-            self.fields['final_score'].disabled = True
 
     # --- 2. Pass the custom form to the factory ---
     ReportCardGradeFormset = modelformset_factory(
-        ReportcardGrade,
+        StudentReportcard,
         form=OptionalGradeForm,  # <--- THIS IS THE KEY CHANGE
         extra=0
     )
@@ -1886,10 +1879,12 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
             period = LearningPeriod.objects.all().select_related('academic_year')
             kelas = Class.objects.all()
             level = GradeLevel.objects.all()
+            act_subj = Subject.objects.all()
             context['selected_acayear'] = acayear
             context['selected_period'] = period
             context['selected_kelas'] = kelas
             context['selected_level'] = level
+            context['selected_actsubj'] = act_subj
 
         return context
 

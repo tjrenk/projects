@@ -10,10 +10,8 @@
         <table class="table table-hover table-bordered align-middle">
             <thead class="table-light">
                 <tr>
-                    <th style="width: 20%;">Subject</th> {# Changed Header #}
-                    <th style="width: 12%;">Final Score</th>
-                    <th style="width: 12%;">Final Grade</th>
-                    <th style="width: 100%;">Teacher's Notes</th>
+                    <th style="width: 20%;">Student</th> {# Changed Header #}
+                    <th style="width: 100%;">Comment</th>
                 </tr>
             </thead>
             <tbody>
@@ -25,21 +23,14 @@
                     <td>
                         {# This displays the Student object string representation #}
                         {# If your Student model has a __str__ method, it shows the name #}
-                        {{ form.instance.subject }} 
+                        {{ form.instance.student }}
                         
                         {# Debugging: If the name is blank, check if the student ID exists #}
-                        {% if not form.instance.subject %}
+                        {% if not form.instance.student %}
                            <span class="text-danger">No Student Linked</span>
                         {% endif %}
                     </td>
-                    <td>
-                        {{ form.final_score }}
-                        {% if form.final_score.errors %}
-                            <div class="text-danger small">{{ form.final_score.errors }}</div>
-                        {% endif %}
-                    </td>
-                    <td>{{ form.final_grade }}</td>
-                    <td>{{ form.teacher_notes }}</td>
+                    <td>{{ form.instance.ht_comment }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

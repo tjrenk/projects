@@ -40,6 +40,7 @@
                 <tr>
                     {% comment %} <th>User</th> {% endcomment %}
                     <th>Academic year</th>
+                    <th>Midterms</th>
                     <th>Period</th>
                     <th>Level</th>
                     <th>Student</th>
@@ -50,6 +51,7 @@
                 {% for strepc in pnation_src %}
                 <tr class="hover:bg-base-300" onclick="window.location.href='{% url 'tc-edit' strepc.id %}'" style="cursor: pointer;">
                     <td>{{ strepc.academic_year }}</td>
+                    <td>{{ strepc.is_mid }}</td>
                     <td>{{ strepc.period }}</td>
                     <td>{{ strepc.level }}</td>
                     <td>{{ strepc.student }}</td>

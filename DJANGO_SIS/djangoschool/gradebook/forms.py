@@ -1229,7 +1229,7 @@ class ExtraGradeItemForm(forms.ModelForm):
     )
 
     act_subj = forms.ModelChoiceField(
-        queryset=Subject.objects.filter(is_activity=True),
+        queryset=Subject.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
