@@ -548,7 +548,6 @@ class StudentReportcardForm(forms.ModelForm):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        label='Tengah Semester?'
     )
 
     level = forms.ModelChoiceField(

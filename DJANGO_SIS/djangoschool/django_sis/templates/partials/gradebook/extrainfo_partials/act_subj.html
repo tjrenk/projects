@@ -1,4 +1,8 @@
 <option value="">Select Grade Type</option>
-{% for act_subj in act_subject %}
-    <option value="{{ act_subj.0 }}" {% if selected_extra_type and extra_type.0 == selected_extra_type %}selected{% endif %}>{{ extra_type.1 }}</option>
+{% for extinf in extra_info %}
+    <option value="{{ extinf.0 }}" {% if selected_extra_type and extra_type.0 == selected_extra_type %}selected{% endif %}>{{ extra_type.1 }}</option>
 {% endfor %}
+<!--<option value="">Select Activity Subject</option>-->
+<!--{% for acts in act_subj %}-->
+<!--    <option value="{{ acts.id }}" {% if selected_actsubj and acts.id|stringformat:"s" == selected_actsubj %}selected{% endif %}>{{ acts }}</option>-->
+<!--{% endfor %}-->

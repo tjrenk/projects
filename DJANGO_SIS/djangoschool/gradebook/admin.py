@@ -102,6 +102,7 @@ class StudentReportcardHistory(SimpleHistoryAdmin):
 class ReportcardGradeAdmin(admin.ModelAdmin):
     list_display = ("reportcard", "subject", "grade", "comments")
     history_list_display = ["reportcard", "subject" ]
+    max_num = 0
 
 class ReportCardGradeHistory(SimpleHistoryAdmin):
     list_display = ("reportcard", "subject")

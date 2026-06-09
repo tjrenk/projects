@@ -1,4 +1,4 @@
 <option value="">Select Activity Subject</option>
-{% for act_subj in act_subject %}
-    <option value="{{ act_subj.0 }}" {% if selected_extra_type and extra_type.0 == selected_extra_type %}selected{% endif %}>{{ act_subj }}</option>
+{% for acts in extra_info %}
+    <option value="{{ acts.id }}" {% if selected_extra_info and acts.id|stringformat:"s" == selected_extra_info %}selected{% endif %}>{{ acts }}</option>
 {% endfor %}

@@ -12,6 +12,7 @@ class AcademicYearAdmin(admin.ModelAdmin):
 
 class LearningPeriodAdmin(admin.ModelAdmin):
     list_display = ["academic_year", "period_name", "date_start", "date_end"]
+    list_filter = ["academic_year", "period_name"]
 
 class RegistrationAdmin(admin.ModelAdmin):
     list_display = ["form_no", "first_name", "last_name", "date_of_birth", "gender"]
@@ -38,6 +39,7 @@ class ClassMemberInline(admin.TabularInline):
 
 class KelasAdmin(admin.ModelAdmin):
     list_display = ["name", "academic_year", "short_name", "teacher", "count_students", "is_home_class", "is_activity"]
+    list_filter = ["academic_year", "teacher", "is_home_class", "is_activity"]
     search_fields = ["academic_year__class__name"]
     inlines = [ ClassMemberInline, ]
     def count_students(self, obj: Class):

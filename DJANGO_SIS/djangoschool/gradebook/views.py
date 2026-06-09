@@ -2236,15 +2236,15 @@ def get_level_extra(request):
 
 def get_act_subj(request):
     kelas_id = request.GET.get('0-kelas') or request.GET.get('kelas')
-    selected_extra_type = request.GET.get('0-subject') or request.GET.get('subject')
+    selected_extra_info = request.GET.get('0-subject') or request.GET.get('subject')
     if kelas_id:
         # Filter classes where the teacher is the homeroom teacher
         subject = Subject.objects.filter(is_activity=True)
     else:
         subject = Subject.objects.none()
     context = {
-        'act_subject': subject,
-        'selected_extra_type': selected_extra_type
+        'extra_info': subject,
+        'selected_extra_info': selected_extra_info
     }
 
     return render(request, "partials/gradebook/reportextra_partials/act_subj.html", context)
