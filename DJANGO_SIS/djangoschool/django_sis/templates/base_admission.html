@@ -89,7 +89,7 @@
 
             <div class="navbar-end">
                                         {% if user.is_authenticated %}
-            <h1><strong>Halo, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
+            <h1><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
         {% else %}
             &nbsp;
         {% endif %}
@@ -132,7 +132,7 @@
                 <ul class="menu rounded-box mb-auto w-56">
                     <li class="mb-2">
                         <a href="{% url 'adm-index' %}">
-                            <i class="fa fa-th"></i> Main Menu
+                            <i class="fa fa-th"></i> Dashboard
                         </a>
                     </li>
                     
@@ -142,7 +142,7 @@
                         <details open>
                             <summary><i class="fa-solid fa-users-gear"></i> Data Entry</summary>
                             <ul>
-                                <li><a href="{% url 'registration-form' %}">Registration Form</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'registration-form' %}active{% endif %}" href="{% url 'registration-form' %}">Registration Form</a></li>
                             </ul>
                         </details>
                     </li>
@@ -151,7 +151,7 @@
                         <details open>
                             <summary><i class="fa-solid fa-users-gear"></i> Reporting</summary>
                             <ul>
-                                <li><a href="{% url 'student-table' %}">Students List</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'student-table' %}active{% endif %}" href="{% url 'student-table' %}">Students List</a></li>
                             </ul>
                         </details>
                     </li>

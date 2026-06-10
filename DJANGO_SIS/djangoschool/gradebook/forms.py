@@ -958,12 +958,12 @@ class RubricEntryForm(forms.ModelForm):
             if teacher_obj:
                 self.initial['teacher'] = teacher_obj.id
                 
-            curr_ay = AcademicYear.objects.order_by('-id').first()
-            if curr_ay:
-                self.initial['academic_year'] = curr_ay.id
-                curr_period = LearningPeriod.objects.filter(academic_year=curr_ay, period_name__icontains='semester').order_by('-id').first()
-                if curr_period:
-                    self.initial['period'] = curr_period.id
+            # curr_ay = AcademicYear.objects.order_by('-id').first()
+            # if curr_ay:
+            #     self.initial['academic_year'] = curr_ay.id
+            #     curr_period = LearningPeriod.objects.filter(academic_year=curr_ay, period_name__icontains='semester').order_by('-id').first()
+            #     if curr_period:
+            #         self.initial['period'] = curr_period.id
         
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
@@ -1220,7 +1220,7 @@ class ExtraGradeItemForm(forms.ModelForm):
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
-    
+
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.all(),
         required=True,
@@ -1232,17 +1232,18 @@ class ExtraGradeItemForm(forms.ModelForm):
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'})
     )
-    
+
 
 
     class Meta:
         model = ReportcardBehaviour
         fields = ['academic_year', 'period', 'level']
-    
+
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         user = kwargs.pop('user', None)
-        
+        super().__init__(*args, **kwargs)
+
+
         data = self.data
         initial = self.initial
 
@@ -1257,14 +1258,14 @@ class ExtraGradeItemForm(forms.ModelForm):
                 teacher_subjects = Subject.objects.filter(course__teacher=teacher_obj).distinct()
                 if teacher_subjects.count() == 1:
                     self.initial['subject'] = teacher_subjects.first().id
-        
+
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
         period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
         kelas = data.get('0-kelas') or initial.get('kelas')
         act_subj = data.get('0-act_subj') or initial.get('act_subj')
-        
+
         # Period depends on Academic Year
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear,
@@ -1332,6 +1333,43 @@ class ExtraGradeItemForm(forms.ModelForm):
             'id': 'extra-type-select',
             'class': 'custom-select mb-4',
         })
+
+class ExtraGradeForm(forms.Form):
+    student_id = forms.IntegerField(widget=forms.HiddenInput())
+    student_nisn = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'readonly': True,
+        })
+    )
+    student_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'readonly': True,
+        })
+    )
+    extra_score = forms.IntegerField(
+        required=False,
+        initial=0,
+        widget=forms.NumberInput(attrs={'class': 'form-control score-input'})
+    )
+    extra_description = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    extra_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 1})
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+
+ExtraGradeFormSet = formset_factory(ExtraGradeForm, extra=0)
 
 
 class ExtraGradeListForm(ExtraGradeItemForm):

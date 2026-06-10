@@ -23,8 +23,11 @@
             <h4 class="mb-0">Teacher's Notes Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
         </div> {% endcomment %}
 
-        <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: 100%; height: auto; padding: 20px;">
-            <h1 class="font-bold mb-4">Homeroom Class: {{ homeroom_class }}</h1>
+<!--        <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: 100%; height: auto; padding: 20px;">-->
+        <div class="flex gap-10 mb-6 text-sm">
+<!--            <h1 class="font-bold mb-4">Homeroom Class: {{ homeroom_class }}</h1>-->
+            <div style="font-size: 20px; "><strong>Homeroom Class - &nbsp;{{ homeroom_class }}</strong></div>
+        </div>
 
             {% comment %} <div class="card-body bg-secondary bg-opacity-3" style="width: 600px;"> {% endcomment %}
             {% if selected_student %}
@@ -51,9 +54,14 @@
 
                     {% if wizard.form.forms %}
                         <div class="table-responsive">
-                                        <h1 class="font-bold mb-4">Academic Year: {{ selected_academic_year }}</h1>
-            <h1 class="font-bold mb-4">Period: {{ selected_period }}</h1>
-            <h1 class="font-bold mb-4">Midterms: {{ selected_is_mid }}</h1>
+                            <div class="flex gap-10 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+<!--                                        <h1 class="font-bold mb-4">Academic Year: {{ selected_academic_year }}</h1>-->
+<!--            <h1 class="font-bold mb-4">Period: {{ selected_period }}</h1>-->
+            <div><strong>Academic Year:</strong> &nbsp;{{ selected_academic_year }}</div>
+            <div><strong>Period:</strong> &nbsp;{{ selected_period }}</div>
+            <div><strong>Midterms:</strong> &nbsp;{{ selected_is_mid }}</div>
+<!--            <h1 class="font-bold mb-4">Midterms: {{ selected_is_mid }}</h1>-->
+                                </div>
                             <table class="table table-responsive table-auto w-full">
                                 <thead class="bg-base-200 rounded-md">
                                     <tr>

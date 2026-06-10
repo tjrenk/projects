@@ -1,6 +1,6 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade, StudentBehaviourReport, ReportcardRubricTemplate
+from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade, StudentBehaviourReport, ReportcardRubricTemplate, StudentReportExtra
 
 from django.db.models.functions import Replace
 from django.db.models import Value
@@ -102,6 +102,18 @@ def set_rubric_grade(sender, instance, **kwargs):
         else:
             instance.grade = "E"
 
+def set_extra_grade(sender, instance, **kwargs):
+    if not instance.extra_description:
+        if (instance.extra_score > 92) and (instance.extra_score < 101):
+            instance.extra_description = "A"
+        elif (instance.extra_score > 85) and (instance.extra_score < 93):
+            instance.extra_description = "B"
+        elif (instance.extra_score > 81) and (instance.extra_score < 86):
+            instance.extra_description= "C"
+        elif (instance.extra_score > 69) and (instance.extra_score < 82):
+            instance.extra_description = "D"
+        else:
+            instance.extra_description = "E"
 
 # def set_rubric_desc(sender, instance, **kwargs):
 #     if not instance.description:
@@ -156,3 +168,5 @@ pre_save.connect(set_final_grade, ReportcardGrade)
 pre_save.connect(set_rubric_grade, StudentBehaviourReport)
 
 pre_save.connect(set_rubric_desc, StudentBehaviourReport)
+
+pre_save.connect(set_extra_grade, StudentReportExtra)

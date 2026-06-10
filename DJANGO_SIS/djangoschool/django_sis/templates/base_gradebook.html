@@ -142,11 +142,11 @@
                         <details open>
                             <summary><i class="fa-solid fa-keyboard"></i>Data Entry</summary>
                             <ul>
-                                <li><a href="{% url 'grade-entry' %}">Student Grade</a></li>
-                                <li><a href="{% url 'student-attendance' %}">Student Attendance</a></li>
-                                <li><a href="{% url 'report-card' %}">Teacher's Comments</a></li>
-                                <li><a href="{% url 'rubric-entry' %}">Student Behaviour</a></li>
-                                <li><a href="{% url 'extra-report' %}">Extracurricular Grade</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry' %}active{% endif %}" href="{% url 'grade-entry' %}">Student Grade</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'student-attendance' %}active{% endif %}" href="{% url 'student-attendance' %}">Student Attendance</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card' %}active{% endif %}" href="{% url 'report-card' %}">Teacher's Comments</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'rubric-entry' %}active{% endif %}" href="{% url 'rubric-entry' %}">Student Behaviour</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'extra-report' %}active{% endif %}" href="{% url 'extra-report' %}">Extracurricular Grade</a></li>
 <!--                                <li><a href="{% url 'grades-wizard' %}">Grades Wizard</a></li>-->
 
                             </ul>
@@ -166,10 +166,10 @@
                         <details open>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
-                                <li><a href="{% url 'grade-entry-table' %}">Student Grade</a></li>
-                                <li><a href="{% url 'report-card-table' %}">Teacher's Comments</a></li>
-                                <li><a href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
-                                <li><a href="{% url 'grades-wizard' %}">Grades List</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry-table' %}active{% endif %}" href="{% url 'grade-entry-table' %}">Student Grade</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card-table' %}active{% endif %}" href="{% url 'report-card-table' %}">Teacher's Comments</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>
 <!--                                {% if user.is_staff %}-->
 <!--                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>-->
 <!--                                {% endif %}-->
