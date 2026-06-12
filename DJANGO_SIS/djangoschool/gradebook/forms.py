@@ -32,6 +32,13 @@ class PlainTextWidget(forms.Widget):
 
 # Form Step 1
 class GradeEntryForm(forms.ModelForm):
+    cpmp_target = forms.ModelChoiceField(
+        queryset=CapaianPemelajaranMataPelajaran.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label="Tujuan Pembelajaran"
+    )
+
     class Meta:
         model = GradeEntry
         fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_type"]
@@ -76,20 +83,37 @@ class GradeEntryForm(forms.ModelForm):
         subject = data.get('0-subject') or initial.get('subject')
         course = data.get('0-course') or initial.get('course')
         assignment_type = data.get('0-assignment_type') or initial.get('assignment_type')
+        cpmp_target = data.get('0-cpmp_target') or initial.get('cpmp_target')
+
         # 2. Logic: Period depends on Academic Year
 
 
+        # niatnya mau set semuanya jadi kosong sebagai default value (value buat field yg ga ketouch)
+        # self.fields['period'].queryset = LearningPeriod.objects.none()
+        # self.fields['level'].queryset = GradeLevel.objects.none()
+        # self.fields['teacher'].queryset = Teacher.objects.none()
+        # self.fields['cpmp_target'].queryset = CapaianPemelajaranLulusan.objects.none()
+        # self.fields['course'].queryset = Course.objects.none()
+        # self.fields['assignment_type'].queryset = AssignmentType.objects.none()
+
+
+        # buat validasi
         if acayear:
+            self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.filter(
+                academic_year_id=acayear, subject_id=subject
+            )
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
             self.fields['level'].queryset = GradeLevel.objects.all()
             if is_admin and not teacher_obj:
                 self.fields['period'].queryset = LearningPeriod.objects.all()
                 self.fields['level'].queryset = GradeLevel.objects.all()
+                self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
             self.fields['level'].queryset = GradeLevel.objects.none()
+            self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.none()
 
-        
+
 
         # 3. Logic: Teacher depends on Period
         if period:
@@ -110,7 +134,7 @@ class GradeEntryForm(forms.ModelForm):
 
         if subject:
             # Using your existing filtering logic
-            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear)
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject)
             if is_admin and not teacher_obj:
                 self.fields['course'].queryset = Course.objects.all()
         else:
@@ -162,7 +186,6 @@ class GradeEntryForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
         })
 
-        # ... (Teacher and Subject logic remains the same) ...
 
         # --- 4. COURSE (Triggers Assignment Type) ---
         self.fields['course'].widget.attrs.update({
@@ -172,6 +195,7 @@ class GradeEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#assignment-type-select-ge',
             'hx-swap': 'innerHTML',
+            'hx-include': '#acayear-select-ge, #subject-select-ge'
             # hx-include is not strictly needed if we just need the course ID 
             # (htmx sends the trigger element's value by default)
         })
@@ -198,6 +222,17 @@ class GradeEntryForm(forms.ModelForm):
         self.fields['assignment_type'].widget.attrs.update({
             'id': 'assignment-type-select-ge',
             'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-cpmp-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#cpmp-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#acayear-select-ge, #course-select-ge, #subject-select-ge',  # send both
+        })
+
+        self.fields['cpmp_target'].widget.attrs.update({
+            'id': 'cpmp-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-include': '#acayear-select-ge, #assignment-type-select-ge'
         })
         
         # Ensure Teacher/Subject IDs match your previous setup
@@ -257,18 +292,15 @@ class GradeEntryForm(forms.ModelForm):
 
 
 
-class ReportCardComment(forms.ModelForm):
-    class Meta:
-        model = ReportcardGrade
-        fields = ["teacher_notes"]
+# class ReportCardComment(forms.ModelForm):
+#     class Meta:
+#         model = ReportcardGrade
+#         fields = ["teacher_notes"]
 
-        
-
-class TeacherForm(forms.ModelForm):
-    class Meta:
-        model = Teacher
-        fields = ['user']
-
+# class TeacherForm(forms.ModelForm):
+#     class Meta:
+#         model = Teacher
+#         fields = ['user']
 
 # Absensi
 # class AttendanceForm(forms.ModelForm):
@@ -974,7 +1006,7 @@ class RubricEntryForm(forms.ModelForm):
         # Period depends on Academic Year
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
-            if is_admin:
+            if is_admin and not teacher_obj:
                 self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
@@ -982,7 +1014,7 @@ class RubricEntryForm(forms.ModelForm):
         # Teacher depends on Period
         if period:
             self.fields['teacher'].queryset = Teacher.objects.filter(user=user)
-            if is_admin:
+            if is_admin and not teacher_obj:
                 self.fields['teacher'].queryset = Teacher.objects.all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
@@ -990,7 +1022,7 @@ class RubricEntryForm(forms.ModelForm):
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
             self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher).distinct()
-            if is_admin:
+            if is_admin and not teacher_obj:
                 self.fields['kelas'].queryset = Class.objects.all()
         else:
             self.fields['kelas'].queryset = Class.objects.none()
@@ -2043,7 +2075,6 @@ class AssignmentAvgForm(forms.Form):
     academic_year = forms.ModelChoiceField(
         queryset=AcademicYear.objects.all(),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Tahun Ajaran'
     )
     # ADDED HTMX HERE: Level must trigger the Subject dropdown!
     level = forms.ModelChoiceField(
@@ -2055,7 +2086,6 @@ class AssignmentAvgForm(forms.Form):
             'hx-target': '#assignment-avg-subject-select',
             'hx-swap': 'innerHTML',
         }),
-        label='Level Pembelajaran'
     )
     subject = forms.ModelChoiceField(
         queryset=Subject.objects.none(), # Default to none until teacher/level is known
@@ -2067,7 +2097,6 @@ class AssignmentAvgForm(forms.Form):
             'hx-target': '#assignment-avg-course-select',
             'hx-swap': 'innerHTML',
         }),
-        label='Mata Pelajaran'
     )
     period = forms.ModelChoiceField(
         queryset=LearningPeriod.objects.all(),
@@ -2080,7 +2109,6 @@ class AssignmentAvgForm(forms.Form):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        label='Tengah Semester?'
     )
 
     def __init__(self, *args, **kwargs):

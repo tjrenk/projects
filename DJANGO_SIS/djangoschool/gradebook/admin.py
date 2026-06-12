@@ -128,6 +128,18 @@ class StudentBehaviourReportAdmin(admin.ModelAdmin):
     list_display = ("score","rubric","student","description","grade")
     list_filter = ["score","rubric","student","description","grade"]
 
+class CapaianPemelajaranLulusanAdmin(admin.ModelAdmin):
+    list_display = ("text", )
+    list_filter = ["text", ]
+
+
+class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
+    list_display = ("academic_year", "level", "subject", "get_cpl_str", "text")
+    list_filter = ["academic_year", "level", "subject"]
+    def get_cpl_str(self, obj: CapaianPemelajaranMataPelajaran)->str:
+        return f"{obj.cpl_root.text}"
+    get_cpl_str.short_description = "Capaian Pembelajaran Lulusan"
+
 
 @staff_member_required
 def admin_statistics_view(request):
@@ -181,3 +193,5 @@ admin.site.register(ReportcardGrade, ReportCardGradeHistory)
 # admin.site.register(GradeLevel, GradeLevelAdmin)
 admin.site.register(ReportcardRubricTemplate, ReportcardRubricTemplateAdmin)
 admin.site.register(StudentBehaviourReport, StudentBehaviourReportAdmin)
+admin.site.register(CapaianPemelajaranLulusan, CapaianPemelajaranLulusanAdmin)
+admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelajaranAdmin)

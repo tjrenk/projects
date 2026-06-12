@@ -87,9 +87,20 @@ class GradeEntry(models.Model):
     #def __delete__(self, instance):
     #    pass
 
+class CapaianPemelajaranLulusan(models.Model):
+    text = models.TextField(null=True, blank=True)
+
+class CapaianPemelajaranMataPelajaran(models.Model):
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    cpl_root = models.ForeignKey(CapaianPemelajaranLulusan, on_delete=models.CASCADE)
+    text = models.TextField(null=True, blank=True)
+
 class AssignmentHead(models.Model):
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    cpmp_target = models.ForeignKey(CapaianPemelajaranMataPelajaran, on_delete=models.CASCADE)
     date = models.DateField(null=True)
     topic = models.TextField(null=True, blank=True)
     max_score = models.IntegerField(default=100)
@@ -202,3 +213,4 @@ class ReportcardRubricTemplate(models.Model):
     def render(self, data_entry):
         """Fill this template's pattern using a DataEntry instance's fields."""
         return self.text
+

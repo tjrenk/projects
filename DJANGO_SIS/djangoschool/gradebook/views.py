@@ -265,9 +265,11 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             context['selected_subject'] = step0_data.get('subject')
             context['selected_is_mid'] = step0_data.get('is_mid')
             context['selected_assignment_type'] = step0_data.get('assignment_type')
+            context['selected_cpmp_target'] = step0_data.get('cpmp_target')
         if step1_data:
             context['selected_topic'] = step1_data.get('topic')
             context['selected_date'] = step1_data.get('date')
+            context['selected_cpmp_target'] = step0_data.get('cpmp_target')
 
         return context
 
@@ -289,7 +291,8 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             course=form_data_0['course'],  # Dari Step 0
             date=form_data_1['date'],  # Dari Step 1
             topic=form_data_1['topic'],  # Dari Step 1
-            max_score=form_data_1['max_score']  # Dari Step 1
+            max_score=form_data_1['max_score'],
+            cpmp_target=form_data_0['cpmp_target']# Dari Step 1
         )
         assignment_head.save()
 
@@ -903,7 +906,7 @@ def get_subjects_ge(request):
         # subjects = Subject.objects.filter(course__coursemember__student__coursemember__course__coursemember__course__teacher__id=teacher_id).distinct()
         subjects = Subject.objects.filter(course__teacher__id=teacher_id).distinct()
     else:
-        subjects = Subject.objects.all()
+        subjects = Subject.objects.none()
     context = {
         'subjects': subjects,
         'selected_subject': selected_subject
@@ -931,7 +934,7 @@ def get_courses_ge(request):
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
     selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
     if subject_id and acayear_id:
-        courses = Course.objects.filter(academic_year_id=acayear_id)
+        courses = Course.objects.filter(academic_year=acayear_id, subject=subject_id)
     else:
         courses = Course.objects.none()
     context = {
@@ -995,47 +998,93 @@ def get_level_reportcard(request):
     return render(request, "partials/gradebook/reportcard_partials/level.html", context)
 
 
+def get_cpmp_target_ge(request):
+    print(request.GET)  # keep this temporarily to verify params
+
+    acayear_id = (request.GET.get('0-academic_year')
+                  or request.GET.get('1-academic_year')
+                  or request.GET.get('academic_year'))
+    course_id = (request.GET.get('0-course')
+                 or request.GET.get('1-course')
+                 or request.GET.get('course'))
+    selected_cpmp_target = (request.GET.get('0-cpmp_target')
+                            or request.GET.get('1-cpmp_target')
+                            or request.GET.get('cpmp_target'))
+    subject_id = (request.GET.get('0-subject')
+                  or request.GET.get('1-subject')
+                  or request.GET.get('subject'))
+
+    if course_id:
+        # filter by course directly — most precise
+        cpmp_ids = CapaianPemelajaranMataPelajaran.objects.filter(
+    academic_year_id=acayear_id, subject_id=subject_id
+)
+        cpmp_trg = CapaianPemelajaranMataPelajaran.objects.filter(id__in=cpmp_ids)
+    elif acayear_id:
+        # fallback: filter by academic year
+        cpmp_ids = CapaianPemelajaranMataPelajaran.objects.filter(
+            academic_year_id=acayear_id
+        ).values_list('id', flat=True).distinct()
+        cpmp_trg = CapaianPemelajaranMataPelajaran.objects.filter(id__in=cpmp_ids)
+    else:
+        cpmp_trg = CapaianPemelajaranMataPelajaran.objects.none()
+
+    return render(request, "partials/gradebook/gradeentry_partials/cpmp_target.html", {
+        'cpmp_trg': cpmp_trg,
+        'selected_cpmp_target': selected_cpmp_target
+    })
+
+
 @login_required
 def toggle_na_reason(request):
     form_index = request.GET.get('form_index', '0')
 
-    # Find the na_reason field name from the request
     na_reason_keys = [k for k in request.GET.keys() if k.endswith('-na_reason')]
     if na_reason_keys:
         na_reason_name = na_reason_keys[0]
-        na_reason_value = request.GET.get(na_reason_name, '')
     else:
         na_reason_name = f'2-{form_index}-na_reason'
-        na_reason_value = request.GET.get(na_reason_name, '')
 
-    # Get the is_active value
     is_active_name = na_reason_name.replace('-na_reason', '-is_active')
+    score_name = na_reason_name.replace('-na_reason', '-score')
     is_active_value = request.GET.get(is_active_name, '')
     is_active = is_active_value == 'on'
 
     if is_active:
+        # active — show empty na_reason, keep score editable
         input_html = f'''
         <input id="na_reason_input_{form_index}"
-            type="text" 
+            type="text"
             class="form-control"
-            name="{na_reason_name}" 
-            value="{na_reason_value}"
-            readonly
-            style="background-color: #e9ecef; cursor: not-allowed;"
-            placeholder="Item is active"
-        >
+            name="{na_reason_name}"
+            value=""
+            placeholder="N/A"
+            disabled />
         '''
     else:
+        # inactive — clear score, show na_reason input
         input_html = f'''
         <input id="na_reason_input_{form_index}"
-            type="text" 
+            type="text"
             class="form-control"
-            name="{na_reason_name}" 
-            value="{na_reason_value}"
-            placeholder="Enter reason..."
-        >
+            name="{na_reason_name}"
+            value=""
+            placeholder="Reason required..." />
         '''
-    return HttpResponse(input_html.strip())
+
+    # OOB swap to clear score when toggled
+    score_html = f'''
+    <input id="id_2-{form_index}-score"
+        type="number"
+        class="form-control"
+        name="{score_name}"
+        value="0" />
+    '''
+
+    return HttpResponse(
+        input_html +
+        f'<div hx-swap-oob="innerHTML:#score_td_{form_index}">{score_html}</div>'
+    )
 
 
 # biar short name subject keliatan

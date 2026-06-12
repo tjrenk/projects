@@ -16,6 +16,7 @@ class LearningPeriodAdmin(admin.ModelAdmin):
 
 class RegistrationAdmin(admin.ModelAdmin):
     list_display = ["form_no", "first_name", "last_name", "date_of_birth", "gender"]
+    list_filter = ["form_no", "first_name", "last_name"]
 
 class StudentAdmin(admin.ModelAdmin):
     list_display = [
@@ -25,11 +26,12 @@ class StudentAdmin(admin.ModelAdmin):
         "nisn",
         "is_active",
     ]
-    list_filter = ["is_active",]
-    search_fields = ["registration_data__first_name"]
+    list_filter = ["is_active", "registration_data__first_name", "registration_data__last_name", "nisn"]
+    search_fields = ["registration_data__first_name", "registration_data__last_name"]
 
 class TeacherAdmin(admin.ModelAdmin):
     list_display = ["first_name", "last_name", "join_date", "user__username"]
+    list_filter = ["first_name", "last_name", "user__username"]
 
 
 class ClassMemberInline(admin.TabularInline):
@@ -47,7 +49,7 @@ class KelasAdmin(admin.ModelAdmin):
 
 class ClassMemberAdmin(admin.ModelAdmin):
     list_display = ["kelas", "student_name"]
-    list_filter = ["student__registration_data__gender",]
+    list_filter = ["student", "student__registration_data__gender", "kelas"]
     autocomplete_fields = ["student", "kelas"]
 
     def student_name(self, obj: ClassMember):

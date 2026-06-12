@@ -25,6 +25,7 @@ urlpatterns = [
     path('get-kelas-ge/', views.get_kelas_ge, name='get_kelas_ge'),
     path('get-levels-ge/', views.get_levels_ge, name='get_levels_ge'),
     path('get-assignment-types-ge/', views.get_assignment_types_ge, name='get_assignment_types_ge'),
+    path('get-cpmp-ge/', views.get_cpmp_target_ge, name='get-cpmp-ge'),
 
     # TEACHER COMMENTS / REPORT CARD
     path("report-card", views.ReportCardForm.as_view(), name="report-card"),

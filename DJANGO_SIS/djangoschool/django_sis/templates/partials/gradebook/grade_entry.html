@@ -87,6 +87,7 @@
                     <div><strong>Topic:</strong>&nbsp;{{ selected_topic }}</div>
                     <div><strong>Date:</strong>&nbsp;{{ selected_date }}</div>
                     <div><strong>Type:</strong>&nbsp;{{ selected_assignment_type }}</div>
+                    <div><strong>CPMP:</strong>&nbsp;{{ selected_cpmp_target.text }}</div>
                 </div>
                         <div class="table-responsive">
                             <table class="table table-hover table-bordered align-middle">
@@ -236,6 +237,16 @@
                                 </div>
                                 </div>
 
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.cpmp_target.label }}
+                                {{ wizard.form.cpmp_target }}
+                                    <div class="error">
+                                        {{ wizard.form.cpmp_target.errors }}
+                                    </div>
+                                </div>
+                                </div>
+
                                 {% elif wizard.steps.current == '1' %}
 
 
@@ -283,8 +294,8 @@
                     {% if wizard.steps.prev %}
                     {% comment %} <div class="w-full z-20 border-t border-base-300  sticky max-lg:fixed max-lg:-mx-3 bottom-0"> {% endcomment %}
                     {% comment %} <div class="text-start flex  gap-2"> {% endcomment %}
-                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-primary px-4 primary-content  btn rounded-md legitRipple">
-                            &laquo; Kembali
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
+                            &laquo; Back
                         </button>
                     {% else %}
                         <div></div> 
@@ -293,17 +304,17 @@
                     
                         {% if wizard.steps.current == '2' %}
                             {% if not assignment_head_data or not wizard.form.forms %}
-                            <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                                Simpan
+                            <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                                Save
                             </button>                                &nbsp;
                             {% else %}
-                            <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                                Simpan
+                            <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                                Save
                             </button>
                             {% endif %}
                         {% else %}
-                        <button type="submit" class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                            Lanjut
+                        <button type="submit" class="btn-sm btn-primary btn rounded-md legitRipple" onclick="confirmSubmit(event)">
+                            Next
                         </button>
                         {% endif %}
                     

@@ -193,14 +193,14 @@
 
                 <div class="d-flex justify-content-between">
                     {% if wizard.steps.prev %}
-                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-secondary px-4 primary-content  btn rounded-md legitRipple">
+                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
                             &laquo; Back
                         </button>
                     {% else %}
                         <div></div> 
                     {% endif %}
                     
-                    <button type="submit" class="btn-sm btn-success px-4 primary-content  btn rounded-md legitRipple">
+                    <button type="submit" class="btn-sm btn-primary btn rounded-md legitRipple">
                         {% if wizard.steps.current == '1' %}
                             Save
                         {% else %}
