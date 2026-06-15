@@ -157,7 +157,7 @@
                         <details open>
                             <summary><i class="fa-solid fa-calculator"></i>Processes</summary>
                             <ul>
-                                <li><a href="{% url 'assignment-avg-wizard' %}">Final Grade Avg</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-avg-wizard' %}active{% endif %}" href="{% url 'assignment-avg-wizard' %}">Final Grade Avg</a></li>
                             </ul>
                         </details>
                     </li>

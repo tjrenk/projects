@@ -15,11 +15,11 @@ from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min, Q
 from django.db.models import F
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.units import inch, cm
 from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Frame, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Line
 from slick_reporting.views import ReportView, SlickReportView
@@ -1336,6 +1336,7 @@ def ge_edit(request, pk):
     # target_detail = get_object_or_404(AssignmentDetail, pk=pk)
     parent_head = get_object_or_404(AssignmentHead, pk=pk)
     current_course = parent_head.course
+    assign_type = parent_head.assignment
 
     # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
     # This fixes the issue where only 1 student shows up.
@@ -1402,7 +1403,8 @@ def ge_edit(request, pk):
         'parent_head': parent_head,
         'title': parent_head.topic,
         'date': parent_head.date,
-        'max_score': parent_head.max_score
+        'max_score': parent_head.max_score,
+        'assign_type': assign_type
     })
 
 
@@ -3006,4 +3008,154 @@ def get_courses_assignment_avg(request):
         'selected_kelas': selected_kelas
     })
     return HttpResponse(html)
+
+def print_grade_list(request, pk):
+    parent_head = get_object_or_404(AssignmentHead, pk=pk)
+    current_course = parent_head.course
+
+    # Same data sync as ge_edit
+    active_members = CourseMember.objects.filter(course=current_course, is_active=True)
+    for member in active_members:
+        AssignmentDetail.objects.get_or_create(
+            assignment_head=parent_head,
+            student=member.student,
+            defaults={'score': 0, 'is_active': True}
+        )
+
+    queryset = AssignmentDetail.objects.filter(
+        assignment_head=parent_head
+    ).order_by('student__id').select_related('student__registration_data')
+
+    # ─── PAGE SETUP ───────────────────────────────────────────
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        topMargin=2*cm,
+        bottomMargin=2*cm,
+        leftMargin=2*cm,
+        rightMargin=2*cm,
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Normal'],
+        fontSize=14,
+        fontName='Times-Bold',
+        alignment=TA_CENTER,
+        spaceAfter=4,
+    )
+
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Normal'],
+        fontSize=10,
+        fontName='Times-Roman',
+        alignment=TA_CENTER,
+        spaceAfter=4,
+    )
+
+    label_style = ParagraphStyle(
+        'Label',
+        parent=styles['Normal'],
+        fontSize=9,
+        fontName='Times-Roman',
+        alignment=TA_LEFT,
+        spaceAfter=2,
+    )
+
+    # ─── HEADER ───────────────────────────────────────────────
+    flowables = []
+
+
+    # Meta info table (topic, date, max score, course)
+    meta_data = [
+        ['Topic',       ':', str(parent_head.topic or '-')],
+        ['Date',        ':', str(parent_head.date or '-')],
+        ['Max Score',   ':', str(parent_head.max_score)],
+        ['Assignment',  ':', str(parent_head.assignment)],
+    ]
+
+    meta_table = Table(meta_data, colWidths=[3*cm, 0.5*cm, 12*cm])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME',  (0, 0), (-1, -1), 'Times-Roman'),
+        ('FONTSIZE',  (0, 0), (-1, -1), 9),
+        ('FONTNAME',  (0, 0), (0, -1),  'Times-Bold'),
+        ('VALIGN',    (0, 0), (1, -1), 'TOP'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+
+    flowables.append(meta_table)
+    flowables.append(Spacer(1, 0.5*cm))
+
+    # ─── STUDENT GRADE TABLE ──────────────────────────────────
+    table_data = [
+        ['#', 'ID Number', 'Student Name', 'Score', 'Status', 'Notes'],
+    ]
+
+    for i, detail in enumerate(queryset, start=1):
+        student = detail.student
+        reg = student.registration_data
+        full_name = f"{reg.first_name or ''} {reg.last_name or ''}".strip()
+
+        table_data.append([
+            str(i),
+            student.id_number,
+            full_name,
+            str(detail.score),
+            'Active' if detail.is_active else 'Inactive',
+            detail.na_reason or '-',
+        ])
+
+    grade_table = Table(
+        table_data,
+        colWidths=[1*cm, 3*cm, 5*cm, 2*cm, 2*cm, 4*cm],
+    )
+
+    grade_table.setStyle(TableStyle([
+        # Header
+        ('BACKGROUND',      (0, 0), (-1, 0),  colors.HexColor('#4a4a4a')),
+        ('TEXTCOLOR',       (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',        (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',        (0, 0), (-1, 0),  9),
+        ('ALIGN',           (0, 0), (-1, 0),  'CENTER'),
+
+        # Body
+        ('FONTNAME',        (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE',        (0, 1), (-1, -1), 8),
+        ('ALIGN',           (0, 0), (0, -1),  'CENTER'),   # # column
+        ('ALIGN',           (3, 1), (4, -1),  'CENTER'),   # score + status
+        ('ROWBACKGROUNDS',  (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
+
+        # Inactive rows — light red background
+        *[
+            ('BACKGROUND', (0, i+1), (-1, i+1), colors.HexColor('#ffe0e0'))
+            for i, detail in enumerate(queryset)
+            if not detail.is_active
+        ],
+
+        # Grid
+        ('GRID',            (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BOX',             (0, 0), (-1, -1), 1,   colors.black),
+
+        # Padding
+        ('TOPPADDING',      (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING',   (0, 0), (-1, -1), 5),
+        ('LEFTPADDING',     (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING',    (0, 0), (-1, -1), 6),
+    ]))
+
+    flowables.append(grade_table)
+
+    # ─── BUILD ────────────────────────────────────────────────
+    doc.build(flowables)
+    buf.seek(0)
+
+    filename = f"grade_entry_{current_course.short_name}_{parent_head.date}.pdf"
+    return FileResponse(buf, as_attachment=True, filename=filename)
+
+
 

@@ -36,7 +36,7 @@ class GradeEntryForm(forms.ModelForm):
         queryset=CapaianPemelajaranMataPelajaran.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label="Tujuan Pembelajaran"
+        label="Learning Target"
     )
 
     class Meta:
