@@ -38,11 +38,11 @@ register = template.Library()
 
 
 def gb_index(request):
+    user = request.user
     ge = GradeEntry.objects.all()
     ah = AssignmentHead.objects.all()
     ad = AssignmentDetail.objects.all()
     attendance_qs = StudentAttendance.objects.all().order_by('-id')
-
     ad_ahfilter = AssignmentDetail.objects.select_related('assignment_head', 'assignment_head__course', 'student')
 
     # sort by midterms
@@ -229,6 +229,14 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
         return initial
 
+
+    def _get_homeroom_class(self):
+        """Get the homeroom class of the currently logged in teacher."""
+        return Class.objects.filter(
+            teacher__user=self.request.user,
+            is_home_class=True,
+        ).first()
+
     def get_form_kwargs(self, step=None):
         kwargs = super().get_form_kwargs(step)
         if step == '0':
@@ -257,6 +265,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         # Get cleaned data from step 0 if available
         step0_data = self.get_cleaned_data_for_step('0')
         step1_data = self.get_cleaned_data_for_step('1')
+        context['is_homeroom'] = self._get_homeroom_class()
         # step2_data = self.get_cleaned_data_for_step('2')
         if step0_data:
             context['selected_academic_year'] = step0_data.get('academic_year')
@@ -3155,7 +3164,7 @@ def print_grade_list(request, pk):
     buf.seek(0)
 
     filename = f"grade_entry_{current_course.short_name}_{parent_head.date}.pdf"
-    return FileResponse(buf, as_attachment=True, filename=filename)
+    return FileResponse(buf, as_attachment=False, filename=filename)
 
 
 

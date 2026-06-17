@@ -34,3 +34,16 @@ def all_students_stats(context):
     total_students = Student.objects.count()
     context['total_students'] = total_students
     return context
+
+
+@register.simple_tag(takes_context=True)
+def is_homeroom_teacher(context):
+    request = context['request']
+
+    if not request.user.is_authenticated:
+        return False
+
+    return Class.objects.filter(
+        teacher__user=request.user,
+        is_home_class=True
+    ).exists()

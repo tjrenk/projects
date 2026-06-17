@@ -35,7 +35,7 @@ class GradeEntryForm(forms.ModelForm):
     cpmp_target = forms.ModelChoiceField(
         queryset=CapaianPemelajaranMataPelajaran.objects.all(),
         required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        widget=forms.SelectMultiple(attrs={'class': 'custom-select mb-4'}),
         label="Learning Target"
     )
 
@@ -961,7 +961,7 @@ class RubricEntryForm(forms.ModelForm):
         queryset=Class.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        # label='Kelas'
+        label='Class'
     )
 
 
@@ -1256,7 +1256,8 @@ class ExtraGradeItemForm(forms.ModelForm):
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.all(),
         required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Class'
     )
 
     act_subj = forms.ModelChoiceField(
@@ -1698,7 +1699,8 @@ class ExtraInfoItemForm(forms.ModelForm):
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.none(),
         required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Class'
     )
 
     extra_type = forms.ChoiceField(
