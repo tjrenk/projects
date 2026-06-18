@@ -32,10 +32,10 @@ class PlainTextWidget(forms.Widget):
 
 # Form Step 1
 class GradeEntryForm(forms.ModelForm):
-    cpmp_target = forms.ModelChoiceField(
+    cpmp_target = forms.ModelMultipleChoiceField(
         queryset=CapaianPemelajaranMataPelajaran.objects.all(),
         required=True,
-        widget=forms.SelectMultiple(attrs={'class': 'custom-select mb-4'}),
+        widget=forms.SelectMultiple(attrs={'class': 'checkbox checkbox-primary'}),
         label="Learning Target"
     )
 
@@ -587,6 +587,12 @@ class StudentReportcardForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
         # label='Level Pembelajaran'
     )
+
+    # kelas = forms.ModelChoiceField(
+    #     queryset=Class.objects.all(),
+    #     widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'}),
+    #     label='Kelas'
+    # )
 
     class Meta:
         model = StudentReportcard

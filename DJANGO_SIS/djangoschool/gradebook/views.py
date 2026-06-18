@@ -301,9 +301,9 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             date=form_data_1['date'],  # Dari Step 1
             topic=form_data_1['topic'],  # Dari Step 1
             max_score=form_data_1['max_score'],
-            cpmp_target=form_data_0['cpmp_target']# Dari Step 1
         )
         assignment_head.save()
+        assignment_head.cpmp_target.set(form_data_0['cpmp_target'])
 
         # 3. Simpan AssignmentDetail (Looping FormSet)
         details_to_create = []
@@ -1346,6 +1346,7 @@ def ge_edit(request, pk):
     parent_head = get_object_or_404(AssignmentHead, pk=pk)
     current_course = parent_head.course
     assign_type = parent_head.assignment
+    cpmp_trg = ', '.join(target.text for target in parent_head.cpmp_target.all())
 
     # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
     # This fixes the issue where only 1 student shows up.
@@ -1413,7 +1414,8 @@ def ge_edit(request, pk):
         'title': parent_head.topic,
         'date': parent_head.date,
         'max_score': parent_head.max_score,
-        'assign_type': assign_type
+        'assign_type': assign_type,
+        'cpmp_target': cpmp_trg or '-'
     })
 
 
@@ -1669,24 +1671,24 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 
         return context
 
-    def post(self, *args, **kwargs):
-        """Handle the 'Back' button logic to delete data if going to step 0"""
-        if self.request.POST.get('wizard_goto_step') == '0' and self.steps.current == '1':
-            step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data:
-                # Find the container
-                behaviour = ReportcardBehaviour.objects.filter(
-                    academic_year=step0_data.get('academic_year'),
-                    period=step0_data.get('period'),
-                    level=step0_data.get('level'),
-                    is_mid=False
-                ).first()
-
-                if behaviour:
-                    # Delete all reports associated with this specific behavior grading session
-                    # This acts as the 'Undo' logic for the Back button
-                    StudentBehaviourReport.objects.filter(behaviour=behaviour).delete()
-                    messages.info(self.request, "Previous grading progress cleared.")
+    # def post(self, *args, **kwargs):
+    #     """Handle the 'Back' button logic to delete data if going to step 0"""
+    #     if self.request.POST.get('wizard_goto_step') == '0' and self.steps.current == '1':
+    #         step0_data = self.get_cleaned_data_for_step('0')
+    #         if step0_data:
+    #             # Find the container
+    #             behaviour = ReportcardBehaviour.objects.filter(
+    #                 academic_year=step0_data.get('academic_year'),
+    #                 period=step0_data.get('period'),
+    #                 level=step0_data.get('level'),
+    #                 is_mid=False
+    #             ).first()
+    #
+    #             if behaviour:
+    #                 # Delete all reports associated with this specific behavior grading session
+    #                 # This acts as the 'Undo' logic for the Back button
+    #                 StudentBehaviourReport.objects.filter(behaviour=behaviour).delete()
+    #                 messages.info(self.request, "Previous grading progress cleared.")
 
         return super().post(*args, **kwargs)
 
@@ -3021,6 +3023,7 @@ def get_courses_assignment_avg(request):
 def print_grade_list(request, pk):
     parent_head = get_object_or_404(AssignmentHead, pk=pk)
     current_course = parent_head.course
+    cpmp_trg = "\n".join(target.text for target in parent_head.cpmp_target.all())
 
     # Same data sync as ge_edit
     active_members = CourseMember.objects.filter(course=current_course, is_active=True)
@@ -3085,6 +3088,7 @@ def print_grade_list(request, pk):
         ['Date',        ':', str(parent_head.date or '-')],
         ['Max Score',   ':', str(parent_head.max_score)],
         ['Assignment',  ':', str(parent_head.assignment)],
+        ['Learning Target', ':', str(cpmp_trg or '-')]
     ]
 
     meta_table = Table(meta_data, colWidths=[3*cm, 0.5*cm, 12*cm])

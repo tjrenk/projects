@@ -230,13 +230,14 @@
                     {% endif %}
 
 
-                        {% if wizard.steps.current == '2' %}
+                        {% if wizard.steps.current == '1' %}
                             {% if not assignment_head_data or not wizard.form.forms %}
                                 &nbsp;
                             {% else %}
-                            <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple" onclick="confirmSubmit(event)">
-                                Submit
-                            </button>
+<!--                            <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple" onclick="confirmSubmit(event)">-->
+<!--                                Submit-->
+<!--                            </button>-->
+                        <div></div>
                             {% endif %}
                         {% else %}
                         <button type="submit" class="btn-sm btn-primary btn rounded-md legitRipple" onclick="confirmSubmit(event)">

@@ -83,11 +83,11 @@
                     {{ wizard.form.management_form }}
 
                     {% if wizard.form.forms %}
-                <div class="flex gap-10 mb-6 text-sm bg-base-200 p-3 rounded-lg">
-                    <div><strong>Topic:</strong>&nbsp;{{ selected_topic }}</div>
-                    <div><strong>Date:</strong>&nbsp;{{ selected_date }}</div>
-                    <div><strong>Type:</strong>&nbsp;{{ selected_assignment_type }}</div>
-                    <div><strong>CPMP:</strong>&nbsp;{{ selected_cpmp_target.text }}</div>
+                <div class="flex gap-10 mb-6 text-lg bg-base-200 p-3 rounded-lg">
+                    <div><h3>Topic:</h3>&nbsp;<h1><strong>{{ selected_topic }}</h1></strong></div>
+                    <div><h3>Date:</h3>&nbsp;<h1><strong>{{ selected_date }}</h1></strong></div>
+                    <div><h3>Type:</h3>&nbsp;<h1><strong>{{ selected_assignment_type }}</h1></strong></div>
+                    <div><h3>CPMP:</h3>&nbsp;<h1><strong>{{ selected_cpmp_target.text }}</h1></strong></div>
                 </div>
                         <div class="table-responsive">
                             <table class="table table-hover table-bordered align-middle">

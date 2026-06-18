@@ -100,7 +100,7 @@ class CapaianPemelajaranMataPelajaran(models.Model):
 class AssignmentHead(models.Model):
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    cpmp_target = models.ForeignKey(CapaianPemelajaranMataPelajaran, on_delete=models.CASCADE)
+    cpmp_target = models.ManyToManyField(CapaianPemelajaranMataPelajaran, related_name='assignments_tp', null=True)
     date = models.DateField(null=True)
     topic = models.TextField(null=True, blank=True)
     max_score = models.IntegerField(default=100)
