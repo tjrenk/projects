@@ -274,11 +274,15 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             context['selected_subject'] = step0_data.get('subject')
             context['selected_is_mid'] = step0_data.get('is_mid')
             context['selected_assignment_type'] = step0_data.get('assignment_type')
-            context['selected_cpmp_target'] = step0_data.get('cpmp_target')
+            cpmp_targets = step0_data.get('cpmp_target')
+            if cpmp_targets:
+                context['selected_cpmp_target'] = '\n'.join(target.text for target in cpmp_targets)
+            else:
+                context['selected_cpmp_target'] = ''
         if step1_data:
             context['selected_topic'] = step1_data.get('topic')
             context['selected_date'] = step1_data.get('date')
-            context['selected_cpmp_target'] = step0_data.get('cpmp_target')
+
 
         return context
 
@@ -1319,7 +1323,7 @@ def ge_table(request):
     if teach:
         ah = AssignmentHead.objects.filter(course__teacher=teach).order_by('-date')
     else:
-        ah = AssignmentHead.objects.all()
+        ah = AssignmentHead.objects.all().order_by('-date')
 
     pnation = Paginator(ah, 15)  # Show 10 aktivitas per page
     page = request.GET.get('page')
@@ -1346,7 +1350,7 @@ def ge_edit(request, pk):
     parent_head = get_object_or_404(AssignmentHead, pk=pk)
     current_course = parent_head.course
     assign_type = parent_head.assignment
-    cpmp_trg = ', '.join(target.text for target in parent_head.cpmp_target.all())
+    cpmp_trg = '\n'.join(target.text for target in parent_head.cpmp_target.all())
 
     # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
     # This fixes the issue where only 1 student shows up.
@@ -1729,7 +1733,8 @@ def get_kelas_rubric(request):
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
     if teacher_id:
         # Filter classes where the teacher is the homeroom teacher
-        classes = Class.objects.filter(teacher__id=teacher_id).distinct()
+        # classes = Class.objects.filter(teacher__id=teacher_id).distinct()
+        classes = Class.objects.all()
     else:
         classes = Class.objects.none()
     context = {
@@ -2866,6 +2871,14 @@ class GradesWizard(LoginRequiredMixin, SessionWizardView):
                     return initial_list
         return initial
 
+    def post(self, *args, **kwargs):
+        wizard_goto_step = self.request.POST.get('wizard_goto_step', None)
+        if wizard_goto_step:
+            # Skip current step validation entirely when navigating via Back button
+            self.storage.current_step = wizard_goto_step
+            return self.render(self.get_form())
+        return super().post(*args, **kwargs)
+
     def get_form_kwargs(self, step=None):
         kwargs = super().get_form_kwargs(step)
         if step == '1':
@@ -3087,7 +3100,7 @@ def print_grade_list(request, pk):
         ['Topic',       ':', str(parent_head.topic or '-')],
         ['Date',        ':', str(parent_head.date or '-')],
         ['Max Score',   ':', str(parent_head.max_score)],
-        ['Assignment',  ':', str(parent_head.assignment)],
+        ['Assignment',  ':', str(parent_head.assignment.name)],
         ['Learning Target', ':', str(cpmp_trg or '-')]
     ]
 

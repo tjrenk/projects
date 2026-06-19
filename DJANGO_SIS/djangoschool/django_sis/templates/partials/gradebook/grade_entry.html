@@ -2,10 +2,11 @@
 
 {% block content %}
 <style>
-.sticky {
-    position: sticky;
+.bold {
+    font-weight: bold;
 }
 </style>
+
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
 <div>
 <div class="collapse-title text-xl font-medium">Grade Entry</div>
@@ -14,13 +15,13 @@
     <div class="w-full flex justify-center mb-8 mt-2">
         <ul class="steps w-full max-w-2xl">
             <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">
-                Select Class & Subject
+                <h1 class="{% if wizard.steps.step1 >= 1 %}bold{% endif %}">Select Class & Subject</h1>
             </li>
             <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">
-                Assign
+                <h1 class="{% if wizard.steps.step1 >= 2 %}bold{% endif %}">Assign</h1>
             </li>
             <li class="step {% if wizard.steps.step1 >= 3 %}step-primary{% endif %}">
-                Grade Input
+                <h1 class="{% if wizard.steps.step1 >= 3 %}bold{% endif %}">Grade Input</h1>
             </li>
         </ul>
     </div>
@@ -86,8 +87,8 @@
                 <div class="flex gap-10 mb-6 text-lg bg-base-200 p-3 rounded-lg">
                     <div><h3>Topic:</h3>&nbsp;<h1><strong>{{ selected_topic }}</h1></strong></div>
                     <div><h3>Date:</h3>&nbsp;<h1><strong>{{ selected_date }}</h1></strong></div>
-                    <div><h3>Type:</h3>&nbsp;<h1><strong>{{ selected_assignment_type }}</h1></strong></div>
-                    <div><h3>CPMP:</h3>&nbsp;<h1><strong>{{ selected_cpmp_target.text }}</h1></strong></div>
+                    <div><h3>Type:</h3>&nbsp;<h1><strong>{{ selected_assignment_type.name }}</h1></strong></div>
+                    <div><h3>Learning Targets:</h3>&nbsp;<h1><strong>{{ selected_cpmp_target|linebreaksbr }}</h1></strong></div>
                 </div>
                         <div class="table-responsive">
                             <table class="table table-hover table-bordered align-middle">

@@ -31,11 +31,12 @@
         </tr>
         <tr>
             <td><h3 class="font-bold">Type</h3></td>
-            <td><h3 class="font-bold">: {{ assign_type }}</h3></td>
+            <td><h3 class="font-bold">: {{ assign_type.name }}</h3></td>
         </tr>
+
         <tr>
             <td><h3 class="font-bold">Learning Targets</h3></td>
-            <td><h3 class="font-bold">: {{ cpmp_target }}</h3></td>
+            <td><h3 class="font-bold">: {{ cpmp_target|linebreaksbr }}</h3></td>
         </tr>
     </table>
 <!--<h1 class="text-2xl font-bold">{{ title }}</h1>-->
@@ -46,6 +47,7 @@
         <table class="table table-hover table-bordered align-middle">
             <thead class="table-light">
                 <tr>
+                    <th style="width: 30%;">NISN</th> {# Changed Header #}
                     <th style="width: 30%;">Student</th> {# Changed Header #}
                     <th style="width: 20%;">Score</th>
                     <th style="width: 30%;">Nonactive Details</th>
@@ -57,13 +59,14 @@
                 <tr>
                     {# HIDDEN ID: Critical for updating existing rows instead of creating new ones #}
                     {{ form.id }}
-                    
                     <td>
-                        {# This displays the Student object string representation #}
-                        {# If your Student model has a __str__ method, it shows the name #}
-                        {{ form.instance.student }} 
-                        
-                        {# Debugging: If the name is blank, check if the student ID exists #}
+                        {{ form.instance.student.id_number}}
+                        {% if not form.instance.student %}
+                           <span class="text-danger">No Student Linked</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ form.instance.student.registration_data.first_name }} {{ form.instance.student.registration_data.last_name }}
                         {% if not form.instance.student %}
                            <span class="text-danger">No Student Linked</span>
                         {% endif %}

@@ -1,4 +1,4 @@
-<option value="">Select CPMP Target</option>
+<!--<option value="">Select CPMP Target</option>-->
 {% for target in cpmp_trg %}
     <option value="{{ target.id }}"
         {% if selected_cpmp_target and target.id|stringformat:"s" == selected_cpmp_target %}selected{% endif %}>

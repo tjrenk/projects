@@ -35,7 +35,11 @@ class GradeEntryForm(forms.ModelForm):
     cpmp_target = forms.ModelMultipleChoiceField(
         queryset=CapaianPemelajaranMataPelajaran.objects.all(),
         required=True,
-        widget=forms.SelectMultiple(attrs={'class': 'checkbox checkbox-primary'}),
+        widget=forms.SelectMultiple(attrs={
+    'class': 'custom-select mb-4',
+    'size': 8,
+    'style': 'height: 220px;'
+}),
         label="Learning Target"
     )
 
@@ -96,7 +100,7 @@ class GradeEntryForm(forms.ModelForm):
         # self.fields['course'].queryset = Course.objects.none()
         # self.fields['assignment_type'].queryset = AssignmentType.objects.none()
 
-
+        self.fields['cpmp_target'].label_from_instance = lambda obj: obj.text
         # buat validasi
         if acayear:
             self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.filter(
@@ -1027,7 +1031,8 @@ class RubricEntryForm(forms.ModelForm):
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
-            self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher).distinct()
+            # self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher).distinct()
+            self.fields['kelas'].queryset = Class.objects.all()
             if is_admin and not teacher_obj:
                 self.fields['kelas'].queryset = Class.objects.all()
         else:

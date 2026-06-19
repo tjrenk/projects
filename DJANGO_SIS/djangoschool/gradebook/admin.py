@@ -48,7 +48,7 @@ class WeightingForm(forms.ModelForm):
 
 class WeightingAdmin(admin.ModelAdmin):
     list_display = ["academic_year","period","mid_sem","subject","assignment","format_percentage"]
-    list_filter = ["academic_year", "subject", "is_mid"]
+    list_filter = ["academic_year", "period", "subject", "is_mid"]
     form = WeightingForm
 
     def format_percentage(self, obj: Weighting)->decimal:
@@ -133,12 +133,21 @@ class CapaianPemelajaranLulusanAdmin(admin.ModelAdmin):
     list_filter = ["text", ]
 
 
+class CPMPForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['cpl_root'].choices = CapaianPemelajaranLulusan.objects.all().values_list('id', 'text')
+
+
 class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "level", "subject", "get_cpl_str", "text")
     list_filter = ["academic_year", "level", "subject"]
+    form = CPMPForm
     def get_cpl_str(self, obj: CapaianPemelajaranMataPelajaran)->str:
         return f"{obj.cpl_root.text}"
     get_cpl_str.short_description = "Capaian Pembelajaran Lulusan"
+
 
 
 @staff_member_required
