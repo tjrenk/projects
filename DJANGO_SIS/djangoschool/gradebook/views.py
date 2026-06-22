@@ -234,7 +234,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         """Get the homeroom class of the currently logged in teacher."""
         return Class.objects.filter(
             teacher__user=self.request.user,
-            is_home_class=True,
+            # is_home_class=True,
         ).first()
 
     def get_form_kwargs(self, step=None):
@@ -736,7 +736,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         """Get the homeroom class of the currently logged in teacher."""
         return Class.objects.filter(
             teacher__user=self.request.user,
-            is_home_class=True,
+            # is_home_class=True,
         ).first()
 
     def get_form_initial(self, step):
@@ -932,7 +932,8 @@ def get_kelas_ge(request):
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
     if teacher_id:
         # Filter classes where the teacher is the homeroom teacher
-        classes = Class.objects.filter(teacher__id=teacher_id, is_home_class=True).distinct()
+        # classes = Class.objects.filter(teacher__id=teacher_id, is_home_class=True).distinct()
+        classes = Class.objects.filter(teacher__id=teacher_id).distinct()
     else:
         classes = Class.objects.none()
     context = {
@@ -3183,5 +3184,181 @@ def print_grade_list(request, pk):
     filename = f"grade_entry_{current_course.short_name}_{parent_head.date}.pdf"
     return FileResponse(buf, as_attachment=False, filename=filename)
 
+
+class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
+    template_name = 'partials/gradebook/personal_dev.html'
+
+    form_list = [
+        ('0', PersonalDevSelectForm),
+        ('1', PersonalDevGradeForm),
+    ]
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+
+        if step == '1':
+            data0 = self.get_cleaned_data_for_step('0')
+            if not data0:
+                return kwargs  # bail out early if step 0 isn't filled yet
+
+            student = data0.get('student')
+            academic_year = data0.get('academic_year')
+            period = data0.get('period')
+            is_mid = data0.get('is_mid', False)
+
+            if not all([student, academic_year, period]):
+                kwargs['existing_instance'] = None
+                return kwargs
+
+            reportcard = StudentReportcard.objects.filter(
+                student=0,
+                academic_year=academic_year,
+                period=period,
+                is_mid=is_mid,
+            ).first()
+
+            existing = ReportcardPersonalDev.objects.filter(
+                reporcard=reportcard,
+            ).first() if reportcard else None
+
+            kwargs['existing_instance'] = existing
+
+        return kwargs
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+
+        data0 = self.get_cleaned_data_for_step('0')
+        if data0:
+            context['selected_student'] = data0.get('student')
+            context['selected_academic_year'] = data0.get('academic_year')
+            context['selected_period'] = data0.get('period')
+            context['selected_level'] = data0.get('level')
+            context['selected_is_mid'] = data0.get('is_mid')
+
+        # Pass the grouped field structure for the template to loop over
+        # Easy to update — just edit PERSONAL_DEV_FIELDS in forms.py
+        context['field_groups'] = PERSONAL_DEV_FIELDS
+
+        return context
+
+    def post(self, *args, **kwargs):
+        # Allow going back without current step validation
+        wizard_goto_step = self.request.POST.get('wizard_goto_step', None)
+        if wizard_goto_step:
+            self.storage.current_step = wizard_goto_step
+            return self.render(self.get_form())
+        return super().post(*args, **kwargs)
+
+    def done(self, form_list, **kwargs):
+        data0 = form_list[0].cleaned_data
+        student = data0['student']
+        academic_year = data0['academic_year']
+        period = data0['period']
+        level = data0['level']
+        is_mid = data0.get('is_mid', False)
+
+        with transaction.atomic():
+            # Get or create the reportcard
+            reportcard, _ = StudentReportcard.objects.get_or_create(
+                student=student,
+                academic_year=academic_year,
+                period=period,
+                is_mid=is_mid,
+                defaults={'level': level}
+            )
+
+            # Build the grade data from the form
+            grade_data = {
+                field: form_list[1].cleaned_data[field]
+                for field in form_list[1].cleaned_data
+            }
+
+            # update_or_create so re-submissions update rather than duplicate
+            ReportcardPersonalDev.objects.update_or_create(
+                reporcard=reportcard,
+                defaults=grade_data
+            )
+
+        messages.success(self.request, f"Personal development grades saved for {student}!")
+        return redirect('personal-dev-wizard')
+
+
+def get_period_pd(request):
+    # acayear_id = AcademicYear.objects.first().id
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get(
+        'academic_year')
+    selected_period = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
+    if acayear_id:
+        periods = LearningPeriod.objects.filter(Q(academic_year_id=acayear_id) & Q(period_name__icontains='semester'))
+    else:
+        periods = LearningPeriod.objects.none()
+    # context = {
+    #     'periods': periods,
+    #     'selected_period': selected_period
+    # }
+    # return render(request, "partials/gradebook/gradeentry_partials/period.html", context)
+
+    # Render period HTML as before
+    html = render_to_string("partials/gradebook/pdevelopment_partials/period.html", {
+        'periods': periods,
+        'selected_period': selected_period
+    })
+
+    # Also render level HTML for OOB update (populated if academic_year is set)
+    level_queryset = GradeLevel.objects.all() if acayear_id else GradeLevel.objects.none()
+    selected_level = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
+    level_html = render_to_string("partials/gradebook/pdevelopment_partials/level.html", {
+        'levels': level_queryset,
+        'selected_level': selected_level
+    })
+
+    # Return period HTML + OOB update for level
+    return HttpResponse(html + f'<div hx-swap-oob="innerHTML:#pd-level-select">{level_html}</div>')
+
+
+
+def get_levels_pd(request):
+    # Check for the variable name sent by the 'academic_year' field
+    # (Django form fields usually send '0-academic_year')
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+
+    if acayear_id:
+        # Load levels only if a year is selected
+        levels = GradeLevel.objects.all()
+    else:
+        levels = GradeLevel.objects.none()
+
+    context = {'levels': levels}
+    # Use your existing folder structure
+    return render(request, "partials/gradebook/pdevelopment_partials/level.html", context)
+
+def get_kelas_pd(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+    level_id = request.GET.get('0-level') or request.GET.get('level')
+    selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+    if level_id:
+        # Filter classes where the teacher is the homeroom teacher
+        # classes = Class.objects.filter(teacher__id=teacher_id, is_home_class=True).distinct()
+        classes = Class.objects.filter(teacher_id=user).distinct()
+    else:
+        classes = Class.objects.none()
+    context = {
+        'classes': classes,
+        'selected_kelas': selected_kelas
+    }
+    return render(request, "partials/gradebook/pdevelopment_partials/kelas.html", context)
+
+
+def get_student_pd(request):
+    level_id = request.GET.get('0-level') or request.GET.get('level')
+
+    if level_id:
+        student = StudentReportcard.objects.all()
+    else:
+        student = StudentReportcard.objects.none()
+    context = {'students': student}
+    return render(request, "partials/gradebook/pdevelopment_partials/student.html", context)
 
 

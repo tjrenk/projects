@@ -2155,3 +2155,151 @@ class AssignmentAvgForm(forms.Form):
         # else:
         #     self.fields['period'].queryset = LearningPeriod.objects.none()
         self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))
+
+
+PDRPT_CHOICES = [
+    (1, "Belum Melakukan"),
+    (2, "Sudah Melakukan"),
+    (3, "Biasa Melakukan"),
+]
+
+# Easy to update — just add/remove fields here
+PERSONAL_DEV_FIELDS = {
+    'Care': ['care1', 'care2', 'care3'],
+    'Respect': ['respect1', 'respect2', 'respect3', 'respect4'],
+    'Responsibility': ['responsibility1', 'responsibility2', 'responsibility3', 'responsibility4'],
+    'Excellence': ['excellence1', 'excellence2', 'excellence3', 'excellence4'],
+}
+
+class PersonalDevSelectForm(forms.Form):
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Academic Year'
+    )
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.none(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Period'
+    )
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.none(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Grade Level'
+    )
+    # kelas = forms.ModelChoiceField(
+    #     queryset=Class.objects.none(),
+    #     widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+    #     label='Class'
+    # )
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'checkbox checkbox-primary'}),
+        label='Mid Term?'
+    )
+    student = forms.ModelChoiceField(
+        queryset=StudentReportcard.objects.none(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Student'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = self.data
+        initial = self.initial
+
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        period = data.get('0-period') or initial.get('period')
+        level = data.get('0-level') or initial.get('level')
+        # kelas = data.get('0-kelas') or initial.get('kelas')
+
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(
+                academic_year_id=acayear,
+                period_name__icontains='semester'
+            )
+            self.fields['level'].queryset = GradeLevel.objects.all()
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+            self.fields['level'].queryset = GradeLevel.objects.none()
+
+        if level:
+            self.fields['student'].queryset = StudentReportcard.objects.all()
+        else:
+            self.fields['student'].queryset = StudentReportcard.objects.none()
+
+        # if kelas:
+        #     self.fields['student'].queryset = Student.objects.filter(
+        #         classmember__kelas_id=kelas,
+        #         classmember__is_active=True,
+        #     ).select_related('registration_data').distinct()
+        # else:
+        #     self.fields['student'].queryset = Student.objects.none()
+
+        # HTMX cascade
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'pd-acayear-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-pd/',
+            'hx-trigger': 'change',
+            'hx-target': '#pd-period-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'id': 'pd-period-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-levels-pd/',
+            'hx-trigger': 'change',
+            'hx-target': '#pd-level-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#pd-acayear-select',  # add this
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'pd-level-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-student-pd/',
+            'hx-trigger': 'change',
+            'hx-target': '#pd-student-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#pd-acayear-select',
+        })
+        # self.fields['kelas'].widget.attrs.update({
+        #     'id': 'pd-kelas-select',
+        #     'hx-get': '/gradebook/get-student-pd/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#pd-student-select',
+        #     'hx-swap': 'innerHTML',
+        #     'hx-include': '#pd-acayear-select',
+        # })
+        self.fields['student'].widget.attrs.update({
+            'id': 'pd-student-select',
+            'class': 'custom-select mb-4',
+        })
+
+
+class PersonalDevGradeForm(forms.ModelForm):
+    class Meta:
+        model = ReportcardPersonalDev
+        # exclude the FK — handled in done()
+        exclude = ['reporcard']
+        widgets = {
+            # RadioSelect for all choice fields — easy to change per field if needed
+            field: forms.RadioSelect(attrs={'class': 'radio radio-primary'})
+            for field in [
+                'care1', 'care2', 'care3',
+                'respect1', 'respect2', 'respect3', 'respect4',
+                'responsibility1', 'responsibility2', 'responsibility3', 'responsibility4',
+                'excellence1', 'excellence2', 'excellence3', 'excellence4',
+            ]
+        }
+
+    def __init__(self, *args, **kwargs):
+        existing_instance = kwargs.pop('existing_instance', None)
+        super().__init__(*args, **kwargs)
+
+        # If an existing record is found, pre-fill
+        if existing_instance:
+            for field_name in self.fields:
+                self.initial[field_name] = getattr(existing_instance, field_name)

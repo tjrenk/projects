@@ -71,6 +71,13 @@ urlpatterns = [
     # REPORT CARD LEDGER
     path('get_period_ledger/', views.get_period_ledger, name='get_period_ledger'),
 
+    # CHARACTER DEVELOPMENT GRADE ENTRY
+    path('personal-dev/', views.PersonalDevWizard.as_view(), name='personal-dev'),
+    path('get-period-pd/', views.get_period_pd, name='get_period_pd'),
+    path('get-kelas-pd/', views.get_kelas_pd, name='get_kelas_pd'),
+    path('get-levels-pd/', views.get_levels_pd, name='get_levels_pd'),
+    path('get-student-pd/', views.get_student_pd, name='get_student_pd'),
+
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),
     # path("finished-screen", views.finished, name="finished-screen")

@@ -1,7 +1,7 @@
 from django import template
 from django.core.paginator import Paginator
 # Adjust the import below to match where your model actually lives
-from gradebook.models import StudentAttendance 
+from gradebook.models import *
 from admission.models import *
 
 register = template.Library()
@@ -43,7 +43,8 @@ def is_homeroom_teacher(context):
     if not request.user.is_authenticated:
         return False
 
+
     return Class.objects.filter(
         teacher__user=request.user,
-        is_home_class=True
-    ).exists()
+        # is_home_class=True,
+    ).first()

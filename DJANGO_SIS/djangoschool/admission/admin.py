@@ -1,9 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import (Registration, AcademicYear, LearningPeriod,
-                     SchoolData, SchoolLevel, HeadMaster,
-                     Teacher, Student, Class, ClassMember, Religion, GradeLevel)
+from admission.models import *
 
 
 class AcademicYearAdmin(admin.ModelAdmin):
@@ -40,8 +38,8 @@ class ClassMemberInline(admin.TabularInline):
     max_num = 0
 
 class KelasAdmin(admin.ModelAdmin):
-    list_display = ["name", "academic_year", "short_name", "teacher", "count_students", "is_home_class", "is_activity"]
-    list_filter = ["academic_year", "teacher", "is_home_class", "is_activity"]
+    list_display = ["name", "academic_year", "short_name", "teacher", "count_students"]
+    list_filter = ["academic_year", "teacher"]
     search_fields = ["academic_year__class__name"]
     inlines = [ ClassMemberInline, ]
     def count_students(self, obj: Class):
@@ -61,6 +59,9 @@ class ReligionAdmin(admin.ModelAdmin):
 class GradeLevelAdmin(admin.ModelAdmin):
     list_display = ["school_level", "grade_name", "short_name"]
 
+class AnnouncementAdmin(admin.ModelAdmin):
+    list_display = ["title", "author", "is_active", "created_at", "updated_at"]
+    list_filter = ["title", "author", "is_active", "created_at", "updated_at"]
 
 
 
@@ -76,3 +77,4 @@ admin.site.register(SchoolLevel)
 admin.site.register(HeadMaster)
 admin.site.register(Religion, ReligionAdmin)
 admin.site.register(GradeLevel, GradeLevelAdmin)
+admin.site.register(Announcement, AnnouncementAdmin)

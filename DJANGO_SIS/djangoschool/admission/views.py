@@ -3,7 +3,7 @@ import io
 from multiprocessing import context
 import os
 from django.conf import settings
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
 from .forms import PersonalInfoForm, ContactInfoForm, ParentInfoForm
@@ -25,6 +25,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import logout
 from PIL import Image as PILImage
+from django.contrib import messages
 
 # Create your views here.
 def index(request):
@@ -107,8 +108,9 @@ class AdmissionView(LoginRequiredMixin, SessionWizardView):
 
         registration.save()
 
-        
-        return render(self.request, "partials/admission/finished_screen.html")
+        messages.success(self.request, "Registration saved successfully!")
+        return redirect('registration-form')
+        # return render(self.request, "partials/admission/finished_screen.html")
     
 
 from django.shortcuts import render

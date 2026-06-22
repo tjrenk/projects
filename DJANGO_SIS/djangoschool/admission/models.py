@@ -120,8 +120,8 @@ class AbstractClass(models.Model):
         abstract = True
 
 class Class(AbstractClass):
-    is_home_class = models.BooleanField(default=False)
-    is_activity = models.BooleanField(default=False)
+    # is_home_class = models.BooleanField(default=True)
+    # is_activity = models.BooleanField(default=False)
     def __str__(self):
         return self.name
 
@@ -170,6 +170,8 @@ class GradeLevel(models.Model):
 
     def __str__(self):
         return self.grade_name
+
+
 class HeadMaster(models.Model):
     school = models.ForeignKey(SchoolData, on_delete=models.CASCADE)
     level = models.ForeignKey(SchoolLevel, default=1, on_delete=models.CASCADE)
@@ -183,3 +185,23 @@ class HeadMaster(models.Model):
 
     def __str__(self):
         return f"{self.full_name}: {self.school} ({self.level})"
+
+class AnnouncementAudience(models.Model):
+    name = models.CharField(max_length=50)  # "Students", "Teachers", "Staff"
+
+class Announcement(models.Model):
+    title = models.CharField(max_length=100)
+    body = models.TextField()
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    audience = models.ManyToManyField(AnnouncementAudience, blank=True)
+    is_pinned = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    valid_until = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-is_pinned', '-created_at']
+
+    def __str__(self):
+        return self.title

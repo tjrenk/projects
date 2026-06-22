@@ -1,0 +1,104 @@
+{% extends "base_gradebook.html" %}
+{% load gradebook_tags %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Personal Development Grading</div>
+
+    <div class="w-full flex justify-center mb-8 mt-2">
+        <ul class="steps w-full max-w-2xl">
+            <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">Select Student</li>
+            <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">Grade Input</li>
+        </ul>
+    </div>
+
+    <form action="" method="post">
+        {% csrf_token %}
+        {{ wizard.management_form }}
+
+        {% if wizard.form.errors %}
+        <div class="alert alert-error mb-3">
+            <strong>Errors:</strong> {{ wizard.form.errors }}
+        </div>
+        {% endif %}
+
+        {# === STEP 1 (index '0'): Student Selection === #}
+        {% if wizard.steps.current == '0' %}
+            {% for field in wizard.form %}
+                {% if not field.is_hidden %}
+                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                    <div class="mb-1 basis-full md:flex-1">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        <div class="error">{{ field.errors }}</div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+
+        {# === STEP 2 (index '1'): Grade Input === #}
+        {% elif wizard.steps.current == '1' %}
+            {% if selected_student %}
+            <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+                <div><strong>Student:</strong> {{ selected_student }}</div>
+                <div><strong>Period:</strong> {{ selected_period }}</div>
+                <div><strong>Mid Term:</strong> {{ selected_is_mid|yesno:"Yes,No" }}</div>
+            </div>
+            {% endif %}
+
+            {# Loop over field groups — edit PERSONAL_DEV_FIELDS in forms.py to update #}
+            {% for group_name, fields in field_groups.items %}
+            <div class="card bg-base-200 p-4 mb-4 rounded-lg">
+                <h3 class="font-bold text-lg mb-3">{{ group_name }}</h3>
+                <table class="table table-bordered w-full">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%;">Indicator</th>
+                            {% for choice_val, choice_label in wizard.form.care1.field.choices %}
+                                {% if choice_val %}
+                                <th class="text-center">{{ choice_label }}</th>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for field_name in fields %}
+
+                        <tr>
+                            <td>{{ field.label }}</td>
+                            {% for choice in field %}
+                            <td class="text-center">
+                                {{ choice.tag }}
+                            </td>
+                            {% endfor %}
+                        </tr>
+
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        {# === Navigation === #}
+        <div class="flex gap-2 mt-4">
+            {% if wizard.steps.prev %}
+            <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}"
+                    class="btn btn-sm btn-secondary rounded-md">
+                &laquo; Back
+            </button>
+            {% endif %}
+
+            {% if wizard.steps.current == '1' %}
+            <button type="submit" class="btn btn-sm btn-success rounded-md">
+                Save
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-sm btn-primary rounded-md">
+                Next
+            </button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

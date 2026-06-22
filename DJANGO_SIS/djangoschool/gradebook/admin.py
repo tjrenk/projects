@@ -148,7 +148,9 @@ class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
         return f"{obj.cpl_root.text}"
     get_cpl_str.short_description = "Capaian Pembelajaran Lulusan"
 
-
+class PDRPTAdmin(admin.ModelAdmin):
+    list_display = ("reporcard", )
+    list_filter = ["reporcard", ]
 
 @staff_member_required
 def admin_statistics_view(request):
@@ -204,3 +206,4 @@ admin.site.register(ReportcardRubricTemplate, ReportcardRubricTemplateAdmin)
 admin.site.register(StudentBehaviourReport, StudentBehaviourReportAdmin)
 admin.site.register(CapaianPemelajaranLulusan, CapaianPemelajaranLulusanAdmin)
 admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelajaranAdmin)
+admin.site.register(ReportcardPersonalDev, PDRPTAdmin)

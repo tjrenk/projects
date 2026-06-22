@@ -17,6 +17,13 @@ EXTRA_CHOICES = [
     ("PD", "Pengembangan Diri"),
     ("P", "Prestasi"),
 ]
+
+PDRPT_CHOICES = [
+    (1, "Belum Melakukan"),
+    (2, "Sudah Melakukan"),
+    (3, "Biasa Melakukan"),
+]
+
 class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
@@ -41,6 +48,7 @@ class Weighting(models.Model):
 
 class Course(AbstractClass):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    is_activity = models.BooleanField(default=False)
     def __str__(self):
         return self.short_name
 
@@ -214,3 +222,22 @@ class ReportcardRubricTemplate(models.Model):
         """Fill this template's pattern using a DataEntry instance's fields."""
         return self.text
 
+
+
+class ReportcardPersonalDev(models.Model):
+    reporcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
+    care1 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    care2 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    care3 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    respect1 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    respect2 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    respect3 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    respect4 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    responsibility1 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    responsibility2 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    responsibility3 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    responsibility4 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    excellence1 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    excellence2 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    excellence3 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+    excellence4 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
