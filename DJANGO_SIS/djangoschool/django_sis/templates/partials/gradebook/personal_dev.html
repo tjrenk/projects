@@ -40,7 +40,7 @@
         {% elif wizard.steps.current == '1' %}
             {% if selected_student %}
             <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
-                <div><strong>Student:</strong> {{ selected_student }}</div>
+                <div><strong>Student:</strong> {{ selected_student.student.registration_data.first_name }}</div>
                 <div><strong>Period:</strong> {{ selected_period }}</div>
                 <div><strong>Mid Term:</strong> {{ selected_is_mid|yesno:"Yes,No" }}</div>
             </div>
@@ -62,7 +62,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for field_name in fields %}
+                        {% for field in fields %}
 
                         <tr>
                             <td>{{ field.label }}</td>

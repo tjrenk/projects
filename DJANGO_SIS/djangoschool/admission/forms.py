@@ -1,6 +1,7 @@
 from django import forms
 from django.forms import modelform_factory, formset_factory
-from .models import Registration, AbstractPerson
+from admission.models import *
+from gradebook.models import *
 
 class PersonalInfoForm(forms.ModelForm):
     class Meta:
@@ -41,5 +42,29 @@ class ParentInfoForm(forms.ModelForm):
                 cleaned_data['father_province'] = registration_instance.current_province
             
             return cleaned_data
+
+
+class AssignHomeroomAndClassForm(forms.Form):
+    student = forms.ModelChoiceField(
+        queryset=Student.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Student'
+    )
+
+    kelas = forms.ModelChoiceField(
+        queryset=Class.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Homeroom Class'
+    )
+
+    course = forms.ModelMultipleChoiceField(
+        queryset=Course.objects.all(),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'custom-select mb-4',
+            'size': 8,
+            'style': 'height: 220px;'
+        }),
+        label='Assigned Classes'
+    )
         
     

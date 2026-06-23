@@ -2200,7 +2200,8 @@ class PersonalDevSelectForm(forms.Form):
     student = forms.ModelChoiceField(
         queryset=StudentReportcard.objects.none(),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Student'
+        label='Student',
+        to_field_name='student_id'
     )
 
     def __init__(self, *args, **kwargs):
@@ -2211,7 +2212,9 @@ class PersonalDevSelectForm(forms.Form):
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         period = data.get('0-period') or initial.get('period')
         level = data.get('0-level') or initial.get('level')
-        # kelas = data.get('0-kelas') or initial.get('kelas')
+        kelas = data.get('0-kelas') or initial.get('kelas')
+
+
 
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(
@@ -2225,16 +2228,23 @@ class PersonalDevSelectForm(forms.Form):
 
         if level:
             self.fields['student'].queryset = StudentReportcard.objects.all()
+            # self.fields['student'].label_from_instance = lambda obj: obj.student.registration_data.first_name
         else:
             self.fields['student'].queryset = StudentReportcard.objects.none()
 
-        # if kelas:
-        #     self.fields['student'].queryset = Student.objects.filter(
-        #         classmember__kelas_id=kelas,
-        #         classmember__is_active=True,
-        #     ).select_related('registration_data').distinct()
-        # else:
-        #     self.fields['student'].queryset = Student.objects.none()
+        if kelas:
+            self.fields['student'].queryset = StudentReportcard.objects.filter(
+                student__classmember__kelas_id=kelas,
+                student__classmember__is_active=True,
+            ).select_related('student__registration_data').distinct()
+
+            self.fields['student'].label_from_instance = lambda obj: (
+                f"{obj.student.id_number} - "
+                f"{obj.student.registration_data.first_name} "
+                f"{obj.student.registration_data.last_name}"
+            )
+        else:
+            self.fields['student'].queryset = StudentReportcard.objects.none()
 
         # HTMX cascade
         self.fields['academic_year'].widget.attrs.update({
@@ -2295,11 +2305,39 @@ class PersonalDevGradeForm(forms.ModelForm):
             ]
         }
 
+
     def __init__(self, *args, **kwargs):
         existing_instance = kwargs.pop('existing_instance', None)
         super().__init__(*args, **kwargs)
+
+
+        self.fields['care1'].label = 'Menyapa orang lain (teman, guru, dan staff sekolah) dengan sopan'
+        self.fields['care2'].label = 'Menunjukkan sikap rendah hati (tidak pamer / sombong)'
+        self.fields['care3'].label = 'Memiliki inisiatif untuk membantu orang lain'
+
+        self.fields['respect1'].label = 'Menghormati orang lain (teman, guru, karyawan dan tamu sekolah)'
+        self.fields['respect2'].label = 'Bersedia mendengarkan pendapat orang lain'
+        self.fields['respect3'].label = 'Menggunakan kata - kata yang positif saat berinteraksi sosial'
+        self.fields['respect4'].label = 'Memperlakukan orang lain dengan baik'
+
+        self.fields['responsibility1'].label = 'Inisiatif mengerjakan tugas sekolah secara mandiri'
+        self.fields['responsibility2'].label = 'Mampu bekerja sama dalam kelompok'
+        self.fields['responsibility3'].label = 'Kooperatif dalam menjalankan tugas dari guru'
+        self.fields['responsibility4'].label = 'Mandiri mengatur waktu belajar secara mandiri'
+
+        self.fields['excellence1'].label = 'Melakukan perencanaan capaian target secara bertahap'
+        self.fields['excellence2'].label = 'Melaksanaan tindakan sesuai perencanaan yang telah dibuat'
+        self.fields['excellence3'].label = 'Menunjukkan perubahan sikap / perilaku dalam kegiatan sekolah'
+        self.fields['excellence4'].label = 'Terlibat aktif dalam segala kegiatan sekolah'
+
+
 
         # If an existing record is found, pre-fill
         if existing_instance:
             for field_name in self.fields:
                 self.initial[field_name] = getattr(existing_instance, field_name)
+                self.fields[field_name].widget.attrs.update({
+                    'class': 'radio radio-primary'
+                })
+
+

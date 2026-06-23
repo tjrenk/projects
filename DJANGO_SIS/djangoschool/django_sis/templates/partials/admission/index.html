@@ -17,6 +17,28 @@
                 <h1 style="font-size: 1.5em; text-align: center;"><strong>Total Students From Across The Schools</strong></h1>
                 <h1 style="font-size: 2.5em; text-align: center;">{{ student_count }}</h1>
             </div>
+            <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Announcements</div>
+
+    {% if announcements %}
+        {% for announcement in announcements %}
+        <div class="card bg-base-200 shadow-sm p-4 mb-3 rounded-lg">
+            <div class="flex justify-between items-start">
+                <h3 class="font-bold text-lg">{{ announcement.title }}</h3>
+                <span class="text-xs text-base-content/50">{{ announcement.created_at|date:"d M Y" }}</span>
+            </div>
+            <p class="text-sm mt-2">{{ announcement.body|linebreaksbr }}</p>
+            <div class="text-xs text-base-content/40 mt-3">
+                Posted by {{ announcement.author }}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center text-base-content/50 py-10">
+            No announcements yet.
+        </div>
+    {% endif %}
+</div>
         </div>
     </div>
 {% endblock %}

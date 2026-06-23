@@ -143,6 +143,7 @@
                             <summary><i class="fa-solid fa-users-gear"></i> Data Entry</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'registration-form' %}active{% endif %}" href="{% url 'registration-form' %}">Registration Form</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assign_class' %}active{% endif %}" href="{% url 'assign_class' %}">Assign a Homeroom Class</a></li>
                             </ul>
                         </details>
                     </li>

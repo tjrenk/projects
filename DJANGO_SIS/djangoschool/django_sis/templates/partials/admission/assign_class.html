@@ -1,0 +1,60 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Assign Homeroom & Classes</div>
+
+    <form method="post" class="mt-4">
+        {% csrf_token %}
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-4">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+
+        {% if form.errors %}
+        <div class="alert alert-error mb-4">
+            <strong>Please fix the errors below:</strong>
+            {{ form.errors }}
+        </div>
+        {% endif %}
+
+        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+            <div class="mb-1 basis-full md:flex-1">
+                {{ form.student.label_tag }}
+                {{ form.student }}
+                <div class="error">{{ form.student.errors }}</div>
+            </div>
+        </div>
+
+        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+            <div class="mb-1 basis-full md:flex-1">
+                {{ form.kelas.label_tag }}
+                {{ form.kelas }}
+                <div class="error">{{ form.kelas.errors }}</div>
+            </div>
+        </div>
+
+        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+            <div class="mb-1 basis-full md:flex-1">
+                {{ form.course.label_tag }}
+                <p class="text-xs text-base-content/60 mb-1">
+                    Hold Ctrl / Cmd to select multiple courses.
+                </p>
+                {{ form.course }}
+                <div class="error">{{ form.course.errors }}</div>
+            </div>
+        </div>
+
+        <div class="flex gap-2 mt-4">
+            <button type="submit" class="btn btn-sm btn-primary rounded-md">
+                Assign
+            </button>
+            <a href="{% url 'assign_class' %}" class="btn btn-sm btn-ghost rounded-md">
+                Reset
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

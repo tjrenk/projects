@@ -148,9 +148,16 @@ class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
         return f"{obj.cpl_root.text}"
     get_cpl_str.short_description = "Capaian Pembelajaran Lulusan"
 
+class PDRPTAdminForm(forms.ModelForm):
+    class Meta:
+        label = {
+            'care1': 'test'
+        }
+
 class PDRPTAdmin(admin.ModelAdmin):
     list_display = ("reporcard", )
     list_filter = ["reporcard", ]
+    form = PDRPTAdminForm
 
 @staff_member_required
 def admin_statistics_view(request):

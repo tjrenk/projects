@@ -6,7 +6,7 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from formtools.wizard.views import SessionWizardView
-from .forms import PersonalInfoForm, ContactInfoForm, ParentInfoForm
+from .forms import *
 from .models import *
 from .charts import months, colorPrimary, colorSuccess, colorDanger, generate_color_palette, get_year_dict
 from django.db.models.functions import ExtractYear, ExtractMonth
@@ -26,12 +26,17 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import logout
 from PIL import Image as PILImage
 from django.contrib import messages
+from django.views.generic.edit import CreateView, FormView
+from django.urls import reverse_lazy
+from django.db import transaction
 
 # Create your views here.
 def index(request):
     student_count = Student.objects.count()
+    announcements = Announcement.objects.all()
     context = {
-        'student_count': student_count
+        'student_count': student_count,
+        'announcements': announcements
     }
     return render(request, 'partials/admission/index.html', context)
 
@@ -462,3 +467,30 @@ def pdf_regist_table(request):
     response = HttpResponse(buf, content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="student_report.pdf"'
     return response
+
+class AssignHomeroomAndClass(LoginRequiredMixin, FormView):
+    form_class = AssignHomeroomAndClassForm
+    template_name = 'partials/admission/assign_class.html'
+    success_url = reverse_lazy('assign_class')
+
+    def form_valid(self, form):
+        student = form.cleaned_data['student']
+        kelas = form.cleaned_data['kelas']
+        courses = form.cleaned_data['course']
+
+        with transaction.atomic():
+            ClassMember.objects.get_or_create(
+                student=student,
+                kelas=kelas,
+                defaults={'is_active': True}
+            )
+            for course in courses:
+                CourseMember.objects.get_or_create(
+                    student=student,
+                    course=course,
+                    defaults={'is_active': True}
+                )
+
+        messages.success(self.request, f"{student} assigned successfully!")
+        return super().form_valid(form)
+

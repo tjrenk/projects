@@ -3236,9 +3236,15 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
             context['selected_level'] = data0.get('level')
             context['selected_is_mid'] = data0.get('is_mid')
 
+        if self.steps.current == '1':
+            context['field_groups'] = {
+                group_name: [form[field_name] for field_name in fields]
+                for group_name, fields in PERSONAL_DEV_FIELDS.items()
+            }
+
         # Pass the grouped field structure for the template to loop over
         # Easy to update — just edit PERSONAL_DEV_FIELDS in forms.py
-        context['field_groups'] = PERSONAL_DEV_FIELDS
+        # context['field_groups'] = PERSONAL_DEV_FIELDS
 
         return context
 
@@ -3252,7 +3258,9 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
 
     def done(self, form_list, **kwargs):
         data0 = form_list[0].cleaned_data
+        data1 = form_list[1].cleaned_data
         student = data0['student']
+        reportcard = data0['student']
         academic_year = data0['academic_year']
         period = data0['period']
         level = data0['level']
@@ -3260,13 +3268,13 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
 
         with transaction.atomic():
             # Get or create the reportcard
-            reportcard, _ = StudentReportcard.objects.get_or_create(
-                student=student,
-                academic_year=academic_year,
-                period=period,
-                is_mid=is_mid,
-                defaults={'level': level}
-            )
+            # reportcard, _ = StudentReportcard.objects.get_or_create(
+            #     # student=student,
+            #     academic_year=academic_year,
+            #     period=period,
+            #     is_mid=is_mid,
+            #     defaults={'level': level}
+            # )
 
             # Build the grade data from the form
             grade_data = {
@@ -3281,7 +3289,7 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
             )
 
         messages.success(self.request, f"Personal development grades saved for {student}!")
-        return redirect('personal-dev-wizard')
+        return redirect('personal-dev')
 
 
 def get_period_pd(request):
