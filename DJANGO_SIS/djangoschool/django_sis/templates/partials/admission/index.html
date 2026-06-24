@@ -23,22 +23,55 @@
     {% if announcements %}
         {% for announcement in announcements %}
         <div class="card bg-base-200 shadow-sm p-4 mb-3 rounded-lg">
+                            <div class="flex p-n1 mb-n1">
+                            {% if announcement.is_pinned %}
+                <i class="fa-solid fa-thumbtack flex p-4 mb-3"></i>
+                                <div class="flex p-2">Pinned Message</div>
+            {% endif %}
+                    </div>
             <div class="flex mb-4">
                     <div tabindex="0" role="button" class="btn btn-ghost btn-circle m-1">
                         <i class="fa-regular fa-user text-lg"></i>
                     </div>
-                <div class="flex p-4 mb-3">
-                    <strong>{{ announcement.author }}</strong>
+                    <div class="flex p-4 mb-3">
+                        <strong>{{ announcement.author }}</strong>
                     </div>
+
             </div>
             <div class="flex justify-between items-start">
                 <h1 class="font-bold text-xl">{{ announcement.title }}</h1>
                 <span class="text-xs text-base-content/50">{{ announcement.created_at|date:"d M Y" }}</span>
             </div>
-            <p class="text-md mt-2">{{ announcement.body|linebreaksbr }}</p>
-<!--            <div class="text-xs text-base-content/40 mt-3">-->
-<!--                Posted by {{ announcement.author }}-->
-<!--            </div>-->
+
+{% if announcement.body|wordcount > 15 %}
+<div id="short-{{ announcement.id }}">
+        <p class="text-md mt-2">
+            {{ announcement.body|truncatewords:15|linebreaksbr }}
+        </p>
+        <button onclick="
+            document.getElementById('short-{{ announcement.id }}').classList.add('hidden');
+            document.getElementById('full-{{ announcement.id }}').classList.remove('hidden');
+        " class="text-sm mt-1 font-semibold hover:underline">
+            Show More
+        </button>
+    </div>
+
+    <div id="full-{{ announcement.id }}" class="hidden">
+        <p class="text-md mt-2">
+            {{ announcement.body|linebreaksbr }}
+        </p>
+        <button onclick="
+            document.getElementById('full-{{ announcement.id }}').classList.add('hidden');
+            document.getElementById('short-{{ announcement.id }}').classList.remove('hidden');
+        " class="text-sm mt-1 font-semibold hover:underline">
+            Show Less
+        </button>
+        </div>
+        {% else %}
+        <p class="text-md mt-2">
+        {{ announcement.body|linebreaksbr }}
+        </p>
+        {% endif %}
         </div>
         {% endfor %}
     {% else %}

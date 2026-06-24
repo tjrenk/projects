@@ -1,4 +1,4 @@
-{% extends "base_gradebook.html" %}
+{% extends "base_admission.html" %}
 
 {% block content %}
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
@@ -37,11 +37,8 @@
         </div>
 
         <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-            <div class="mb-1 basis-full md:flex-1">
+            <div class="display:flex;align-items:center;gap:6px;background:#f5f7fa;border:1px solid #e0e0e0;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:13px;">
                 {{ form.course.label_tag }}
-                <p class="text-xs text-base-content/60 mb-1">
-                    Hold Ctrl / Cmd to select multiple courses.
-                </p>
                 {{ form.course }}
                 <div class="error">{{ form.course.errors }}</div>
             </div>
@@ -51,9 +48,6 @@
             <button type="submit" class="btn btn-sm btn-primary rounded-md">
                 Assign
             </button>
-            <a href="{% url 'assign_class' %}" class="btn btn-sm btn-ghost rounded-md">
-                Reset
-            </a>
         </div>
     </form>
 </div>

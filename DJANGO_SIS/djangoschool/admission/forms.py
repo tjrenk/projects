@@ -45,8 +45,9 @@ class ParentInfoForm(forms.ModelForm):
 
 
 class AssignHomeroomAndClassForm(forms.Form):
+
     student = forms.ModelChoiceField(
-        queryset=Student.objects.all(),
+        queryset=Student.objects.filter(classmember__isnull=True),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         label='Student'
     )
@@ -59,12 +60,26 @@ class AssignHomeroomAndClassForm(forms.Form):
 
     course = forms.ModelMultipleChoiceField(
         queryset=Course.objects.all(),
-        widget=forms.SelectMultiple(attrs={
-            'class': 'custom-select mb-4',
-            'size': 8,
-            'style': 'height: 220px;'
-        }),
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'custom-checkbox-list'}),
         label='Assigned Classes'
     )
-        
+
+    def clean(self):
+        cleaned_data = super().clean()
+        student = cleaned_data.get('student')
+        kelas = cleaned_data.get('kelas')
+
+        if student and kelas:
+            already_assigned = ClassMember.objects.filter(
+                student=student,
+                kelas=kelas,
+                is_active=True
+            ).exists()
+
+            if already_assigned:
+                raise forms.ValidationError(
+                    f"{student} is already assigned to {kelas}."
+                )
+
+        return cleaned_data
     

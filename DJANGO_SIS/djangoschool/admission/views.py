@@ -29,14 +29,21 @@ from django.contrib import messages
 from django.views.generic.edit import CreateView, FormView
 from django.urls import reverse_lazy
 from django.db import transaction
+from django.utils import timezone
 
 # Create your views here.
 def index(request):
     student_count = Student.objects.count()
-    announcements = Announcement.objects.all()
+    announcements = Announcement.objects.filter(is_active=1).filter(
+        Q(valid_until__isnull=True) | Q(valid_until__gte=timezone.now().date())
+    ).order_by('-is_pinned', '-created_at')
+    is_pinned = Announcement.objects.filter(is_pinned=1)
+    # is_active = Announcement.objects.filter(is_active=1)
     context = {
         'student_count': student_count,
-        'announcements': announcements
+        'announcements': announcements,
+        'is_pinned': is_pinned,
+        # 'is_active': is_active
     }
     return render(request, 'partials/admission/index.html', context)
 

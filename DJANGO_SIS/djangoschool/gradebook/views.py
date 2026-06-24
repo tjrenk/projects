@@ -33,6 +33,7 @@ from django import forms, template
 from django.template.loader import render_to_string
 from django.contrib.auth import logout
 from django.db.models.functions import Ceil
+from django.utils import timezone
 
 register = template.Library()
 
@@ -64,6 +65,12 @@ def gb_index(request):
     # average score of each student
     # score_avg = AssignmentDetail.objects.annotate(avg_score=Avg('score')).order_by('-avg_score')
     score_avg = Student.objects.annotate(avg_score=Ceil(Avg('assignmentdetail__score'))).order_by('-avg_score')
+
+    announcements = Announcement.objects.filter(is_active=1).filter(
+        Q(valid_until__isnull=True) | Q(valid_until__gte=timezone.now().date())
+    ).order_by('-is_pinned', '-created_at')
+    is_pinned = Announcement.objects.filter(is_pinned=1)
+
     return render(request, "partials/gradebook/index.html", {
         'ge': ge,
         'ah': ah,
@@ -76,6 +83,8 @@ def gb_index(request):
         'pnation_attend': pnation_attend,
         'attendance': attendance_qs,
         'request': request,
+        'announcements': announcements,
+        'is_pinned': is_pinned
     })
 
 

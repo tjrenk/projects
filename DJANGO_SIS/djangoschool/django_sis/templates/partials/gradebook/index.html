@@ -20,11 +20,11 @@
 </style>
         
     <div class="responsive">
-        {% if user.is_authenticated %}
-            <h1 style="font-size: 1.5em;"><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>
-        {% else %}
-            &nbsp;
-        {% endif %}
+<!--        {% if user.is_authenticated %}-->
+<!--            <h1 style="font-size: 1.5em;"><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>-->
+<!--        {% else %}-->
+<!--            &nbsp;-->
+<!--        {% endif %}-->
         &nbsp;
         <div class="flex-1 card card-compact bg-base-100 p-4 mb-4">
             <h1 style="font-size: 30px; text-align: center;">Students' Assignments & Exams Grades List</h1>
@@ -171,5 +171,74 @@
        </div>
        </table>
        </div>
+
+                    <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium"><h1 style="font-size: 30px; text-align: center;">Announcements</h1></div>
+
+    {% if announcements %}
+        {% for announcement in announcements %}
+        <div class="card bg-base-200 shadow-sm p-4 mb-3 rounded-lg">
+                            <div class="flex p-n1 mb-n1">
+                            {% if announcement.is_pinned %}
+                <i class="fa-solid fa-thumbtack flex p-4 mb-3"></i>
+                                <div style="font-size: 20px" class="flex p-2"><strong>Pinned Message</strong></div>
+            {% endif %}
+                    </div>
+            <div class="flex mb-4">
+                    <div tabindex="0" role="button" class="btn btn-ghost btn-circle m-1">
+                        <i class="fa-regular fa-user text-lg"></i>
+                    </div>
+                    <div class="flex p-4 mb-3">
+                        <strong>{{ announcement.author }}</strong>
+                    </div>
+
+            </div>
+            <div class="flex justify-between items-start">
+                <h1 class="font-bold text-xl">{{ announcement.title }}</h1>
+                <span class="text-xs text-base-content/50">{{ announcement.created_at|date:"d M Y" }}</span>
+            </div>
+
+            {% if announcement.body|wordcount > 15 %}
+<div id="short-{{ announcement.id }}">
+        <p class="text-md mt-2">
+            {{ announcement.body|truncatewords:15|linebreaksbr }}
+        </p>
+        <button onclick="
+            document.getElementById('short-{{ announcement.id }}').classList.add('hidden');
+            document.getElementById('full-{{ announcement.id }}').classList.remove('hidden');
+        " class="text-sm mt-1 font-semibold hover:underline">
+            Show More
+        </button>
+    </div>
+
+    <div id="full-{{ announcement.id }}" class="hidden">
+        <p class="text-md mt-2">
+            {{ announcement.body|linebreaksbr }}
+        </p>
+        <button onclick="
+            document.getElementById('full-{{ announcement.id }}').classList.add('hidden');
+            document.getElementById('short-{{ announcement.id }}').classList.remove('hidden');
+        " class="text-sm mt-1 font-semibold hover:underline">
+            Show Less
+        </button>
+        </div>
+        {% else %}
+        <p class="text-md mt-2">
+        {{ announcement.body|linebreaksbr }}
+        </p>
+        {% endif %}
+            <div class="flex text-xs mt-1 p-1 mb-1">
+<p>Last updated:  </p>  {{ announcement.updated_at }}
+                </div>
+        </div>
+
+        {% endfor %}
+    {% else %}
+        <div class="text-center text-base-content/50 py-10">
+            No announcements yet.
+        </div>
+    {% endif %}
+</div>
+        </div>
     </div>
 {% endblock %}

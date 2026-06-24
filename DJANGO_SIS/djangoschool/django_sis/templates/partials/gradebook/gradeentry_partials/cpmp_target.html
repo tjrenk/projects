@@ -1,7 +1,12 @@
-<!--<option value="">Select CPMP Target</option>-->
 {% for target in cpmp_trg %}
-    <option value="{{ target.id }}"
-        {% if selected_cpmp_target and target.id|stringformat:"s" == selected_cpmp_target %}selected{% endif %}>
-        {{ target.text }}
-    </option>
+<label class="display:flex;align-items:center;gap:6px;background:#f5f7fa;border:1px solid #e0e0e0;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:13px;">
+    <input type="checkbox"
+           name="0-cpmp_target"
+           value="{{ target.id }}"
+           class="checkbox checkbox-primary"
+           {% if target.id|stringformat:"s" in selected_cpmp_target %}checked{% endif %}>
+    <span class="text-sm">{{ target.text }}</span>
+</label>
+{% empty %}
+<p class="text-sm text-base-content/50">No learning targets found.</p>
 {% endfor %}

@@ -64,6 +64,13 @@ class AnnouncementAdmin(admin.ModelAdmin):
     list_filter = ["title", "author", "is_active", "created_at", "updated_at"]
 
 
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        # Sets the default author field to the logged-in user
+        initial['author'] = request.user.id
+        return initial
+
+
 
 admin.site.register(Registration, RegistrationAdmin)
 admin.site.register(AcademicYear, AcademicYearAdmin)

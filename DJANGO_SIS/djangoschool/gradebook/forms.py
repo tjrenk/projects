@@ -35,11 +35,7 @@ class GradeEntryForm(forms.ModelForm):
     cpmp_target = forms.ModelMultipleChoiceField(
         queryset=CapaianPemelajaranMataPelajaran.objects.all(),
         required=True,
-        widget=forms.SelectMultiple(attrs={
-    'class': 'custom-select mb-4',
-    'size': 8,
-    'style': 'height: 220px;'
-}),
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'custom-checkbox-list'}),
         label="Learning Target"
     )
 
@@ -373,7 +369,7 @@ class AttendanceForm(forms.ModelForm):
         model = StudentAttendance
         fields = ["attendance_date", "student", "attendance_type", "notes"]
         widgets = {
-            'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+            'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control cally bg-base-100 border border-base-300 shadow-lg rounded-box'})
         }
         # labels = {
         #     'attendance_date': 'Tanggal Absensi',
@@ -2194,14 +2190,13 @@ class PersonalDevSelectForm(forms.Form):
     # )
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'checkbox checkbox-primary'}),
-        label='Mid Term?'
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid Semester?"
     )
     student = forms.ModelChoiceField(
         queryset=StudentReportcard.objects.none(),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         label='Student',
-        to_field_name='student_id'
     )
 
     def __init__(self, *args, **kwargs):
@@ -2214,7 +2209,11 @@ class PersonalDevSelectForm(forms.Form):
         level = data.get('0-level') or initial.get('level')
         kelas = data.get('0-kelas') or initial.get('kelas')
 
-
+        # self.fields['student'].label_from_instance = lambda obj: (
+        #     f"{obj.student.registration_data.first_name} "
+        #     f"{obj.student.registration_data.last_name} "
+        #     f"({obj.academic_year} / {obj.period.period_name})"
+        # )
 
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(
@@ -2232,19 +2231,13 @@ class PersonalDevSelectForm(forms.Form):
         else:
             self.fields['student'].queryset = StudentReportcard.objects.none()
 
-        if kelas:
-            self.fields['student'].queryset = StudentReportcard.objects.filter(
-                student__classmember__kelas_id=kelas,
-                student__classmember__is_active=True,
-            ).select_related('student__registration_data').distinct()
-
-            self.fields['student'].label_from_instance = lambda obj: (
-                f"{obj.student.id_number} - "
-                f"{obj.student.registration_data.first_name} "
-                f"{obj.student.registration_data.last_name}"
-            )
-        else:
-            self.fields['student'].queryset = StudentReportcard.objects.none()
+        # if kelas:
+        #     self.fields['student'].queryset = StudentReportcard.objects.filter(
+        #         student__classmember__kelas_id=kelas,
+        #         student__classmember__is_active=True,
+        #     ).select_related('student__registration_data').distinct()
+        # else:
+        #     self.fields['student'].queryset = StudentReportcard.objects.none()
 
         # HTMX cascade
         self.fields['academic_year'].widget.attrs.update({
