@@ -13,7 +13,7 @@ def render_attendance_dashboard_widget(context):
 
     # 1. Fetch the data (Logic copied from your view)
     # Added .order_by('-id') so you see the newest items first
-    attendance_qs = StudentAttendance.objects.all().order_by('-id')
+    attendance_qs = StudentAttendance.objects.select_related('student').order_by('-id')
 
     # 2. Handle Pagination
     # Note: Pagination on a dashboard can be tricky if multiple widgets use it.

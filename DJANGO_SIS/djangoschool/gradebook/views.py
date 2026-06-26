@@ -40,52 +40,58 @@ register = template.Library()
 
 def gb_index(request):
     user = request.user
-    ge = GradeEntry.objects.all()
-    ah = AssignmentHead.objects.all()
-    ad = AssignmentDetail.objects.all()
-    attendance_qs = StudentAttendance.objects.all().order_by('-id')
-    ad_ahfilter = AssignmentDetail.objects.select_related('assignment_head', 'assignment_head__course', 'student')
 
-    # sort by midterms
-    midterms = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Midterm').select_related(
-        'assignment_head', 'assignment_head__course', 'student')
-
-    # sort by quizzes
-    quizzes = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Quiz').select_related(
-        'assignment_head', 'assignment_head__course', 'student')
-
-    # sort by finals
-    finals = AssignmentDetail.objects.filter(assignment_head__assignment__short_name='Finals').select_related(
-        'assignment_head', 'assignment_head__course', 'student')
-
-    pnation = Paginator(attendance_qs, 15)
-    page = request.GET.get('page')
-    pnation_attend = pnation.get_page(page)
-
-    # average score of each student
-    # score_avg = AssignmentDetail.objects.annotate(avg_score=Avg('score')).order_by('-avg_score')
-    score_avg = Student.objects.annotate(avg_score=Ceil(Avg('assignmentdetail__score'))).order_by('-avg_score')
-
-    announcements = Announcement.objects.filter(is_active=1).filter(
+    # shared across all roles
+    announcements = Announcement.objects.filter(
+        is_active=True,
+    ).filter(
         Q(valid_until__isnull=True) | Q(valid_until__gte=timezone.now().date())
-    ).order_by('-is_pinned', '-created_at')
-    is_pinned = Announcement.objects.filter(is_pinned=1)
+    ).select_related('author').order_by('-is_pinned', '-created_at')
 
-    return render(request, "partials/gradebook/index.html", {
-        'ge': ge,
-        'ah': ah,
-        'ad': ad,
-        'ad_ahfilter': ad_ahfilter,
-        'midterms': midterms,
-        'quizzes': quizzes,
-        'finals': finals,
-        'score_avg': score_avg,
-        'pnation_attend': pnation_attend,
-        'attendance': attendance_qs,
+    context = {
         'request': request,
         'announcements': announcements,
-        'is_pinned': is_pinned
-    })
+    }
+
+    # role detection
+    teacher = Teacher.objects.filter(user=user).select_related('user').first()
+    # is_homeroom = Class.objects.filter(
+    #     teacher=teacher, is_home_class=True
+    # ).exists() if teacher else False
+
+    if user.is_staff or user.is_superuser:
+        # admin view — summary counts only, no heavy querysets
+        context.update({
+            'rpcard': ReportcardGrade.objects.select_related(
+            'reportcard__student__registration_data', 'subject'
+        ).order_by('-final_score').distinct()[:10],
+            'student_count': Student.objects.filter(is_active=True).count(),
+            'teacher_count': Teacher.objects.count(),
+            'attendance_recent': StudentAttendance.objects.select_related('student__registration_data').order_by('-attendance_date')[:10],
+        })
+
+    elif teacher:
+        # teacher view
+        context['teacher'] = teacher
+        # context['is_homeroom'] = is_homeroom
+        #
+        # if is_homeroom:
+        #     homeroom = Class.objects.filter(
+        #         teacher=teacher, is_home_class=True
+        #     ).prefetch_related('classmember_set__student').first()
+        #     context['homeroom_class'] = homeroom
+
+        # only fetch recent attendance for their students
+        context['attendance_recent'] = StudentAttendance.objects.select_related('student__registration_data').order_by('-attendance_date').distinct()[:10]
+
+        # recent grades for their courses
+        context['rpcard'] = ReportcardGrade.objects.filter(
+            reportcard__student__coursemember__course__teacher=teacher
+        ).select_related(
+            'reportcard__student__registration_data', 'subject'
+        ).order_by('-final_score').distinct()[:10]
+
+    return render(request, "partials/gradebook/index.html", context)
 
 
 def logout_view(request):
@@ -159,26 +165,26 @@ def attendance(request):  # musti di cek ini kefilter berdasarkan guru apa kgk l
     return render(request, 'partials/gradebook/attendance.html', context)
 
 
-@register.inclusion_tag('partials/gradebook/attendance_list.html', takes_context=True)
-def attendance_list(request):
-    attendance = StudentAttendance.objects.all()
-
-    pnation = Paginator(StudentAttendance.objects.all(), 15)  # Show 10 aktivitas per page
-    page = request.GET.get('page')
-    pnation_attend = pnation.get_page(page)
-
-    context = {
-        'attendance': attendance,
-        'pnation_attend': pnation_attend
-    }
-
-    return render(request, 'partials/gradebook/attendance_list.html', context)
+# @register.inclusion_tag('partials/gradebook/attendance_list.html', takes_context=True)
+# def attendance_list(request):
+#     attendance = StudentAttendance.objects.select_related('student')
+#
+#     pnation = Paginator(attendance, 15)  # Show 10 aktivitas per page
+#     page = request.GET.get('page')
+#     pnation_attend = pnation.get_page(page)
+#
+#     context = {
+#         'attendance': attendance,
+#         'pnation_attend': pnation_attend
+#     }
+#
+#     return render(request, 'partials/gradebook/attendance_list.html', context)
 
 
 def attendance_list_admin(request):
-    attendance = StudentAttendance.objects.all()
+    attendance = StudentAttendance.objects.select_related('student')
 
-    pnation = Paginator(StudentAttendance.objects.all(), 15)  # Show 10 aktivitas per page
+    pnation = Paginator(attendance, 15)  # Show 10 aktivitas per page
     page = request.GET.get('page')
     pnation_attend = pnation.get_page(page)
 
@@ -852,7 +858,7 @@ def get_levels_ge(request):
 
     if acayear_id:
         # Load levels only if a year is selected
-        levels = GradeLevel.objects.all()
+        levels = GradeLevel.objects.select_related('school_level')
     else:
         levels = GradeLevel.objects.none()
 
@@ -910,7 +916,7 @@ def get_period_ge(request):
     })
 
     # Also render level HTML for OOB update (populated if academic_year is set)
-    level_queryset = GradeLevel.objects.all() if acayear_id else GradeLevel.objects.none()
+    level_queryset = GradeLevel.objects.select_related('school_level') if acayear_id else GradeLevel.objects.none()
     selected_level = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
     level_html = render_to_string("partials/gradebook/gradeentry_partials/level.html", {
         'levels': level_queryset,
@@ -1325,31 +1331,29 @@ def get_period_ledger(request):
 @login_required
 def ge_table(request):
     user = request.user
-    teach = Teacher.objects.filter(user=user).first()
-    ge = GradeEntry.objects.all()
-    # ah = AssignmentHead.objects.all()
-    ad = AssignmentDetail.objects.all()
+    teacher = Teacher.objects.filter(user=user).first()
 
-    if teach:
-        ah = AssignmentHead.objects.filter(course__teacher=teach).order_by('-date')
+    if teacher:
+        ah = AssignmentHead.objects.filter(
+            course__teacher=teacher
+        ).select_related(
+            'course__subject', 'course__teacher', 'assignment'
+        ).order_by('-date')
     else:
-        ah = AssignmentHead.objects.all().order_by('-date')
+        ah = AssignmentHead.objects.select_related(
+            'course__subject', 'course__teacher', 'assignment'
+        ).order_by('-date')
 
-    pnation = Paginator(ah, 15)  # Show 10 aktivitas per page
-    page = request.GET.get('page')
-    pnation_ah = pnation.get_page(page)
+    pnation = Paginator(ah, 15)
+    pnation_ah = pnation.get_page(request.GET.get('page'))
 
-    context_table = {
-        'ge': ge,
+    return render(request, 'partials/gradebook/grade_entry_table.html', {
         'ah': ah,
-        'ad': ad,
-        'pnation_ah': pnation_ah
-    }
-
-    return render(request, 'partials/gradebook/grade_entry_table.html', context_table)
+        'pnation_ah': pnation_ah,
+    })
 
 
-from .models import AssignmentDetail, CourseMember
+# from .models import AssignmentDetail, CourseMember
 
 
 # INGET YA ID ASSIGNMENTDETAIL != ID ASSIGNMENTHEAD PANTES DRTD NGACO MULU QUERYSETNYA
@@ -1435,23 +1439,26 @@ def ge_edit(request, pk):
 
 def ge_del(request, pk):
     ahead = get_object_or_404(AssignmentHead, pk=pk)
+    cpmp_trg = '\n'.join(target.text for target in ahead.cpmp_target.all())
+    # topic = ahead.topic
     if request.method == 'POST':
         ahead.delete()
         return redirect('grade-entry-table')
 
     # For a GET request, show the empty form
     # form = PelanggaranForm()
-    # context = {
-    #     'form': form,
-    # }
-    return render(request, 'partials/gradebook/grade_entry_delconf.html')
+    context = {
+        'ahead': ahead,
+        'cpmp_target': cpmp_trg
+    }
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', context)
 
 
 @login_required
 def tc_table(request):
-    src = StudentReportcard.objects.all()
+    src = StudentReportcard.objects.select_related('student').filter(ht_comment__isnull=False)
 
-    pnation = Paginator(StudentReportcard.objects.all(), 15)  # Show 10 aktivitas per page
+    pnation = Paginator(src, 15)  # Show 10 aktivitas per page
     page = request.GET.get('page')
     pnation_src = pnation.get_page(page)
 
@@ -1467,9 +1474,13 @@ def tc_table(request):
 def tc_edit(request, pk):
     # 1. Get the reference detail to find the 'Head' assignment
     # target_detail = get_object_or_404(AssignmentDetail, pk=pk)
+    user = request.user
     parent_head = get_object_or_404(StudentReportcard, pk=pk)
     selected_student = parent_head.student
     selected_ismid = parent_head.is_mid
+    selected_acayear = parent_head.academic_year
+    selected_period = parent_head.period
+
 
     # # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
     # # This fixes the issue where only 1 student shows up.
@@ -1489,7 +1500,7 @@ def tc_edit(request, pk):
 
     # 3. Create the Queryset containing ALL students for this assignment
     # We order by student ID (or name if available) to keep the list stable
-    queryset = StudentReportcard.objects.filter(student=selected_student, is_mid=selected_ismid)
+    queryset = StudentReportcard.objects.filter(student=selected_student, is_mid=selected_ismid, academic_year=selected_acayear, period=selected_period)
 
     # 4. Define the Formset
     class OptionalGradeForm(forms.ModelForm):
@@ -1900,8 +1911,10 @@ class ExtraReportWizard(LoginRequiredMixin, SessionWizardView):
             if not kelas:
                 return initial
 
-            members = ClassMember.objects.filter(
-                kelas=kelas,
+            act_subj = data0.get('subject')
+
+            members = CourseMember.objects.filter(
+                course=kelas,
                 is_active=True,
             ).select_related('student__registration_data')
 
@@ -2274,9 +2287,9 @@ def get_kelas_extra(request):
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
     if teacher_id:
         # Filter classes where the teacher is the homeroom teacher
-        classes = Class.objects.filter(teacher__id=teacher_id, is_activity=True).distinct()
+        classes = Course.objects.filter(is_activity=True, teacher=teacher_id)
     else:
-        classes = Class.objects.none()
+        classes = Course.objects.none()
     context = {
         'classes': classes,
         'selected_kelas': selected_kelas
@@ -2294,9 +2307,13 @@ def get_level_extra(request):
 def get_act_subj(request):
     kelas_id = request.GET.get('0-kelas') or request.GET.get('kelas')
     selected_extra_info = request.GET.get('0-subject') or request.GET.get('subject')
+    selected_course = request.GET.get('0-course') or request.GET.get('course')
     if kelas_id:
         # Filter classes where the teacher is the homeroom teacher
-        subject = Subject.objects.filter(is_activity=True)
+        subject = Subject.objects.filter(
+            course__id=kelas_id,
+            is_activity=True
+        )
     else:
         subject = Subject.objects.none()
     context = {
@@ -3370,12 +3387,234 @@ def get_kelas_pd(request):
 
 def get_student_pd(request):
     level_id = request.GET.get('0-level') or request.GET.get('level')
+    is_mid_status = request.GET.get('0-is_mid') or request.GET.get('is_mid')
+    is_mid = is_mid_status in ('on', 'True', 'true', '1')
+    period_id = request.GET.get('0-period') or request.GET.get('period')
 
-    if level_id:
-        student = StudentReportcard.objects.all()
-    else:
-        student = StudentReportcard.objects.none()
+    student = StudentReportcard.objects.select_related('student').filter(
+        is_mid=is_mid, period_id=period_id
+    )
     context = {'students': student}
     return render(request, "partials/gradebook/pdevelopment_partials/student.html", context)
 
+@login_required
+def pdev_table(request):
+    srpc = ReportcardPersonalDev.objects.select_related('reporcard')
 
+    pnation = Paginator(srpc, 15)
+    pnation_srpc = pnation.get_page(request.GET.get('page'))
+
+    return render(request, 'partials/gradebook/personal_dev_table.html', {
+        'srpc': srpc,
+        'pnation_srpc': pnation_srpc,
+    })
+
+
+@login_required
+def pdev_edit(request, pk):
+    instance = get_object_or_404(
+        ReportcardPersonalDev.objects.select_related(
+            'reporcard__student__registration_data',
+            'reporcard__period',
+            'reporcard__academic_year',
+            'reporcard__level',
+        ),
+        pk=pk
+    )
+    reportcard = instance.reporcard
+
+    all_fields = [
+        field
+        for fields in PERSONAL_DEV_FIELDS.values()
+        for field in fields
+    ]
+
+    PersonalDevFormSet = modelformset_factory(
+        ReportcardPersonalDev,
+        fields=all_fields,
+        extra=0,
+        widgets={
+            field: forms.RadioSelect(attrs={'class': 'radio radio-primary'})
+            for field in all_fields
+        }
+    )
+
+    queryset = ReportcardPersonalDev.objects.filter(pk=pk)
+
+    if request.method == 'POST':
+        formset = PersonalDevFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Personal development grades updated!")
+            return redirect('pd-edit', pk=pk)
+    else:
+        formset = PersonalDevFormSet(queryset=queryset)
+
+    # apply labels and build field groups from the single form in the formset
+    form = formset.forms[0]
+    label_map = {
+        'care1': 'Menunjukkan kepedulian terhadap sesama',
+        'care2': 'Membantu teman yang membutuhkan',
+        'care3': 'Peka terhadap lingkungan sekitar',
+        'respect1': 'Menghormati guru dan staff',
+        'respect2': 'Menghargai pendapat orang lain',
+        'respect3': 'Bersikap sopan dalam berkomunikasi',
+        'respect4': 'Menghormati perbedaan',
+        'responsibility1': 'Mengerjakan tugas tepat waktu',
+        'responsibility2': 'Bertanggung jawab atas tindakannya',
+        'responsibility3': 'Menjaga kebersihan kelas',
+        'responsibility4': 'Aktif dalam kegiatan kelas',
+        'excellence1': 'Berusaha memberikan yang terbaik',
+        'excellence2': 'Tidak mudah menyerah',
+        'excellence3': 'Menyelesaikan pekerjaan dengan baik',
+        'excellence4': 'Memiliki inisiatif tinggi',
+    }
+    for field_name, label in label_map.items():
+        if field_name in form.fields:
+            form.fields[field_name].label = label
+
+    field_groups = {
+        group_name: [form[field_name] for field_name in fields]
+        for group_name, fields in PERSONAL_DEV_FIELDS.items()
+    }
+
+    return render(request, 'partials/gradebook/personal_dev_edit.html', {
+        'formset': formset,
+        'form': form,
+        'instance': instance,
+        'reportcard': reportcard,
+        'field_groups': field_groups,
+    })
+
+def print_pdev_pdf(request, pk):
+    instance = get_object_or_404(
+        ReportcardPersonalDev.objects.select_related(
+            'reporcard__student__registration_data',
+            'reporcard__period',
+            'reporcard__academic_year',
+            'reporcard__level',
+        ),
+        pk=pk
+    )
+    reportcard = instance.reporcard
+    student = reportcard.student
+    reg = student.registration_data
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        topMargin=2*cm,
+        bottomMargin=2*cm,
+        leftMargin=2*cm,
+        rightMargin=2*cm,
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'Title', parent=styles['Normal'],
+        fontSize=14, fontName='Times-Bold',
+        alignment=TA_CENTER, spaceAfter=4,
+    )
+    subtitle_style = ParagraphStyle(
+        'Subtitle', parent=styles['Normal'],
+        fontSize=10, fontName='Times-Roman',
+        alignment=TA_CENTER, spaceAfter=4,
+    )
+    group_style = ParagraphStyle(
+        'Group', parent=styles['Normal'],
+        fontSize=10, fontName='Helvetica-Bold',
+        spaceAfter=4, spaceBefore=8,
+    )
+
+    flowables = []
+
+    # header
+    flowables.append(Paragraph("Personal Development Report", title_style))
+    flowables.append(Paragraph(
+        f"{reg.first_name} {reg.last_name} — {reportcard.academic_year} / {reportcard.period.period_name}",
+        subtitle_style
+    ))
+    flowables.append(Spacer(1, 0.3*cm))
+
+    # meta info
+    meta_data = [
+        ['Student', ':', f"{reg.first_name} {reg.last_name}"],
+        ['ID Number', ':', student.id_number],
+        ['Academic Year', ':', str(reportcard.academic_year)],
+        ['Period', ':', reportcard.period.period_name],
+        ['Level', ':', str(reportcard.level)],
+        ['Mid Term', ':', 'Yes' if reportcard.is_mid else 'No'],
+    ]
+    meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    flowables.append(meta_table)
+    flowables.append(Spacer(1, 0.5*cm))
+
+    # choice labels for header
+    choice_labels = [label for val, label in PDRPT_CHOICES]
+
+    # one table per group
+    for group_name, field_names in PERSONAL_DEV_FIELDS.items():
+        flowables.append(Paragraph(group_name, group_style))
+
+        table_data = [['Indicator'] + choice_labels]
+
+        for field_name in field_names:
+            value = getattr(instance, field_name)
+            label_map = {
+                'care1': 'Menunjukkan kepedulian terhadap sesama',
+                'care2': 'Membantu teman yang membutuhkan',
+                'care3': 'Peka terhadap lingkungan sekitar',
+                'respect1': 'Menghormati guru dan staff',
+                'respect2': 'Menghargai pendapat orang lain',
+                'respect3': 'Bersikap sopan dalam berkomunikasi',
+                'respect4': 'Menghormati perbedaan',
+                'responsibility1': 'Mengerjakan tugas tepat waktu',
+                'responsibility2': 'Bertanggung jawab atas tindakannya',
+                'responsibility3': 'Menjaga kebersihan kelas',
+                'responsibility4': 'Aktif dalam kegiatan kelas',
+                'excellence1': 'Berusaha memberikan yang terbaik',
+                'excellence2': 'Tidak mudah menyerah',
+                'excellence3': 'Menyelesaikan pekerjaan dengan baik',
+                'excellence4': 'Memiliki inisiatif tinggi',
+            }
+
+            # then in the loop
+            for field_name in field_names:
+                value = getattr(instance, field_name)
+                label = label_map.get(field_name, field_name)  # fallback to field_name if not found
+                row = [label]
+                for choice_val, _ in PDRPT_CHOICES:
+                    row.append('✓' if value == choice_val else ' ')
+                table_data.append(row)
+
+        col_widths = [9*cm] + [2.5*cm] * len(PDRPT_CHOICES)
+        table = Table(table_data, colWidths=col_widths)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a4a4a')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        flowables.append(table)
+        flowables.append(Spacer(1, 0.3*cm))
+
+    doc.build(flowables)
+    buf.seek(0)
+
+    filename = f"pd_{reg.first_name}_{reg.last_name}_{reportcard.period.period_name}.pdf"
+    return FileResponse(buf, as_attachment=True, filename=filename)

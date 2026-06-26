@@ -153,7 +153,7 @@
                                 {% endif %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rubric-entry' %}active{% endif %}" href="{% url 'rubric-entry' %}">Student Behaviour</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'extra-report' %}active{% endif %}" href="{% url 'extra-report' %}">Extracurricular Grade</a></li>
-                                <li><a class="nav-link {% if request.resolver_match.url_name == 'personal-dev' %}active{% endif %}" href="{% url 'personal-dev' %}">Character Development Grade</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'personal-dev' %}active{% endif %}" href="{% url 'personal-dev' %}">Personal Development Grade</a></li>
 <!--                                <li><a href="{% url 'grades-wizard' %}">Grades Wizard</a></li>-->
 
                             </ul>
@@ -177,6 +177,7 @@
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card-table' %}active{% endif %}" href="{% url 'report-card-table' %}">Teacher's Comments</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'pdev-table' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>
 <!--                                {% if user.is_staff %}-->
 <!--                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>-->
 <!--                                {% endif %}-->

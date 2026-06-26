@@ -7,10 +7,16 @@
             <div class="main-content h-full max-md:p-3 p-5 pt-2 pb-0">
                 <div class="card bg-base-100 shadow-md lg:p-6 p-3">
                     <div class="card-header">
-                        <h2 class="mb-0">Confirm Delete</h2>
+                        <h2 class="mb-0"><strong>Are you sure you want to delete this grade entry data?</strong></h2>
                     </div>
                     <div class="card-body">
-                        <p>Apakah anda yakin ingin membuang data ini?</p>
+                        <p></p>
+                        <ul>
+                            <li><strong>Topic: {{ ahead.topic }}</strong></li>
+                            <li><strong>Date: {{ ahead.date }}</strong></li>
+                            <li><strong>Max Score: {{ ahead.max_score }}</strong></li>
+<!--                            <li><strong>Learning Targets: {{ ahead.cpmp_target|linebreaksbr }}</strong></li>-->
+                        </ul>
                         
                         <form method="post" class="mt-4">
                             {% csrf_token %}

@@ -369,7 +369,7 @@ class AttendanceForm(forms.ModelForm):
         model = StudentAttendance
         fields = ["attendance_date", "student", "attendance_type", "notes"]
         widgets = {
-            'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control cally bg-base-100 border border-base-300 shadow-lg rounded-box'})
+            'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control cally bg-base-100 border border-base-300 rounded-box'})
         }
         # labels = {
         #     'attendance_date': 'Tanggal Absensi',
@@ -1261,10 +1261,10 @@ class ExtraGradeItemForm(forms.ModelForm):
     )
 
     kelas = forms.ModelChoiceField(
-        queryset=Class.objects.all(),
+        queryset=Course.objects.all(),
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Class'
+        label='Extracurricular Class'
     )
 
     act_subj = forms.ModelChoiceField(
@@ -1323,9 +1323,9 @@ class ExtraGradeItemForm(forms.ModelForm):
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
-            self.fields['kelas'].queryset = Class.objects.all()
+            self.fields['kelas'].queryset = Course.objects.all()
         else:
-            self.fields['kelas'].queryset = Class.objects.none()
+            self.fields['kelas'].queryset = Course.objects.none()
 
         # HTMX Attributes for dynamic cascading
         self.fields['academic_year'].widget.attrs.update({
@@ -1372,6 +1372,7 @@ class ExtraGradeItemForm(forms.ModelForm):
         self.fields['act_subj'].widget.attrs.update({
             'id': 'extra-type-select',
             'class': 'custom-select mb-4',
+            'hx-include': '#rubric-kelas-select',
         })
 
 class ExtraGradeForm(forms.Form):
@@ -2208,6 +2209,7 @@ class PersonalDevSelectForm(forms.Form):
         period = data.get('0-period') or initial.get('period')
         level = data.get('0-level') or initial.get('level')
         kelas = data.get('0-kelas') or initial.get('kelas')
+        is_mid = data.get('0-is_mid') or initial.get('is_mid')
 
         # self.fields['student'].label_from_instance = lambda obj: (
         #     f"{obj.student.registration_data.first_name} "
@@ -2276,6 +2278,17 @@ class PersonalDevSelectForm(forms.Form):
         #     'hx-swap': 'innerHTML',
         #     'hx-include': '#pd-acayear-select',
         # })
+
+        self.fields['is_mid'].widget.attrs.update({
+            'id': 'pd-is-mid',
+            'class': 'form-control',
+            'hx-get': '/gradebook/get-student-pd/',
+            'hx-trigger': 'change',
+            'hx-target': '#pd-student-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#pd-acayear-select, #pd-kelas-select, #pd-is-mid, #pd-period-select',   # include itself
+        })
+
         self.fields['student'].widget.attrs.update({
             'id': 'pd-student-select',
             'class': 'custom-select mb-4',

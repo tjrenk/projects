@@ -77,6 +77,9 @@ urlpatterns = [
     path('get-kelas-pd/', views.get_kelas_pd, name='get_kelas_pd'),
     path('get-levels-pd/', views.get_levels_pd, name='get_levels_pd'),
     path('get-student-pd/', views.get_student_pd, name='get_student_pd'),
+    path('pdev-table/', views.pdev_table, name='pdev-table'),
+    path('pdev-edit/<int:pk>', views.pdev_edit, name='pdev-edit'),
+    path('pdev-print/<int:pk>', views.print_pdev_pdf, name='pdev-print'),
 
     # LEAVE THIS COMMENTED, JUST IN CASE
     # path('reportcard_summary/', views.report_card_summary, name='reportcard_summary'),

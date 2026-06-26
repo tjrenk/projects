@@ -20,52 +20,48 @@
 </style>
         
     <div class="responsive">
-<!--        {% if user.is_authenticated %}-->
-<!--            <h1 style="font-size: 1.5em;"><strong>Hello, {{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong></h1>-->
-<!--        {% else %}-->
-<!--            &nbsp;-->
-<!--        {% endif %}-->
+
         &nbsp;
-        <div class="flex-1 card card-compact bg-base-100 p-4 mb-4">
-            <h1 style="font-size: 30px; text-align: center;">Students' Assignments & Exams Grades List</h1>
-            {% comment %} <div class="card bg-base-100 w-full card-bordered flex-col flex-1 "> {% endcomment %}
-            <div class="card bg-base-100 w-full card-bordered flex-col flex-1">
-                <div class="overflow-auto max-h-[60vh]">
-                    <table class="table table-sm border border-base-200 table-auto">
-                        <thead class="bg-base-300 text-gray-950">
-                            <tr>
-                                <th>NISN</th>
-                                <th>Name</th>
-                                <th>Class</th>
-                                <th>Assignment Type</th>
-                                <th>Subject</th>
-                                <th>Sub-level</th>
-                                <th>Topic</th>
-                                <th>Score</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for record in ad_ahfilter|slice:"5" %}
-                            <tr>
-                                <td>{{ record.student.nisn }}</td>
-                                <td>{{ record.student.registration_data.first_name }} {{ record.student.registration_data.last_name }}</td>
-                                <td>{{ record.student.registration_data.class_name }}</td>
-                                <td>{{ record.assignment_head.assignment.name }}</td>
-                                <td>{{ record.assignment_head.course.subject.subject_name }}</td>
-                                <td>{{ record.assignment_head.course.name }}</td>
-                                <td>{{ record.assignment_head.topic }}</td>
-                                <td>{{ record.score }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="8">No gradebook records available.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            </div>
+<!--        <div class="flex-1 card card-compact bg-base-100 p-4 mb-4">-->
+<!--            <h1 style="font-size: 30px; text-align: center;">Students' Assignments & Exams Grades List</h1>-->
+<!--            {% comment %} <div class="card bg-base-100 w-full card-bordered flex-col flex-1 "> {% endcomment %}-->
+<!--            <div class="card bg-base-100 w-full card-bordered flex-col flex-1">-->
+<!--                <div class="overflow-auto max-h-[60vh]">-->
+<!--                    <table class="table table-sm border border-base-200 table-auto">-->
+<!--                        <thead class="bg-base-300 text-gray-950">-->
+<!--                            <tr>-->
+<!--                                <th>NISN</th>-->
+<!--                                <th>Name</th>-->
+<!--                                <th>Class</th>-->
+<!--                                <th>Assignment Type</th>-->
+<!--                                <th>Subject</th>-->
+<!--                                <th>Sub-level</th>-->
+<!--                                <th>Topic</th>-->
+<!--                                <th>Score</th>-->
+<!--                            </tr>-->
+<!--                        </thead>-->
+<!--                        <tbody>-->
+<!--                            {% for record in ad_ahfilter|slice:"5" %}-->
+<!--                            <tr>-->
+<!--                                <td>{{ record.student.nisn }}</td>-->
+<!--                                <td>{{ record.student.registration_data.first_name }} {{ record.student.registration_data.last_name }}</td>-->
+<!--                                <td>{{ record.student.registration_data.class_name }}</td>-->
+<!--                                <td>{{ record.assignment_head.assignment.name }}</td>-->
+<!--                                <td>{{ record.assignment_head.course.subject.subject_name }}</td>-->
+<!--                                <td>{{ record.assignment_head.course.name }}</td>-->
+<!--                                <td>{{ record.assignment_head.topic }}</td>-->
+<!--                                <td>{{ record.score }}</td>-->
+<!--                            </tr>-->
+<!--                            {% empty %}-->
+<!--                            <tr>-->
+<!--                                <td colspan="8">No gradebook records available.</td>-->
+<!--                            </tr>-->
+<!--                            {% endfor %}-->
+<!--                        </tbody>-->
+<!--                    </table>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            </div>-->
         </div>
 
             &nbsp;
@@ -82,12 +78,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                    {% for record in score_avg|slice:"3" %}
+                    {% for record in rpcard|slice:"3" %}
                         <tr>
-                            <td>{{ record.registration_data.nisn }}</td>
-                            <td>{{ record.registration_data.first_name }} {{ record.registration_data.last_name }}</td>
-                            <td>{{ record.registration_data.class_name }}</td>
-                            <td class="font-bold">{{ record.avg_score|default:"N/A" }}</td>
+                            <td>{{ record.reportcard.student.registration_data.nisn }}</td>
+                            <td>{{ record.reportcard.student.registration_data.first_name }} {{ record.reportcard.student.registration_data.last_name }}</td>
+                            <td>{{ record.reportcard.student.registration_data.class_name }}</td>
+                            <td class="font-bold">{{ record.final_score|default:"N/A" }}</td>
                         </tr>
                     {% endfor %}
                     </tbody>
@@ -125,7 +121,7 @@
             </thead>
             <tbody>
                 <tr>
-                {% for att in pnation_attend %}
+                {% for att in attendance_recent %}
                     <td>{{ att.attendance_date }}</td>
                     <td>{{ att.student }}</td>
                     <td>{{ att.attendance_type }}</td>

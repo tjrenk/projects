@@ -1,0 +1,67 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="flex justify-between items-center mb-4">
+        <div class="collapse-title text-xl font-medium">Edit Personal Development Grade</div>
+        <a href="{% url 'pdev-print' pk=instance.pk %}"
+           class="btn btn-sm btn-outline rounded-md">
+            <i class="fa-solid fa-file-pdf"></i> Download PDF
+        </a>
+    </div>
+
+    <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+        <div><strong>Student:</strong> {{ reportcard.student.registration_data.first_name }} {{ reportcard.student.registration_data.last_name }}</div>
+        <div><strong>Period:</strong> {{ reportcard.period }}</div>
+        <div><strong>Mid Term:</strong> {{ reportcard.is_mid|yesno:"Yes,No" }}</div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="alert alert-error mb-4">
+            <strong>Errors:</strong> {{ form.errors }}
+        </div>
+        {% endif %}
+
+        {% for group_name, fields in field_groups.items %}
+        <div class="card bg-base-200 p-4 mb-4 rounded-lg">
+            <h3 class="font-bold text-lg mb-3">{{ group_name }}</h3>
+            <table class="table table-bordered w-full">
+                <thead>
+                    <tr>
+                        <th style="width: 40%;">Indicator</th>
+                        {% for choice_val, choice_label in fields.0.field.choices %}
+                            {% if choice_val %}
+                            <th class="text-center">{{ choice_label }}</th>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for field in fields %}
+                    <tr>
+                        <td>{{ field.label }}</td>
+                        {% for choice in field %}
+                        <td class="text-center">{{ choice.tag }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <div class="flex gap-2 mt-4">
+            <button type="submit" class="btn btn-sm btn-success rounded-md">
+                Save
+            </button>
+            <a href="{% url 'pdev-table' %}"
+               class="btn btn-sm btn-ghost rounded-md">
+                Back
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

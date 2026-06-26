@@ -10,17 +10,29 @@ from django.urls import path
 
 
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ["subject_name", "short_name"]
+    list_display = ["subject_name", "is_activity", "short_name"]
 
 class CourseMemberInLine(admin.TabularInline):
     model = CourseMember
-    fields = ("is_active", "na_date", "na_reason")
-    max_num = 0
+    fields = ("student", "is_active", "na_date", "na_reason")
+    max_num = 1
 
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ["short_name", "academic_year", 'get_teacher_name']
+    list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name']
     inlines = [ CourseMemberInLine, ]
     search_fields = ["name"]
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Target the specific ForeignKey field you want to filter
+        if db_field.name == "subject":
+            # Filter choices to show only active categories
+            kwargs["queryset"] = Subject.objects.filter(is_activity=True)
+
+            # Optional: Filter based on the currently logged-in admin user
+            # if not request.user.is_superuser:
+            #     kwargs["queryset"] = kwargs["queryset"].filter(owner=request.user)
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_teacher_name(self, obj):
         return f"{obj.teacher.first_name} {obj.teacher.last_name}"

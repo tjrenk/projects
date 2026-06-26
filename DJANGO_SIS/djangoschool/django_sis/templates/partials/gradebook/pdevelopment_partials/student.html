@@ -1,4 +1,4 @@
 <option value="">Select a Student</option>
 {% for student in students %}
-    <option value="{{ student.id }}">{{ student }}</option>
+    <option value="{{ student.id }}">{{ student.student.registration_data.first_name }} {{ student.student.registration_data.last_name }}, Period {{ student.period }}, Midsemester {{ student.is_mid }}</option>
 {% endfor %}

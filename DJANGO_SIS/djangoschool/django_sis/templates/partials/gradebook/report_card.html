@@ -10,10 +10,10 @@
         <div class="w-full flex justify-center mb-8 mt-2">
         <ul class="steps w-full max-w-2xl">
             <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">
-                Select Academic Year
+                <h1 class="{% if wizard.steps.step1 >= 1 %}bold{% endif %}">Select Academic Year</h1>
             </li>
             <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">
-                Input Comment
+                <h1 class="{% if wizard.steps.step1 >= 2 %}bold{% endif %}">Input Comment</h1>
             </li>
         </ul>
     </div>
@@ -70,43 +70,43 @@
                                         <th style="width: 30%;">Comment</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {% for form in wizard.form.forms %}
-                                    <tr>
-<!--                                        {% for hidden in form.hidden_fields %}-->
-<!--                                            {{ hidden }}-->
-<!--                                        {% endfor %}-->
-                                        
-                                        <td>
-                                            {{ form.initial.student_name }}
-                                        </td>
+<tbody>
+    {% if wizard.form.non_form_errors %}
+        <tr>
+            <td colspan="2">
+                <div class="alert alert-error text-red-500">
+                    {{ wizard.form.non_form_errors }}
+                </div>
+            </td>
+        </tr>
+    {% endif %}
 
-                                        {% comment %} <td>
-                                            {% comment %} {{ form.student_name }}
-                                            {% comment %} {{ form.subject_name }}
-                                        </td> {% endcomment %}
+    {% for form in wizard.form.forms %}
+    <tr>
+        {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+        {% endfor %}
 
-<!--                                        <td>-->
-<!--                                        <div style="width: 80px; ">-->
-<!--                                            {{ form.final_score }}-->
-<!--                                            {% if form.final_score.errors %}-->
-<!--                                                <div class="text-danger small">{{ form.final_score.errors }}</div>-->
-<!--                                            {% endif %}-->
-<!--                                        </div>-->
-<!--                                        </td>-->
+        <td>
+            {{ form.initial.student_name }}
 
-<!--                                        <td>-->
-<!--                                        <div style="width: 65px; ">-->
-<!--                                            {{ form.initial.student_name }}-->
-<!--                                        </div>-->
-<!--                                        </td>-->
+            {% if form.student_id and not form.student_id.is_hidden %}
+                <div class="hidden">{{ form.student_id }}</div>
+            {% endif %}
 
-                                        <td>
-                                            {{ form.ht_comment }}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
+            {% if form.errors %}
+                <div class="text-red-500 text-xs mt-1">
+                    {{ form.errors }}
+                </div>
+            {% endif %}
+        </td>
+
+        <td>
+            {{ form.ht_comment }}
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
                             </table>
                         </div>
                     {% else %}
