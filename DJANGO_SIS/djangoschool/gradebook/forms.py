@@ -588,11 +588,11 @@ class StudentReportcardForm(forms.ModelForm):
         # label='Level Pembelajaran'
     )
 
-    # kelas = forms.ModelChoiceField(
-    #     queryset=Class.objects.all(),
-    #     widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'}),
-    #     label='Kelas'
-    # )
+    kelas = forms.ModelChoiceField(
+        queryset=Class.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'}),
+        label='Class'
+    )
 
     class Meta:
         model = StudentReportcard
@@ -614,9 +614,20 @@ class StudentReportcardForm(forms.ModelForm):
         data = self.data
         initial = self.initial
 
+        is_staff = user and (user.is_staff or user.is_superuser)
+
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         level = data.get('0-level') or initial.get('level')
         period = data.get('0-period') or initial.get('period')
+
+        if not is_staff and user:
+            # homeroom teacher — lock to their class, hide the field
+            kelas = Class.objects.filter(teacher__user=user).first()
+            if kelas:
+                self.fields['kelas'].initial = kelas.id
+                self.fields['kelas'].widget = forms.HiddenInput()
+                self.fields['kelas'].required = False
+
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year=acayear)
         else:

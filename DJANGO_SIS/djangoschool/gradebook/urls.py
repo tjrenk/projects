@@ -31,7 +31,7 @@ urlpatterns = [
     # TEACHER COMMENTS / REPORT CARD
     path("report-card", views.ReportCardForm.as_view(), name="report-card"),
     path('report-card-table', views.tc_table, name='report-card-table'),
-    path('tc-edit/<int:pk>', views.tc_edit, name='tc-edit'),
+    path('tc-view/<int:pk>', views.tc_view, name='tc-view'),
     path('tc-del/<int:pk>', views.tc_del, name='tc-del'),
     path('get-level-reportcard/', views.get_level_reportcard, name='get_level_reportcard'),
     path('get-period-reportcard/', views.get_period_reportcard, name='get_period_reportcard'), 

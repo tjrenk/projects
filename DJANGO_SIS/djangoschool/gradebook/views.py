@@ -748,16 +748,17 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         return kwargs
 
     def _get_homeroom_class(self):
-        """Get the homeroom class of the currently logged in teacher."""
-        return Class.objects.filter(
-            teacher__user=self.request.user,
-            # is_home_class=True,
-        ).first()
+        user = self.request.user
+        if user.is_staff:
+            return Class.objects.all()
+        else:
+            return Class.objects.filter(teacher__user=user).first()
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
 
         if step == '1':
+            user = self.request.user
             data0 = self.get_cleaned_data_for_step('0')
             homeroom_class = self._get_homeroom_class()
 
@@ -768,11 +769,41 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             period = data0.get('period')
             is_mid = data0.get('is_mid')
             level = data0.get('level')
+            kelas = data0.get('kelas')
 
-            members = ClassMember.objects.filter(
-                kelas=homeroom_class,
-                is_active=True,
-            ).select_related('student__registration_data')
+            # admin/staff uses kelas from step 0
+            # homeroom teacher is locked to their own class
+            if user.is_staff or user.is_superuser:
+                kelas = data0.get('kelas')
+                if not kelas:
+                    return initial
+                members = ClassMember.objects.filter(
+                    kelas=kelas,
+                    is_active=True,
+                ).select_related('student__registration_data')
+            else:
+                homeroom_class = Class.objects.filter(
+                    teacher__user=user
+                ).first()
+                if not homeroom_class:
+                    return initial
+                members = ClassMember.objects.filter(
+                    kelas=homeroom_class,
+                    is_active=True,
+                ).select_related('student__registration_data')
+
+            # batch fetch existing reportcards to avoid N+1
+            student_ids = [m.student_id for m in members]
+            existing_reportcards = {
+                rc.student_id: rc
+                for rc in StudentReportcard.objects.filter(
+                    student_id__in=student_ids,
+                    academic_year=academic_year,
+                    period=period,
+                    is_mid=is_mid,
+                )
+            }
+
 
             initial_list = []
             for member in members:
@@ -1471,7 +1502,7 @@ def tc_table(request):
 
 
 @login_required
-def tc_edit(request, pk):
+def tc_view(request, pk):
     # 1. Get the reference detail to find the 'Head' assignment
     # target_detail = get_object_or_404(AssignmentDetail, pk=pk)
     user = request.user
@@ -3590,7 +3621,7 @@ def print_pdev_pdf(request, pk):
             # then in the loop
             for field_name in field_names:
                 value = getattr(instance, field_name)
-                label = label_map.get(field_name, field_name)  # fallback to field_name if not found
+                label = label_map.get(field_name)  # fallback to field_name if not found
                 row = [label]
                 for choice_val, _ in PDRPT_CHOICES:
                     row.append('✓' if value == choice_val else ' ')
@@ -3617,4 +3648,4 @@ def print_pdev_pdf(request, pk):
     buf.seek(0)
 
     filename = f"pd_{reg.first_name}_{reg.last_name}_{reportcard.period.period_name}.pdf"
-    return FileResponse(buf, as_attachment=True, filename=filename)
+    return FileResponse(buf, as_attachment=False, filename=filename)
