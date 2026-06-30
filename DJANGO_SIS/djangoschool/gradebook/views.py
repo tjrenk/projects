@@ -53,11 +53,25 @@ def gb_index(request):
         'announcements': announcements,
     }
 
-    # role detection
-    teacher = Teacher.objects.filter(user=user).select_related('user').first()
-    # is_homeroom = Class.objects.filter(
-    #     teacher=teacher, is_home_class=True
-    # ).exists() if teacher else False
+    if user.is_authenticated:
+        teacher = Teacher.objects.filter(user=user).select_related('user').first()
+    else:
+        teacher = None
+
+    context = {
+        'request': request,
+        # other shared context
+    }
+
+    # if teacher:
+    #     # teacher-specific context
+    #     pass
+    # elif user.is_authenticated and (user.is_staff or user.is_superuser):
+    #     # admin context
+    #     pass
+    # else:
+    #     # student / anonymous context
+    #     pass
 
     if user.is_staff or user.is_superuser:
         # admin view — summary counts only, no heavy querysets
@@ -69,6 +83,12 @@ def gb_index(request):
             'teacher_count': Teacher.objects.count(),
             'attendance_recent': StudentAttendance.objects.select_related('student__registration_data').order_by('-attendance_date')[:10],
         })
+
+        context['announcements'] = Announcement.objects.filter(
+            is_active=True,
+        ).filter(
+            Q(valid_until__isnull=True) | Q(valid_until__gte=timezone.now().date())
+        ).select_related('author').order_by('-is_pinned', '-created_at')
 
     elif teacher:
         # teacher view
@@ -83,6 +103,11 @@ def gb_index(request):
 
         # only fetch recent attendance for their students
         context['attendance_recent'] = StudentAttendance.objects.select_related('student__registration_data').order_by('-attendance_date').distinct()[:10]
+        context['announcements'] = Announcement.objects.filter(
+            is_active=True,
+        ).filter(
+            Q(valid_until__isnull=True) | Q(valid_until__gte=timezone.now().date())
+        ).select_related('author').order_by('-is_pinned', '-created_at')
 
         # recent grades for their courses
         context['rpcard'] = ReportcardGrade.objects.filter(
@@ -90,6 +115,17 @@ def gb_index(request):
         ).select_related(
             'reportcard__student__registration_data', 'subject'
         ).order_by('-final_score').distinct()[:10]
+
+    else:
+        context['rpcard'] = ReportcardGrade.objects.select_related(
+            'reportcard__student__registration_data', 'subject'
+        ).order_by('-final_score').distinct()[:10]
+
+        context['announcements'] = Announcement.objects.filter(
+        is_active=True,
+    ).filter(
+        Q(valid_until__isnull=True) | Q(valid_until__gte=timezone.now().date())
+    ).select_related('author').order_by('-is_pinned', '-created_at')
 
     return render(request, "partials/gradebook/index.html", context)
 
@@ -904,11 +940,12 @@ def get_teachers(request):
 
     if period_id:
         teachers = Teacher.objects.filter(user=user).all()
+        if user.is_staff:
+            teachers = Teacher.objects.all()
     else:
         teachers = Teacher.objects.none()
-
-    # Use 'items' or 'teachers' consistently with your partial template
-    return render(request, "partials/gradebook/gradeentry_partials/teacher.html", {'teachers': teachers})
+    context = {'teachers': teachers}
+    return render(request, "partials/gradebook/gradeentry_partials/teacher.html", context)
 
 
 def get_courses(request):
@@ -963,7 +1000,7 @@ def get_subjects_ge(request):
     selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
     if teacher_id:
         # subjects = Subject.objects.filter(course__coursemember__student__coursemember__course__coursemember__course__teacher__id=teacher_id).distinct()
-        subjects = Subject.objects.filter(course__teacher__id=teacher_id).distinct()
+        subjects = Subject.objects.filter(course__teacher__id=teacher_id, is_activity=False).distinct()
     else:
         subjects = Subject.objects.none()
     context = {
@@ -990,11 +1027,12 @@ def get_kelas_ge(request):
 
 
 def get_courses_ge(request):
+    print(request.GET)
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get('academic_year')
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
     selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
     if subject_id and acayear_id:
-        courses = Course.objects.filter(academic_year=acayear_id, subject=subject_id)
+        courses = Course.objects.filter(subject=subject_id, academic_year=acayear_id)
     else:
         courses = Course.objects.none()
     context = {
@@ -2308,6 +2346,8 @@ def get_teachers_extra(request):
 
     if period_id:
         teachers = Teacher.objects.filter(user=user).all()
+        if user.is_staff:
+            teachers = Teacher.objects.all()
     else:
         teachers = Teacher.objects.none()
     context = {'teachers': teachers}

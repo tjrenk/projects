@@ -116,10 +116,14 @@ class GradeEntryForm(forms.ModelForm):
 
 
         # 3. Logic: Teacher depends on Period
+        # if period:
+        #     self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
+        #     if user.is_staff:
+        #         self.fields['teacher'].queryset = Teacher.objects.all()
+        # else:
+        #     self.fields['teacher'].queryset = Teacher.objects.none()
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
-            if is_admin and not teacher_obj:
-                self.fields['teacher'].queryset = Teacher.objects.all()
+            self.fields['teacher'].queryset = Teacher.objects.all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
@@ -216,6 +220,7 @@ class GradeEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#course-select-ge',
             'hx-swap': 'innerHTML',
+            'hx-include': '#acayear-select-ge, #subject-select-ge'
         })
 
         # --- 5. ASSIGNMENT TYPE ---
@@ -1028,11 +1033,16 @@ class RubricEntryForm(forms.ModelForm):
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
+        print(f"user: {user}, is_staff: {user.is_staff if user else 'NO USER'}")
+
         # Teacher depends on Period
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.filter(user=user)
-            if is_admin and not teacher_obj:
+            if user.is_staff==True:
                 self.fields['teacher'].queryset = Teacher.objects.all()
+            elif user:
+                self.fields['teacher'].queryset = Teacher.objects.filter(user=user)
+            else:
+                self.fields['teacher'].queryset = Teacher.objects.none()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
@@ -1321,7 +1331,7 @@ class ExtraGradeItemForm(forms.ModelForm):
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear,
                                                                            period_name__icontains='semester')
-            if is_admin and not teacher_obj:
+            if user.is_staff:
                 self.fields['period'].queryset = LearningPeriod.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
