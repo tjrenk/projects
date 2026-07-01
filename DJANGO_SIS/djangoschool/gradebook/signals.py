@@ -1,6 +1,7 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade, StudentBehaviourReport, ReportcardRubricTemplate, StudentReportExtra
+from admission.models import AcademicYear, Registration, ClassMember, Student
 
 from django.db.models.functions import Replace
 from django.db.models import Value
@@ -151,6 +152,14 @@ def tambah_record_rubriksiswa(sender, instance, created, **kwargs):
         
         pass
 
+def student_nis_nisn_gen(sender, instance, **kwargs):
+    if not instance.nisn:
+        form_no = instance.form_no[:3]
+        pob = instance.place_of_birth[:3]
+        instance.nisn = f"{form_no}{pob}"
+
+
+
 #untuk tabel subject saat hendak dan setelah disimpan
 pre_save.connect(make_shortname, Subject)
 post_save.connect(new_subject, Subject)
@@ -170,3 +179,5 @@ pre_save.connect(set_rubric_grade, StudentBehaviourReport)
 pre_save.connect(set_rubric_desc, StudentBehaviourReport)
 
 pre_save.connect(set_extra_grade, StudentReportExtra)
+
+pre_save.connect(student_nis_nisn_gen, Registration)

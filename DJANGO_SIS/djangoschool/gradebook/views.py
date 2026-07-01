@@ -75,6 +75,8 @@ def gb_index(request):
 
     if user.is_staff or user.is_superuser:
         # admin view — summary counts only, no heavy querysets
+
+
         context.update({
             'rpcard': ReportcardGrade.objects.select_related(
             'reportcard__student__registration_data', 'subject'
@@ -856,7 +858,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                 initial_list.append({
                     'student_id': student.id,
                     'student_name': f"{student.id_number} - {student.registration_data.first_name} {student.registration_data.last_name}",
-                    'ht_comment': existing_reportcard.ht_comment if existing_reportcard else '',
+                    'ht_comment': existing_reportcard.ht_comment if existing_reportcard else None,
                 })
 
             return initial_list
@@ -1525,7 +1527,9 @@ def ge_del(request, pk):
 
 @login_required
 def tc_table(request):
-    src = StudentReportcard.objects.select_related('student').filter(ht_comment__isnull=False)
+    src = StudentReportcard.objects.filter(ht_comment__isnull=False).exclude(
+        ht_comment=""
+    ).select_related('student').distinct()
 
     pnation = Paginator(src, 15)  # Show 10 aktivitas per page
     page = request.GET.get('page')
@@ -1609,7 +1613,8 @@ def tc_view(request, pk):
 def tc_del(request, pk):
     src = get_object_or_404(StudentReportcard, pk=pk)
     if request.method == 'POST':
-        src.delete()
+        src.ht_comment = None
+        src.save()
         return redirect('report-card-table')
 
     # For a GET request, show the empty form
@@ -1717,8 +1722,8 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
                 behaviour__is_mid=False
             ).values_list('student_id', flat=True).distinct()
 
-            students = ClassMember.objects.filter(
-                kelas=data0['kelas'],
+            students = CourseMember.objects.filter(
+                course=data0['kelas'],  # kelas now holds a Course instance
                 is_active=True
             ).select_related('student')
 
@@ -1751,17 +1756,13 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         if self.steps.current == '1':
             data_step0 = self.get_cleaned_data_for_step('0')
             if data_step0:
-                context['selected_kelas'] = data_step0.get('kelas')
+                context['selected_kelas'] = data_step0.get('kelas')  # actual selected Course instance
 
         if self.steps.current == '0':
-            acayear = AcademicYear.objects.all()
-            period = LearningPeriod.objects.all().select_related('academic_year')
-            kelas = Class.objects.all()
-            level = GradeLevel.objects.all()
-            context['selected_acayear'] = acayear
-            context['selected_period'] = period
-            context['selected_kelas'] = kelas
-            context['selected_level'] = level
+            context['selected_acayear'] = AcademicYear.objects.all()
+            context['selected_period'] = LearningPeriod.objects.all().select_related('academic_year')
+            context['selected_kelas'] = Course.objects.all().select_related('subject')  # Course not Class
+            context['selected_level'] = GradeLevel.objects.all()
 
         return context
 
@@ -1812,26 +1813,16 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 
 
 def get_kelas_rubric(request):
-    # class_id = request.GET.get('class_id')
-    # if class_id:
-    #     kelas = Class.objects.filter(id=class_id)
-    # else:
-    #     kelas = Class.objects.none()
-    #
-    # return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", {'kelas': kelas})
     teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
     if teacher_id:
-        # Filter classes where the teacher is the homeroom teacher
-        # classes = Class.objects.filter(teacher__id=teacher_id).distinct()
-        classes = Class.objects.all()
+        classes = Course.objects.filter(teacher_id=teacher_id).select_related('subject')
     else:
-        classes = Class.objects.none()
-    context = {
-        'classes': classes,
+        classes = Course.objects.none()
+    return render(request, "partials/gradebook/gradeentry_partials/kelas.html", {
+        'kelas_list': classes,  # ← match the template's variable name
         'selected_kelas': selected_kelas
-    }
-    return render(request, "partials/gradebook/gradeentry_partials/kelas.html", context)
+    })
 
 # def get_kelas_rubric(request):
 #     rubric.existing_score = existing_scores.get(rubric.id, None)

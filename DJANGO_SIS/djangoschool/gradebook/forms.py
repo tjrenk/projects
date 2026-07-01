@@ -978,12 +978,12 @@ class RubricEntryForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         # label='Nama Guru'
     )
-    
+
     kelas = forms.ModelChoiceField(
-        queryset=Class.objects.all(),
+        queryset=Course.objects.none(),  # starts empty, populated by HTMX
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Class'
+        label='Course'
     )
 
 
@@ -1048,12 +1048,13 @@ class RubricEntryForm(forms.ModelForm):
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
-            # self.fields['kelas'].queryset = Class.objects.filter(teacher__id=teacher).distinct()
-            self.fields['kelas'].queryset = Class.objects.all()
-            if is_admin and not teacher_obj:
-                self.fields['kelas'].queryset = Class.objects.all()
+            self.fields['kelas'].queryset = Course.objects.filter(
+                teacher_id=teacher
+            ).select_related('subject')
+            if is_admin:
+                self.fields['kelas'].queryset = Course.objects.all().select_related('subject')
         else:
-            self.fields['kelas'].queryset = Class.objects.none()
+            self.fields['kelas'].queryset = Course.objects.none()
 
         # HTMX Attributes for dynamic cascading
         self.fields['academic_year'].widget.attrs.update({
@@ -1082,9 +1083,9 @@ class RubricEntryForm(forms.ModelForm):
         self.fields['teacher'].widget.attrs.update({
             'id': 'rubric-teacher-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-kelas-ge/',
+            'hx-get': '/gradebook/get-courses-assignment-avg/',
             'hx-trigger': 'change',
-            'hx-target': '#rubric-kelas-select',
+            'hx-target': '#assignment-avg-course-select',
             'hx-swap': 'innerHTML',
         })
 

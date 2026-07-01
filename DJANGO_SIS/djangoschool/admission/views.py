@@ -34,6 +34,10 @@ from django.utils import timezone
 # Create your views here.
 def index(request):
     student_count = Student.objects.count()
+    teacher_count = Teacher.objects.count()
+    classes_count = Class.objects.count()
+    subject_count = Subject.objects.count()
+    courses_count = Course.objects.count()
     announcements = Announcement.objects.filter(is_active=1).filter(
         Q(valid_until__isnull=True) | Q(valid_until__gte=timezone.now().date())
     ).order_by('-is_pinned', '-created_at')
@@ -41,6 +45,10 @@ def index(request):
     # is_active = Announcement.objects.filter(is_active=1)
     context = {
         'student_count': student_count,
+        'teacher_count': teacher_count,
+        'classes_count': classes_count,
+        'subject_count': subject_count,
+        'courses_count': courses_count,
         'announcements': announcements,
         'is_pinned': is_pinned,
         # 'is_active': is_active

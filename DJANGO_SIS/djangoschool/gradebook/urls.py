@@ -44,6 +44,7 @@ urlpatterns = [
     # RUBRIC ENTRY
     path('rubric-entry/', views.RubricEntryWizard.as_view(), name="rubric-entry"),
     path('student-behavior-grading/<int:pk>', views.student_behavior_grading, name='student-behavior-grading'),
+    path('get-kelas-rubric/', views.get_kelas_rubric, name='get-kelas-rubric'),
 
     # EXTRA REPORT
     path('extra-report/', views.ExtraReportWizard.as_view(), name='extra-report'),
