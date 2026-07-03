@@ -61,7 +61,8 @@ class AssignHomeroomAndClassForm(forms.Form):
     course = forms.ModelMultipleChoiceField(
         queryset=Course.objects.all(),
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'custom-checkbox-list'}),
-        label='Assigned Classes'
+        label='Assign a Class',
+        required=False
     )
 
     def clean(self):

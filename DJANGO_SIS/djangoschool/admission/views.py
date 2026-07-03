@@ -157,7 +157,7 @@ def logout_view(request):
 # Add this new view for student counts per grade level
 def get_student_counts(request):
     year = request.GET.get('year')
-    queryset = ClassMember.objects.filter(is_active=True)
+    queryset = ClassMember.objects.filter(is_active=True).select_related('student')
     if year:
         queryset = queryset.filter(kelas__academic_year__year=year, kelas__is_home_class=True)
     counts = queryset.values('kelas__name').annotate(count=Count('student')).order_by('kelas__name')
@@ -173,7 +173,7 @@ def get_student_counts(request):
 @login_required
 def regist_table(request):
     # 1. Start with all students
-    student_list = Student.objects.all().order_by('nisn') # Ordering is important for pagination
+    student_list = Student.objects.all().select_related('registration_data')# .order_by('nisn') # Ordering is important for pagination
 
     # 2. Get the filter values from the URL (GET parameters)
     # These will be 'None' if the user hasn't filtered yet

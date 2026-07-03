@@ -35,7 +35,7 @@ urlpatterns = [
     path('tc-del/<int:pk>', views.tc_del, name='tc-del'),
     path('get-level-reportcard/', views.get_level_reportcard, name='get_level_reportcard'),
     path('get-period-reportcard/', views.get_period_reportcard, name='get_period_reportcard'), 
-    path('rcard-ledger/', views.ReportCardGradeSummary.as_view(), name='rcard-ledger'),
+
 
 
 
@@ -70,7 +70,10 @@ urlpatterns = [
     path('get-period-tgrade/', views.get_period_tgrade, name='get-period_tgrade'),
 
     # REPORT CARD LEDGER
+    path('rcard-ledger/', views.ReportCardGradeSummary.as_view(), name='rcard-ledger'),
+    path('rcard-ledger-alt/', views.grade_ledger, name='rcard-ledger-alt'),
     path('get_period_ledger/', views.get_period_ledger, name='get_period_ledger'),
+
 
     # CHARACTER DEVELOPMENT GRADE ENTRY
     path('personal-dev/', views.PersonalDevWizard.as_view(), name='personal-dev'),

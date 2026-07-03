@@ -178,6 +178,16 @@ class GradeEntryForm(forms.ModelForm):
             'hx-include': '#period-select-ge' # Use ID selector for safety
         })
 
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#acayear-select-ge, #subject-select-ge'
+        })
+
         # --- 3. LEVEL (The Listener) ---
         # "I will update myself whenever Academic Year changes"
         self.fields['level'].widget.attrs.update({
@@ -213,15 +223,6 @@ class GradeEntryForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
         })
 
-        self.fields['subject'].widget.attrs.update({
-            'id': 'subject-select-ge',
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses-ge/',
-            'hx-trigger': 'change',
-            'hx-target': '#course-select-ge',
-            'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #subject-select-ge'
-        })
 
         # --- 5. ASSIGNMENT TYPE ---
         self.fields['assignment_type'].widget.attrs.update({
@@ -339,7 +340,7 @@ class AttendanceForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['student'].queryset = Student.objects.all()
+        self.fields['student'].queryset = Student.objects.all().select_related('registration_data')
         
         if user and hasattr(user, 'teacher'):
                 # get current Teacher.user
@@ -778,78 +779,78 @@ class ReportCardGradeForm(forms.Form):  # plain Form, not ModelForm
 ReportCardGradeFormset = formset_factory(ReportCardGradeForm, extra=0)
 
 
-class RequestLogForm(BaseReportForm, forms.Form):
-    subject_name = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
-    )
-
-    student_name = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
-    )
-    
-
-    # This must be required=False, as you haven't entered a score yet
-    final_score = forms.DecimalField(required=False, max_digits=5, decimal_places=2, initial=0) 
-    
-    # This must be required=False, as you haven't entered a grade yet
-    final_grade = forms.ChoiceField(choices=FINAL_GRADE_CHOICES, required=False) 
-    
-    # Hidden field for the Subject ID: MUST NOT BE required=True
-    subject = forms.ModelChoiceField(queryset=Subject.objects.all(), required=False)
-
-    teacher_notes = forms.CharField(
-        widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
-        required=False
-    )
-
-    def __init__(self, *args, subject_queryset=None, **kwargs):
-        object().__init__(*args, **kwargs)
-
-        # Apply a filtered queryset when provided (passed via formset form_kwargs)
-        if subject_queryset:
-            self.fields['subject'].queryset = subject_queryset
-        else:
-            self.fields['subject'].queryset = Subject.objects.all()
-
-        # UI tweaks
-        # Keep the subject value submitted: use readonly/display field for name
-        self.fields['subject'].widget.attrs.pop('disabled', None)
-        self.fields['subject'].widget.attrs['readonly'] = True
-        self.fields['subject'].widget.attrs['class'] = 'form-control bg-light'
-
-        self.fields['final_score'].widget.attrs.pop('disabled', None)
-        self.fields['final_score'].widget.attrs['readonly'] = True
-        self.fields['final_score'].widget.attrs['class'] = 'form-control bg-light'
-
-        self.fields['final_grade'].disabled = True
-        self.fields['final_grade'].widget.attrs['readonly'] = True
-        # self.fields['final_grade'].widget.attrs['class'] = 'form-control bg-light'
-
-        # Populate subject_name for display if initial data exists
-        if self.initial.get('subject'):
-            try:
-                subj = Subject.objects.get(pk=self.initial['subject'])
-                self.fields['subject_name'].initial = subj.subject_name
-            except Subject.DoesNotExist:
-                pass
-
-        # Populate student_name for display if initial data exists
-        if self.initial.get('student_name'):
-            self.fields['student_name'].initial = self.initial['student_name']
-
-    class Meta:
-        model = ReportcardGrade
-        fields = ['student_name', 'subject', 'final_score', 'final_grade', 'teacher_notes']
-        widgets = {
-            'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-            'subject': forms.HiddenInput(),
-            'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
-            'final_grade': forms.Select(attrs={'class': 'form-select'}),
-            'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
-        }
-        exclude = ('reportcard',)
+# class RequestLogForm(BaseReportForm, forms.Form):
+#     subject_name = forms.CharField(
+#         required=False,
+#         widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
+#     )
+#
+#     student_name = forms.CharField(
+#         required=False,
+#         widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext fw-bold'})
+#     )
+#
+#
+#     # This must be required=False, as you haven't entered a score yet
+#     final_score = forms.DecimalField(required=False, max_digits=5, decimal_places=2, initial=0)
+#
+#     # This must be required=False, as you haven't entered a grade yet
+#     final_grade = forms.ChoiceField(choices=FINAL_GRADE_CHOICES, required=False)
+#
+#     # Hidden field for the Subject ID: MUST NOT BE required=True
+#     subject = forms.ModelChoiceField(queryset=Subject.objects.all(), required=False)
+#
+#     teacher_notes = forms.CharField(
+#         widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Notes...'}),
+#         required=False
+#     )
+#
+#     def __init__(self, *args, subject_queryset=None, **kwargs):
+#         object().__init__(*args, **kwargs)
+#
+#         # Apply a filtered queryset when provided (passed via formset form_kwargs)
+#         if subject_queryset:
+#             self.fields['subject'].queryset = subject_queryset
+#         else:
+#             self.fields['subject'].queryset = Subject.objects.all()
+#
+#         # UI tweaks
+#         # Keep the subject value submitted: use readonly/display field for name
+#         self.fields['subject'].widget.attrs.pop('disabled', None)
+#         self.fields['subject'].widget.attrs['readonly'] = True
+#         self.fields['subject'].widget.attrs['class'] = 'form-control bg-light'
+#
+#         self.fields['final_score'].widget.attrs.pop('disabled', None)
+#         self.fields['final_score'].widget.attrs['readonly'] = True
+#         self.fields['final_score'].widget.attrs['class'] = 'form-control bg-light'
+#
+#         self.fields['final_grade'].disabled = True
+#         self.fields['final_grade'].widget.attrs['readonly'] = True
+#         # self.fields['final_grade'].widget.attrs['class'] = 'form-control bg-light'
+#
+#         # Populate subject_name for display if initial data exists
+#         if self.initial.get('subject'):
+#             try:
+#                 subj = Subject.objects.get(pk=self.initial['subject'])
+#                 self.fields['subject_name'].initial = subj.subject_name
+#             except Subject.DoesNotExist:
+#                 pass
+#
+#         # Populate student_name for display if initial data exists
+#         if self.initial.get('student_name'):
+#             self.fields['student_name'].initial = self.initial['student_name']
+#
+#     class Meta:
+#         model = ReportcardGrade
+#         fields = ['student_name', 'subject', 'final_score', 'final_grade', 'teacher_notes']
+#         widgets = {
+#             'student_name': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+#             'subject': forms.HiddenInput(),
+#             'final_score': forms.NumberInput(attrs={'class': 'form-control'}),
+#             'final_grade': forms.Select(attrs={'class': 'form-select'}),
+#             'teacher_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1}),
+#         }
+#         exclude = ('reportcard',)
 
 
 # Formset for ReportCardGradeForm
@@ -887,26 +888,28 @@ class RequestLogForm(BaseReportForm, forms.Form):
         widget=forms.CheckboxInput()
     )
 
-
-
     def __init__(self, *args, **kwargs):
-        # super(RequestLogForm, self).__init__(*args, **kwargs)
         super().__init__(*args, **kwargs)
-    #     # provide initial values and ay needed customization
         self.fields["start_date"].initial = datetime.date
         self.fields["end_date"].initial = datetime.date
 
         data = self.data
         initial = self.initial
 
-        acayear = data.get('0-academic_year') or initial.get('academic_year')
-        period = data.get('0-period') or initial.get('period')
-        # 2. Logic: Period depends on Academic Year
+        # no wizard prefix — this is a plain GET form
+        acayear = data.get('academic_year') or initial.get('academic_year')
 
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
+            self.fields['period'].queryset = LearningPeriod.objects.filter(
+                academic_year_id=acayear,
+                period_name__icontains='semester'
+            )
         else:
-            self.fields['period'].queryset = LearningPeriod.objects.none()
+            # show all semesters as fallback so period is never empty
+            self.fields['period'].queryset = LearningPeriod.objects.filter(
+                academic_year_id=acayear,
+                period_name__icontains='semester'
+            )
 
 
         # self.fields["start_date"].widget.is_hidden = True
@@ -2166,6 +2169,11 @@ class AssignmentAvgForm(forms.Form):
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
+        if subject_id:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester')).select_related('academic_year')
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+
         # 4. Filter KELAS: Must belong to the teacher AND the selected subject
         # if subject_id:
         #     # *NOTE: If this line gives an error, it's because Django doesn't know
@@ -2173,7 +2181,17 @@ class AssignmentAvgForm(forms.Form):
         #     self.fields['period'].queryset = LearningPeriod.objects.all()
         # else:
         #     self.fields['period'].queryset = LearningPeriod.objects.none()
-        self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))
+        # self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))
+
+        self.fields['subject'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-assignment-avg/',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'class': 'custom-select mb-4',
+            # 'hx-get': '/gradebook/get-period-assignment-avg/',
+        })
 
 
 PDRPT_CHOICES = [

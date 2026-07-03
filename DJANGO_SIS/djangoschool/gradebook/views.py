@@ -174,6 +174,7 @@ def attendance(request):  # musti di cek ini kefilter berdasarkan guru apa kgk l
     # cannot unpack non-iterable ForwardManyToOneDescriptor object
     # current_teacher = get_object_or_404(Teacher, user=request.user)
     # filtered_students = Teacher.objects.filter(current_teacher)
+
     if request.method == 'POST':
         user = request.user
         # homeroom_check = Class.objects.filter(teacher__user=user, is_home_class=True).first()
@@ -259,6 +260,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         #     initial['assignment_type'] = None
 
         # Logika khusus untuk Step 3 (FormSet Siswa)
+
         if step == '2':
             # Ambil data dari Step 0 (GradeEntry)
             step0_data = self.get_cleaned_data_for_step('0')
@@ -281,6 +283,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
                 return initial_list
 
         return initial
+
 
 
     def _get_homeroom_class(self):
@@ -951,10 +954,11 @@ def get_teachers(request):
 
 
 def get_courses(request):
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year')  or request.GET.get('subject')
     subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
     selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
     if subject_id:
-        courses = Course.objects.filter(subject_id=subject_id)
+        courses = Course.objects.filter(subject_id=subject_id, academic_year_id=acayear_id)
     else:
         courses = Course.objects.all()
     context = {
@@ -1030,18 +1034,22 @@ def get_kelas_ge(request):
 
 def get_courses_ge(request):
     print(request.GET)
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get('academic_year')
-    subject_id = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
-    selected_course = request.GET.get('0-course') or request.GET.get('1-course') or request.GET.get('course')
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    subject_id = request.GET.get('0-subject') or request.GET.get('subject')
+    selected_course = request.GET.get('0-course') or request.GET.get('course')
+
     if subject_id and acayear_id:
-        courses = Course.objects.filter(subject=subject_id, academic_year=acayear_id)
+        courses = Course.objects.filter(subject_id=subject_id, academic_year_id=acayear_id)
+    elif subject_id:
+        # fallback: filter by subject only if acayear didn't come through
+        courses = Course.objects.filter(subject_id=subject_id)
     else:
         courses = Course.objects.none()
+
     context = {
         'courses': courses,
         'selected_course': selected_course
     }
-    # return render(request, "partials/gradebook/course_list.html", context)
     return render(request, "partials/gradebook/gradeentry_partials/course.html", context)
 
 
@@ -1135,56 +1143,46 @@ def get_cpmp_target_ge(request):
     })
 
 
-@login_required
 def toggle_na_reason(request):
     form_index = request.GET.get('form_index', '0')
-
-    na_reason_keys = [k for k in request.GET.keys() if k.endswith('-na_reason')]
-    if na_reason_keys:
-        na_reason_name = na_reason_keys[0]
-    else:
-        na_reason_name = f'2-{form_index}-na_reason'
-
-    is_active_name = na_reason_name.replace('-na_reason', '-is_active')
-    score_name = na_reason_name.replace('-na_reason', '-score')
-    is_active_value = request.GET.get(is_active_name, '')
-    is_active = is_active_value == 'on'
+    step = request.GET.get('step', '2')
+    base_name = f'{step}-{form_index}'
+    is_active = request.GET.get(f'{base_name}-is_active') == 'on'
+    student_id = request.GET.get(f'{base_name}-student', '')
+    student_nisn = request.GET.get(f'{base_name}-student_nisn', '')
+    student_name = request.GET.get(f'{base_name}-student_name', '')
 
     if is_active:
-        # active — show empty na_reason, keep score editable
-        input_html = f'''
-        <input id="na_reason_input_{form_index}"
-            type="text"
-            class="form-control"
-            name="{na_reason_name}"
-            value=""
-            placeholder="N/A"
-            disabled />
-        '''
+        score_attrs = ''
+        na_attrs = 'readonly style="background-color:#e9ecef;cursor:not-allowed;"'
     else:
-        # inactive — clear score, show na_reason input
-        input_html = f'''
-        <input id="na_reason_input_{form_index}"
-            type="text"
-            class="form-control"
-            name="{na_reason_name}"
-            value=""
-            placeholder="Reason required..." />
-        '''
+        score_attrs = 'readonly style="background-color:#e9ecef;cursor:not-allowed;"'
+        na_attrs = 'placeholder="Enter reason..."'
 
-    # OOB swap to clear score when toggled
-    score_html = f'''
-    <input id="id_2-{form_index}-score"
-        type="number"
-        class="form-control"
-        name="{score_name}"
-        value="0" />
+    html = f'''
+        <input type="hidden" name="{base_name}-student" value="{student_id}">
+        <td>{student_nisn}</td>
+        <td><input type="text" readonly class="form-control-plaintext" name="{base_name}-student_name" value="{student_name}"></td>
+        <td id="score_td_{form_index}">
+            <input type="number" class="input"
+                   name="{base_name}-score" value="0" {score_attrs}>
+        </td>
+        <td id="na_reason_td_{form_index}">
+            <input type="text" class="input"
+                   name="{base_name}-na_reason" value="" {na_attrs}>
+        </td>
+        <td class="text-center">
+            <input type="checkbox"
+                   name="{base_name}-is_active"
+                   {"checked" if is_active else ""}
+                   hx-get="/gradebook/toggle-na-reason/?form_index={form_index}&step={step}"
+                   hx-trigger="change"
+                   hx-target="#row_{form_index}"
+                   hx-swap="innerHTML"
+                   hx-include="[name='{base_name}-is_active'],[name='{base_name}-student'],[name='{base_name}-student_name'],[name='{base_name}-student_nisn'], [name='{base_name}-score']">
+        </td>
     '''
-
-    return HttpResponse(
-        input_html +
-        f'<div hx-swap-oob="innerHTML:#score_td_{form_index}">{score_html}</div>'
-    )
+    return HttpResponse(html)
 
 
 # biar short name subject keliatan
@@ -1194,7 +1192,7 @@ class ScoreField(ComputationField):
     # nama bisa apa aja (INI PENTING, HARUS ADA)
     name = "scorecolumn"
     # metode penghitungan (Sum, Avg, Count, dll)
-    calculation_method = Sum
+    # calculation_method = Max
     # field yg mana yg mau dihitung
     calculation_field = "final_score"
     # nama output / nama non-internal (mau ditampilin sebagai apa)
@@ -1378,11 +1376,28 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         "reportcard__student__registration_data__last_name"
     ]
 
+
 def get_period_ledger(request):
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
-    period = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
-    context = {'period': period}
-    return render(request, "partials/gradebook/rcledger_partials/period.html", context)
+    acayear_id = request.GET.get('academic_year')
+    selected_period = request.GET.get('period')
+    periods = LearningPeriod.objects.filter(
+        academic_year_id=acayear_id,
+        period_name__icontains='semester'
+    ) if acayear_id else LearningPeriod.objects.none()
+
+    html = ''
+    for p in periods:
+        checked = 'checked' if selected_period == str(p.id) else ''
+        html += f'''
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="period" 
+                   id="id_period_{p.id}" value="{p.id}" {checked}>
+            <label class="form-check-label" for="id_period_{p.id}">
+                {p.period_name}
+            </label>
+        </div>'''
+
+    return HttpResponse(html)
 
 # @login_required
 # @require_POST
@@ -1430,72 +1445,67 @@ def ge_table(request):
 # INGET YA ID ASSIGNMENTDETAIL != ID ASSIGNMENTHEAD PANTES DRTD NGACO MULU QUERYSETNYA
 @login_required
 def ge_edit(request, pk):
-    # 1. Get the reference detail to find the 'Head' assignment
-    # target_detail = get_object_or_404(AssignmentDetail, pk=pk)
-    parent_head = get_object_or_404(AssignmentHead, pk=pk)
-    current_course = parent_head.course
-    assign_type = parent_head.assignment
-    cpmp_trg = '\n'.join(target.text for target in parent_head.cpmp_target.all())
+    parent_head = get_object_or_404(
+        AssignmentHead.objects.select_related(
+            'course', 'assignment'
+        ).prefetch_related('cpmp_target'),
+        pk=pk
+    )
 
-    # 2. DATA SYNC: Ensure ALL active students in this course have a row for this assignment
-    # This fixes the issue where only 1 student shows up.
-    active_members = CourseMember.objects.filter(course=current_course, is_active=True)
+    active_members = CourseMember.objects.filter(
+        course=parent_head.course, is_active=True
+    ).select_related('student')
 
-    for member in active_members:
-        # Create a blank row (score=0) if it doesn't exist yet
-        AssignmentDetail.objects.get_or_create(
+    # bulk sync — one query to check, one to insert
+    existing_ids = set(
+        AssignmentDetail.objects.filter(
+            assignment_head=parent_head
+        ).values_list('student_id', flat=True)
+    )
+    new_details = [
+        AssignmentDetail(
             assignment_head=parent_head,
             student=member.student,
-            defaults={'score': 0, 'is_active': True}
+            score=0,
+            is_active=True
         )
+        for member in active_members
+        if member.student_id not in existing_ids
+    ]
+    if new_details:
+        AssignmentDetail.objects.bulk_create(new_details, ignore_conflicts=True)
 
-    # print(f"Target Detail:  {target_detail}")
-    # print(f"Parent: {parent_head}")
-    # print(f"Course: {current_course}")
-
-    # 3. Create the Queryset containing ALL students for this assignment
-    # We order by student ID (or name if available) to keep the list stable
     queryset = AssignmentDetail.objects.filter(
         assignment_head=parent_head
-    ).order_by('student__id')
+    ).order_by('student__id').select_related('student__registration_data')
 
-    # 4. Define the Formset
     AssignmentFormSet = modelformset_factory(
         AssignmentDetail,
         fields=('score', 'na_reason', 'is_active'),
-        extra=0,  # We don't want blank extra rows, we just want the students
-        # widgets={
-        #     'score': forms.NumberInput(attrs={'class': 'form-control'}),
-        #     'na_reason': forms.TextInput(attrs={'class': 'form-control'}),
-        #     'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        # }
+        extra=0,
     )
 
     if request.method == 'POST':
         formset = AssignmentFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
-            return redirect('grade-entry-table')  # Make sure this URL name is correct in urls.py
+            return redirect('grade-entry-table')
     else:
         formset = AssignmentFormSet(queryset=queryset)
 
-    # Add HTMX attributes to the forms
     for i, form in enumerate(formset):
-        form.fields['na_reason'].widget.attrs.update({
+        htmx_attrs = {
             'hx-get': f'/gradebook/toggle-na-reason/?form_index={i}',
             'hx-trigger': 'change',
             'hx-target': f'#na_reason_td_{i}',
             'hx-swap': 'innerHTML',
             'hx-include': f'[name="{form.add_prefix("na_reason")}"], [name="{form.add_prefix("is_active")}"]',
+        }
+        form.fields['na_reason'].widget.attrs.update({
+            **htmx_attrs,
             'class': 'form-control textarea textarea-bordered w-full min-w-24 focus:outline-0 transition-all focus:outline-offset-0'
         })
-        form.fields['is_active'].widget.attrs.update({
-            'hx-get': f'/gradebook/toggle-na-reason/?form_index={i}',
-            'hx-trigger': 'change',
-            'hx-target': f'#na_reason_td_{i}',
-            'hx-swap': 'innerHTML',
-            'hx-include': f'[name="{form.add_prefix("na_reason")}"], [name="{form.add_prefix("is_active")}"]'
-        })
+        form.fields['is_active'].widget.attrs.update(htmx_attrs)
 
     return render(request, 'partials/gradebook/grade_entry_edit.html', {
         'formset': formset,
@@ -1503,8 +1513,8 @@ def ge_edit(request, pk):
         'title': parent_head.topic,
         'date': parent_head.date,
         'max_score': parent_head.max_score,
-        'assign_type': assign_type,
-        'cpmp_target': cpmp_trg or '-'
+        'assign_type': parent_head.assignment,
+        'cpmp_target': '\n'.join(t.text for t in parent_head.cpmp_target.all()) or '-',
     })
 
 
@@ -1627,50 +1637,35 @@ def tc_del(request, pk):
 
 @login_required
 def toggle_na_reason(request):
-    # 1. Extract the step and form index from the keys (e.g., '2-0-is_active')
-    step_prefix = ""
-    form_idx = ""
+    form_index = request.GET.get('form_index', '0')
+    base_name = f'form-{form_index}'
 
-    for key in request.GET.keys():
-        if '-is_active' in key:
-            parts = key.split('-')  # ['2', '0', 'is_active']
-            step_prefix = parts[0]
-            form_idx = parts[1]
-            break
+    na_reason_name = f'{base_name}-na_reason'
+    score_name = f'{base_name}-score'
+    is_active = request.GET.get(f'{base_name}-is_active') == 'on'
 
-    if not form_idx:
-        return HttpResponse("")
-
-    # 2. Get the current state
-    is_active = request.GET.get(f'{step_prefix}-{form_idx}-is_active') == 'on'
-    score = request.GET.get(f'{step_prefix}-{form_idx}-score', '')
-    na_reason = request.GET.get(f'{step_prefix}-{form_idx}-na_reason', '')
-
-    # We also need the student info which is in hidden fields or NISN/Name
-    # but since we are just re-rendering the inputs, we can just pass values
-    student_name = request.GET.get(f'{step_prefix}-{form_idx}-student_name', '')
-    student_nisn = request.GET.get(f'{step_prefix}-{form_idx}-student_nisn', '')
-
-    # 3. APPLY BACKEND LOGIC (The "Wipe")
     if is_active:
-        na_reason = ""
+        na_reason_html = f'''<input id="na_reason_input_{form_index}"
+               type="text" class="input"
+               name="{na_reason_name}" value=""
+               readonly style="background-color:#e9ecef;cursor:not-allowed;">'''
+        score_html = f'''<input type="number" class="input"
+               name="{score_name}" value="0">'''
     else:
-        score = ""
+        na_reason_html = f'''<input id="na_reason_input_{form_index}"
+               type="text" class="input"
+               name="{na_reason_name}" value=""
+               placeholder="Enter reason...">'''
+        score_html = f'''<input type="number" class="input"
+               name="{score_name}" value="0"
+               readonly style="background-color:#e9ecef;cursor:not-allowed;">'''
 
-    # 4. SEND BACK THE ROW HTML
-    # We use a small partial template for a single row to keep it clean
-    context = {
-        'step': step_prefix,
-        'idx': form_idx,
-        'score': score,
-        'na_reason': na_reason,
-        'is_active': is_active,
-        'student_name': student_name,
-        'student_nisn': student_nisn,
-    }
+    return HttpResponse(
+        na_reason_html +
+        f'<div id="score_td_{form_index}" hx-swap-oob="innerHTML">{score_html}</div>'
+    )
 
-    html = render_to_string("partials/gradebook/gradeentry_partials/row_partial.html", context)
-    return HttpResponse(html)
+
 
 
 # Create FormSet for Step 1 (Student List)
@@ -3069,9 +3064,9 @@ def get_period_assignment_avg(request):
     selected_period = request.GET.get('0-period') or request.GET.get('period')
     if acayear_id:
         # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
-        periods = LearningPeriod.objects.all()
+        periods = LearningPeriod.objects.filter(academic_year=acayear_id).select_related('academic_year')
     else:
-        periods = LearningPeriod.objects.all()
+        periods = LearningPeriod.objects.none()
     html = render_to_string("partials/gradebook/assignment_avg_partials/period.html", {
         'periods': periods,
         'selected_period': selected_period
@@ -3680,3 +3675,68 @@ def print_pdev_pdf(request, pk):
 
     filename = f"pd_{reg.first_name}_{reg.last_name}_{reportcard.period.period_name}.pdf"
     return FileResponse(buf, as_attachment=False, filename=filename)
+
+
+@login_required
+def grade_ledger(request):
+    ay_id = request.GET.get('academic_year')
+    period_id = request.GET.get('period')
+    is_mid = request.GET.get('is_mid') in ('on', 'true', '1', 'True')
+    level_id = request.GET.get('level')
+
+    grade_qs = ReportcardGrade.objects.select_related('reportcard__student')
+    if ay_id:
+        grade_qs = grade_qs.filter(reportcard__academic_year_id=ay_id)
+    if period_id:
+        grade_qs = grade_qs.filter(reportcard__period_id=period_id)
+    if is_mid:
+        grade_qs = grade_qs.filter(reportcard__is_mid=True)
+    if level_id:
+        grade_qs = grade_qs.filter(reportcard__level_id=level_id)
+
+    subjects = Subject.objects.filter(
+        id__in=grade_qs.values('subject_id').distinct()
+    ).order_by('id')
+
+    students = Student.objects.filter(
+        studentreportcard__reportcardgrade__in=grade_qs
+    ).distinct().select_related('registration_data').order_by(
+        'registration_data__first_name'
+    )
+
+    # one query, dict keyed by (student_id, subject_id)
+    all_grades = {
+        (g.reportcard.student_id, g.subject_id): g
+        for g in grade_qs.select_related('reportcard')
+    }
+
+    rows = []
+    for student in students:
+        cells = []
+        for subject in subjects:
+            grade = all_grades.get((student.id, subject.id))
+            cells.append({
+                'final_score': grade.final_score if grade else '-',
+                'final_grade': grade.final_grade if grade else '-',
+            })
+        rows.append({
+            'student': student,
+            'cells': cells,
+        })
+
+    # pass filter form context too
+    academic_years = AcademicYear.objects.all().order_by('-year')
+    periods = LearningPeriod.objects.filter(
+        academic_year_id=ay_id,
+        period_name__icontains='semester'
+    ) if ay_id else LearningPeriod.objects.none()
+
+    return render(request, 'partials/gradebook/grade_ledger_alt.html', {
+        'subjects': subjects,
+        'rows': rows,
+        'academic_years': academic_years,
+        'periods': periods,
+        'sel_ay': ay_id,
+        'sel_period': period_id,
+        'sel_is_mid': is_mid,
+    })

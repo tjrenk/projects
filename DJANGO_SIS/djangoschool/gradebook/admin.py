@@ -103,7 +103,7 @@ class ReportcardGradeAdmin(admin.TabularInline):
 
 class StudentReportcardAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "period", "is_mid", "level", "student")
-    list_filter = ["academic_year", "is_mid", "student" ]
+    list_filter = ["academic_year", "period", "is_mid", "student" ]
     inlines = [ ReportcardGradeAdmin ]
 
 class StudentReportcardHistory(SimpleHistoryAdmin):

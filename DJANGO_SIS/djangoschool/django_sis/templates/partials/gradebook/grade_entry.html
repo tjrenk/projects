@@ -104,7 +104,7 @@
                                 </thead>
                                 <tbody>
                                     {% for form in wizard.form %}
-<tr>
+<tr id="row_{{ forloop.counter0 }}">
     {% for hidden in form.hidden_fields %}
         {{ hidden }}
     {% endfor %}
@@ -113,34 +113,27 @@
     <td>{{ form.student_name }}</td>
 
     <!-- ADD ID TO THIS TD -->
-    <td id="score_cell_{{ forloop.counter0 }}">
-        <input type="text"
-               name="{{ form.score.html_name }}"
-               id="{{ form.score.auto_id }}"
-               value="{{ form.score.value|default_if_none:'' }}"
-               class="form-control score-input">
-        {% if form.score.errors %}
-            <div class="text-danger small">{{ form.score.errors }}</div>
-        {% endif %}
-    </td>
+<td id="score_td_{{ forloop.counter0 }}" class="w-20 h-8">
+    <input type="number" class="input max-w-20 max-h-8"
+           name="{{ form.score.html_name }}"
+           value="{{ form.score.value|default_if_none:0 }}">
+</td>
 
-    <!-- ADD ID TO THIS TD -->
-    <td id="na_reason_cell_{{ forloop.counter0 }}">
-        <input type="text"
-               name="{{ form.na_reason.html_name }}"
-               id="{{ form.na_reason.auto_id }}"
-               value="{{ form.na_reason.value|default_if_none:'' }}"
-               class="form-control na-reason-input">
-        {% if form.na_reason.errors %}
-            <div class="text-danger small">{{ form.na_reason.errors }}</div>
-        {% endif %}
-    </td>
+<td id="na_reason_td_{{ forloop.counter0 }}">
+    <input type="text" class="input"
+           name="{{ form.na_reason.html_name }}"
+           value="{{ form.na_reason.value|default_if_none:'' }}"
+           readonly style="background-color:#e9ecef;cursor:not-allowed;">
+</td>
 
-    <td class="text-center">
-        <div class="active-checkbox-wrapper">
-            {{ form.is_active }}
-        </div>
-    </td>
+<td class="text-center">
+    <input type="checkbox"
+           name="{{ form.is_active.html_name }}"
+           id="{{ form.is_active.auto_id }}"
+           class="checkbox"
+           {% if form.is_active.value %}checked{% endif %}
+           onclick="toggleActiveRow(this, {{ forloop.counter0 }})">
+</td>
 </tr>
 {% endfor %}
                                 </tbody>
@@ -334,39 +327,69 @@
 </div>
 </div>
 
-<style>
-    /* Agar input score tidak terlalu lebar di dalam tabel */
-    input[name$="-score"] {
-        width: 100px; 
-        display: inline-block;
-        form-control;
-    }
-    input[name$="-student_name"] {
-        border: none;
-        background-color: transparent;
-        font-weight: bold;
-        width: 100%;
-    }
+{#<style>#}
+{#    /* Agar input score tidak terlalu lebar di dalam tabel */#}
+{#    input[name$="-score"] {#}
+{#        width: 100px; #}
+{#        display: inline-block;#}
+{#        form-control;#}
+{#    }#}
+{#    input[name$="-student_name"] {#}
+{#        border: none;#}
+{#        background-color: transparent;#}
+{#        font-weight: bold;#}
+{#        width: 100%;#}
+{#    }#}
+{##}
+{#    /* PURE CSS TOGGLE LOGIC */#}
+{#    /* If the row contains a checked 'is_active' checkbox, style the reason input */#}
+{#    tr:has(input[name$="-is_active"]:checked) .na-reason-input {#}
+{#        background-color: #f3f4f6 !important;#}
+{#        pointer-events: none; /* Prevents mouse interaction (clicks) */#}
+{#        opacity: 0.6;#}
+{#        cursor: not-allowed;#}
+{#        color: transparent !important;#}
+{#        text-shadow: none !important;#}
+{#    }#}
+{##}
+{#    tr:has(input[name$="-is_active"]:not(:checked)) .score-input {#}
+{#        background-color: #f3f4f6 !important;#}
+{#        pointer-events: none; /* Prevents mouse interaction (clicks) */#}
+{#        opacity: 0.6;#}
+{#        cursor: not-allowed;#}
+{#        color: transparent !important;#}
+{#        text-shadow: none !important;#}
+{#    }#}
+{##}
+{#</style>#}
+    <script>
+function toggleActiveRow(checkbox, idx) {
+    const isActive = checkbox.checked;
+    const scoreInput = document.querySelector(`#score_td_${idx} input`);
+    const naInput = document.querySelector(`#na_reason_td_${idx} input`);
 
-    /* PURE CSS TOGGLE LOGIC */
-    /* If the row contains a checked 'is_active' checkbox, style the reason input */
-    tr:has(input[name$="-is_active"]:checked) .na-reason-input {
-        background-color: #f3f4f6 !important;
-        pointer-events: none; /* Prevents mouse interaction (clicks) */
-        opacity: 0.6;
-        cursor: not-allowed;
-        color: transparent !important;
-        text-shadow: none !important;
-    }
+    if (isActive) {
+        // active: score enabled, na_reason disabled
+        scoreInput.removeAttribute('readonly');
+        scoreInput.style.backgroundColor = '';
+        scoreInput.style.cursor = '';
 
-    tr:has(input[name$="-is_active"]:not(:checked)) .score-input {
-        background-color: #f3f4f6 !important;
-        pointer-events: none; /* Prevents mouse interaction (clicks) */
-        opacity: 0.6;
-        cursor: not-allowed;
-        color: transparent !important;
-        text-shadow: none !important;
-    }
+        naInput.setAttribute('readonly', true);
+        naInput.style.backgroundColor = '#e9ecef';
+        naInput.style.cursor = 'not-allowed';
+        naInput.value = '';
+        naInput.placeholder = '';
+    } else {
+        // inactive: score disabled, na_reason enabled
+        scoreInput.setAttribute('readonly', true);
+        scoreInput.style.backgroundColor = '#e9ecef';
+        scoreInput.style.cursor = 'not-allowed';
 
-</style>
+        naInput.removeAttribute('readonly');
+        naInput.style.backgroundColor = '';
+        naInput.style.cursor = '';
+        naInput.placeholder = 'Enter reason...';
+    }
+}
+</script>
 {% endblock %}

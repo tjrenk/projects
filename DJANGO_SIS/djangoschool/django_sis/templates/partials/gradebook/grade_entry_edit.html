@@ -56,46 +56,42 @@
             </thead>
             <tbody>
                 {% for form in formset %}
-                <tr>
-                    {# HIDDEN ID: Critical for updating existing rows instead of creating new ones #}
-                    {{ form.id }}
-                    <td>
-                        {{ form.instance.student.id_number}}
-                        {% if not form.instance.student %}
-                           <span class="text-danger">No Student Linked</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {{ form.instance.student.registration_data.first_name }} {{ form.instance.student.registration_data.last_name }}
-                        {% if not form.instance.student %}
-                           <span class="text-danger">No Student Linked</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {{ form.score }}
-                        {% if form.score.errors %}
-                            <div class="text-danger small">{{ form.score.errors }}</div>
-                        {% endif %}
-                    </td>
-                    {% comment %} <td id="na_reason_td_{{ forloop.counter0 }}">{{ form.na_reason }}</td> {% endcomment %}
-                            <td id="na_reason_td_{{ forloop.counter0 }}">
-            {% with is_active=form.is_active.value|default_if_none:True %}
-                <input 
-                    id="na_reason_input_{{ forloop.counter0 }}"
-                    type="text" 
-                    class="form-control textarea textarea-bordered w-full min-w-24 focus:outline-0 transition-all focus:outline-offset-0"
-                    name="{{ form.na_reason.html_name }}" 
-                    value="{{ form.na_reason.value|default_if_none:'' }}"
-                    {% if is_active %}readonly style="background-color: #e9ecef; cursor: not-allowed;" {% else %}placeholder="Enter reason..."{% endif %}
-                >
-            {% endwith %}
-            {% if form.na_reason.errors %}
-                <div class="text-danger small">{{ form.na_reason.errors }}</div>
-            {% endif %}
-        </td>
-                    <td class="text-center">{{ form.is_active }}</td>
-                </tr>
-                {% endfor %}
+<tr>
+    {{ form.id }}
+    <td>{{ form.instance.student.id_number }}</td>
+    <td>{{ form.instance.student.registration_data.first_name }} {{ form.instance.student.registration_data.last_name }}</td>
+
+    <td id="score_td_{{ forloop.counter0 }}">
+        <input type="number"
+               class="input"
+               name="{{ form.score.html_name }}"
+               value="{{ form.score.value|default_if_none:0 }}"
+               {% if not form.is_active.value %}readonly style="background-color: #e9ecef; cursor: not-allowed;"{% endif %}>
+    </td>
+
+    <td id="na_reason_td_{{ forloop.counter0 }}">
+        <input id="na_reason_input_{{ forloop.counter0 }}"
+               type="text"
+               class="input"
+               name="{{ form.na_reason.html_name }}"
+               value="{{ form.na_reason.value|default_if_none:'' }}"
+               {% if form.is_active.value %}readonly style="background-color: #e9ecef; cursor: not-allowed;"{% else %}placeholder="Enter reason..."{% endif %}>
+    </td>
+
+    <td class="text-center">
+        <input type="checkbox"
+               name="{{ form.is_active.html_name }}"
+               id="{{ form.is_active.auto_id }}"
+               class="checkbox"
+               {% if form.is_active.value %}checked{% endif %}
+               hx-get="/gradebook/toggle-na-reason/?form_index={{ forloop.counter0 }}"
+               hx-trigger="change"
+               hx-target="#na_reason_td_{{ forloop.counter0 }}"
+               hx-swap="innerHTML"
+               hx-include="[name='{{ form.is_active.html_name }}']">
+    </td>
+</tr>
+{% endfor %}
             </tbody>
         </table>
     </div>
