@@ -10,6 +10,7 @@
 
     <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
         {% if form %}
+            <h1 class="collapse-title text-xl" style="font-weight:1000;">{% trans "Report Card Ledger" %}</h1>
             <form id="reportForm" class="card">
                 <div class="card-header bg-base-100 border-base-200 border-e">
                     <h3 class="collapse-title text-xl font-medium">{% trans "Filters" %}</h3>
@@ -33,6 +34,7 @@
             </form>
         </div>
         {% endif %}
+
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
         <div class="card" id="{{ report.report_slug }}">
             <div class="card-header bg-base-100 border-base-200 border-e">

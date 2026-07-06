@@ -152,11 +152,15 @@ def tambah_record_rubriksiswa(sender, instance, created, **kwargs):
         
         pass
 
-def student_nis_nisn_gen(sender, instance, **kwargs):
-    if not instance.nisn:
-        form_no = instance.form_no[:3]
-        pob = instance.place_of_birth[:3]
-        instance.nisn = f"{form_no}{pob}"
+def student_id_gen(sender, instance, **kwargs):
+    if not instance.id_number:
+        if instance.registration_data.gender == 'M':
+            gend = "01"
+        else:
+            gend = "02"
+        nisn = instance.nisn[:4]
+        form_no = instance.registration_data.form_no[:3]
+        instance.id_number = f"{gend}{nisn}{form_no}"
 
 
 
@@ -180,4 +184,4 @@ pre_save.connect(set_rubric_desc, StudentBehaviourReport)
 
 pre_save.connect(set_extra_grade, StudentReportExtra)
 
-pre_save.connect(student_nis_nisn_gen, Registration)
+pre_save.connect(student_id_gen, Student)

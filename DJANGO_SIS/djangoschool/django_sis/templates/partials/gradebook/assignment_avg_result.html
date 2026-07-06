@@ -29,24 +29,41 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in student_results %}
-                    <tr>
-                        <td class="font-mono">{{ item.nisn }}</td>
-                        <td class="font-semibold">{{ item.student_name }}</td>
-<!--                        <td>{{ item.kelas }}</td>-->
-<!--                        <td>{{ item.subject }}</td>-->
-                        <!-- Assuming Course maps to Subject here, adjust if Course is different -->
-<!--                        <td>{{ item.subject }}</td>-->
-<!--                        <td>{{ item.raw_avg|floatformat:2 }}</td>-->
-                        <td class="text-primary font-bold">{{ item.weighted_avg|floatformat:2 }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center py-6 text-base-content/60">
-                            No assignments have been posted for this class yet.
-                        </td>
-                    </tr>
-                    {% endfor %}
+{% for result in student_results %}
+<tr class="cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+    <td>{{ result.student_name }}</td>
+    <td>{{ result.final_score_preview }}</td>
+    <td><span class="text-xs text-base-content/40">▼ details</span></td>
+</tr>
+<tr class="hidden bg-base-200">
+    <td colspan="3">
+        <table class="table table-sm w-full">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Average</th>
+                    <th>Weight</th>
+                    <th>Weighted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for label, avg, weight, weighted in result.breakdown %}
+                <tr>
+                    <td>{{ label }}</td>
+                    <td>{{ avg|floatformat:1 }}</td>
+                    <td>{{ weight }}</td>
+                    <td>{{ weighted|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="font-bold border-t">
+                    <td colspan="3">Total</td>
+                    <td>{{ result.weighted_avg|floatformat:2 }} → <strong>{{ result.final_score_preview }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </td>
+</tr>
+{% endfor %}
                 </tbody>
             </table>
         </div>

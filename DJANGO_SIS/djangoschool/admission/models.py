@@ -97,7 +97,7 @@ class Teacher(AbstractPerson):
 
 class Student(models.Model):
     registration_data = models.OneToOneField(Registration, on_delete=models.CASCADE)
-    id_number = models.CharField(max_length=15, unique=True)
+    id_number = models.CharField(max_length=15, unique=True, null=True, blank=True)
     nisn = models.CharField(max_length=15, default="000000000000000", unique=True)
     is_active = models.BooleanField(default=True)
     na_date = models.DateField(null=True, blank=True)

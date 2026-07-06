@@ -236,157 +236,127 @@ def attendance_list_admin(request):
 
 
 class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
-    # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
     template_name = "partials/gradebook/grade_entry.html"
 
     form_list = [
         ("0", GradeEntryForm),
         ("1", AssignmentHeadForm),
-        ("2", AssignmentDetailFormSet),  # Step 3 pakai FormSet
+        ("2", AssignmentDetailFormSet),
     ]
 
-    # def get_template_names(self):
-    #     return [self.templates[self.steps.current]]
+    def _get_homeroom_class(self):
+        return Class.objects.filter(
+            teacher__user=self.request.user,
+        ).first()
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
 
-        # if step == '0':
-        #     initial['academic_year'] = None
-        #     initial['period'] = None
-        #     initial['teacher'] = None
-        #     initial['subject'] = None
-        #     initial['course'] = None
-        #     initial['assignment_type'] = None
-
-        # Logika khusus untuk Step 3 (FormSet Siswa)
-
         if step == '2':
-            # Ambil data dari Step 0 (GradeEntry)
             step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data and 'course' in step0_data:
-                course = step0_data['course']
+            if not step0_data or 'course' not in step0_data:
+                return initial
 
-                # Ambil semua siswa yang aktif di course tersebut
-                students = CourseMember.objects.filter(
-                    course=course,
-                    is_active=True
-                ).select_related('student')
+            # select_related here prevents N+1 when building initial_list
+            members = CourseMember.objects.filter(
+                course=step0_data['course'],
+                is_active=True
+            ).select_related('student').only(
+                'student__id', 'is_active'  # only fetch what we actually use
+            )
 
-                # Siapkan initial data (list of dicts) untuk FormSet
-                initial_list = []
-                for member in students:
-                    initial_list.append({
-                        'student': member.student.id,  # Untuk Hidden Field
-                        'is_active': member.is_active,
-                    })
-                return initial_list
+            return [
+                {'student': m.student.id, 'is_active': m.is_active}
+                for m in members
+            ]
 
         return initial
 
-
-
-    def _get_homeroom_class(self):
-        """Get the homeroom class of the currently logged in teacher."""
-        return Class.objects.filter(
-            teacher__user=self.request.user,
-            # is_home_class=True,
-        ).first()
-
     def get_form_kwargs(self, step=None):
         kwargs = super().get_form_kwargs(step)
+
         if step == '0':
             kwargs['user'] = self.request.user
+
         if step == '2':
             step1_data = self.get_cleaned_data_for_step('1')
-            # step0_data = self.get_cleaned_data_for_step('0')
-            # topic = step1_data['topic']
-            # date = step1_data['date']
-            # assign_type = step0_data['assignment_type']
-
             if step1_data and 'max_score' in step1_data:
                 kwargs['max_score'] = step1_data['max_score']
-            # Pass form_kwargs_list for each form in the formset
-
-            # if step1_data:
-            #     kwargs['topic'] = step1_data['topic']
 
             initial = self.get_form_initial(step)
             kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
+
         return kwargs
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
 
-        # Get cleaned data from step 0 if available
-        step0_data = self.get_cleaned_data_for_step('0')
-        step1_data = self.get_cleaned_data_for_step('1')
-        context['is_homeroom'] = self._get_homeroom_class()
-        # step2_data = self.get_cleaned_data_for_step('2')
-        if step0_data:
-            context['selected_academic_year'] = step0_data.get('academic_year')
-            context['selected_period'] = step0_data.get('period')
-            context['selected_level'] = step0_data.get('level')
-            context['selected_subject'] = step0_data.get('subject')
-            context['selected_is_mid'] = step0_data.get('is_mid')
-            context['selected_assignment_type'] = step0_data.get('assignment_type')
-            cpmp_targets = step0_data.get('cpmp_target')
-            if cpmp_targets:
-                context['selected_cpmp_target'] = '\n'.join(target.text for target in cpmp_targets)
-            else:
-                context['selected_cpmp_target'] = ''
-        if step1_data:
-            context['selected_topic'] = step1_data.get('topic')
-            context['selected_date'] = step1_data.get('date')
+        # only query homeroom once and only on steps that need it
+        if self.steps.current in ('0', '1'):
+            context['is_homeroom'] = self._get_homeroom_class()
 
+        step0_data = self.get_cleaned_data_for_step('0')
+        if step0_data:
+            cpmp_targets = step0_data.get('cpmp_target')
+            context.update({
+                'selected_academic_year': step0_data.get('academic_year'),
+                'selected_period':        step0_data.get('period'),
+                'selected_level':         step0_data.get('level'),
+                'selected_subject':       step0_data.get('subject'),
+                'selected_is_mid':        step0_data.get('is_mid'),
+                'selected_assignment_type': step0_data.get('assignment_type'),
+                'selected_cpmp_target':   '\n'.join(t.text for t in cpmp_targets) if cpmp_targets else '',
+            })
+
+        step1_data = self.get_cleaned_data_for_step('1')
+        if step1_data:
+            context.update({
+                'selected_topic': step1_data.get('topic'),
+                'selected_date':  step1_data.get('date'),
+            })
 
         return context
 
-
+    def post(self, *args, **kwargs):
+        wizard_goto_step = self.request.POST.get('wizard_goto_step')
+        if wizard_goto_step:
+            self.storage.current_step = wizard_goto_step
+            return self.render(self.get_form())
+        return super().post(*args, **kwargs)
 
     def done(self, form_list, **kwargs):
-        # Ambil data dari form yang sudah divalidasi
-        form_data_0 = form_list[0].cleaned_data  # GradeEntry
-        form_data_1 = form_list[1].cleaned_data  # AssignmentHead
-        formset_data_2 = form_list[2]  # AssignmentDetailFormSet (ini formset object)
+        data0 = form_list[0].cleaned_data
+        data1 = form_list[1].cleaned_data
+        formset = form_list[2]
 
-        # 1. Simpan GradeEntry (jika masih diperlukan sebagai log)
-        # grade_entry_instance = form_list[0].save()
-
-        # 2. Buat dan Simpan AssignmentHead
-        # Kita gabungkan data dari Step 0 dan Step 1
         assignment_head = AssignmentHead(
-            assignment=form_data_0['assignment_type'],  # Dari Step 0
-            course=form_data_0['course'],  # Dari Step 0
-            date=form_data_1['date'],  # Dari Step 1
-            topic=form_data_1['topic'],  # Dari Step 1
-            max_score=form_data_1['max_score'],
+            assignment=data0['assignment_type'],
+            course=data0['course'],
+            date=data1['date'],
+            topic=data1['topic'],
+            max_score=data1['max_score'],
         )
         assignment_head.save()
-        assignment_head.cpmp_target.set(form_data_0['cpmp_target'])
+        assignment_head.cpmp_target.set(data0['cpmp_target'])
 
-        # 3. Simpan AssignmentDetail (Looping FormSet)
-        details_to_create = []
         max_score = assignment_head.max_score
-        for form in formset_data_2:
-            if form.is_valid() and form.cleaned_data:  # Pastikan form valid dan tidak kosong
-                note_content = form.cleaned_data.get('teacher_notes')
-                detail = form.save(commit=False)
-                detail.assignment_head = assignment_head  # Link ke Head yang baru dibuat
-                detail.teacher_notes = note_content
-                if detail.score > max_score:
-                    return HttpResponse("Error: Score exceeds maximum allowed.")
-                # elif formset_data_2['form-0-student'] is None:
-                #     return HttpResponse("Error: No students selected.")
-                else:
-                    # Student sudah ada di instance dari form clean (karena ModelForm)
-                    details_to_create.append(detail)
+        details_to_create = []
 
-        # Bulk create untuk performa lebih cepat
+        for form in formset:
+            if not form.is_valid() or not form.cleaned_data:
+                continue
+            detail = form.save(commit=False)
+            detail.assignment_head = assignment_head
+            detail.teacher_notes = form.cleaned_data.get('teacher_notes')
+            if detail.score > max_score:
+                # rollback the head we just saved
+                assignment_head.delete()
+                messages.error(self.request, f"Score for a student exceeds max score of {max_score}.")
+                return redirect('grade-entry')
+            details_to_create.append(detail)
+
         AssignmentDetail.objects.bulk_create(details_to_create)
-
-        messages.success(self.request, "Class behavior grading has been finalized!")
-        # return render(self.request, "partials/gradebook/finished_screen.html")
+        messages.success(self.request, "Grade entry saved successfully!")
         return redirect('grade-entry')
 
 
@@ -1298,7 +1268,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
     def export_pdf(self, report_data):
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="grade_report.pdf"'
+        response['Content-Disposition'] = 'inline; filename="grade_report.pdf"'
 
         # 2. Create a buffer to hold the PDF data
         buffer = io.BytesIO()
@@ -1359,6 +1329,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         response.write(pdf)
 
         return response
+        # return FileResponse(buffer, as_attachment=False, filename='ledger.pdf')
 
     export_pdf.title = ("Export PDF")
     export_pdf.icon = "fa fa-file-pdf-o"
@@ -1537,20 +1508,22 @@ def ge_del(request, pk):
 
 @login_required
 def tc_table(request):
-    src = StudentReportcard.objects.filter(ht_comment__isnull=False).exclude(
+    src = StudentReportcard.objects.filter(
+        ht_comment__isnull=False
+    ).exclude(
         ht_comment=""
-    ).select_related('student').distinct()
+    ).select_related(
+        'student__registration_data',
+        'academic_year',
+        'period',
+    ).order_by('-id')
 
-    pnation = Paginator(src, 15)  # Show 10 aktivitas per page
-    page = request.GET.get('page')
-    pnation_src = pnation.get_page(page)
+    pnation = Paginator(src, 15)
+    pnation_src = pnation.get_page(request.GET.get('page'))
 
-    context = {
-        'src': src,
-        'pnation_src': pnation_src
-    }
-
-    return render(request, 'partials/gradebook/report_card_table.html', context)
+    return render(request, 'partials/gradebook/report_card_table.html', {
+        'pnation_src': pnation_src,
+    })
 
 
 @login_required
@@ -2592,12 +2565,12 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     terms = LearningPeriod.objects.filter(academic_year=academic_year, date_start__lte=period.date_end,
                                           date_end__gte=period.date_start, period_name__icontains='term').order_by('date_start')
 
-    print("============= DEBUG TANGGAL =============")
-    print(f"Periode yang dicek: {period.period_name}")
-    print(f"Academic Year: {academic_year}")
-    print(f"Start: {period.date_start}, End: {period.date_end}")
-    print(f"Hasil Query 'terms': {terms}")
-    print("=========================================")
+    # print("============= DEBUG TANGGAL =============")
+    # print(f"Periode yang dicek: {period.period_name}")
+    # print(f"Academic Year: {academic_year}")
+    # print(f"Start: {period.date_start}, End: {period.date_end}")
+    # print(f"Hasil Query 'terms': {terms}")
+    # print("=========================================")
 
     term_period = terms.first() if is_mid else terms.last()
     term_period = term_period or period
@@ -2655,6 +2628,23 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         if not is_mid:
             final_score += (uts_scores.get(s_id, 0.0) * uts_weight)
 
+        # build breakdown list for display
+        breakdown = []
+        for assign_id, weight in weight_map.items():
+            type_avg = next(
+                (float(r['avg_score']) for r in grades_data
+                 if r['student_id'] == s_id
+                 and r['assignment_head__assignment_id'] == assign_id),
+                0.0
+            )
+            assign_type = AssignmentType.objects.get(pk=assign_id)
+            breakdown.append((
+                assign_type.short_name,  # label
+                round(type_avg, 2),  # average
+                weight,  # weight
+                round(type_avg * weight, 2)  # weighted
+            ))
+
         results.append({
             'student_obj': student_obj,
             'student_name': str(student_obj),
@@ -2664,7 +2654,8 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'raw_avg': raw_avg,
             'weighted_avg': final_score,
             'final_score_preview': round(final_score),
-            'period': period
+            'period': period,
+            'breakdown': breakdown
         })
 
     return results, term_period
@@ -3039,7 +3030,7 @@ class GradesWizard(LoginRequiredMixin, SessionWizardView):
 def get_period_grades(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     if acayear_id:
-        periods = LearningPeriod.objects.filter(academic_year_id=acayear_id, period_name__icontains='semester')
+        periods = LearningPeriod.objects.all()
     else:
         periods = LearningPeriod.objects.none()
     context = {
@@ -3376,36 +3367,22 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
 
 
 def get_period_pd(request):
-    # acayear_id = AcademicYear.objects.first().id
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year') or request.GET.get(
-        'academic_year')
-    selected_period = request.GET.get('0-period') or request.GET.get('1-period') or request.GET.get('period')
-    if acayear_id:
-        periods = LearningPeriod.objects.filter(Q(academic_year_id=acayear_id) & Q(period_name__icontains='semester'))
-    else:
-        periods = LearningPeriod.objects.none()
-    # context = {
-    #     'periods': periods,
-    #     'selected_period': selected_period
-    # }
-    # return render(request, "partials/gradebook/gradeentry_partials/period.html", context)
+    acayear_id = (request.GET.get('0-academic_year')
+                  or request.GET.get('1-academic_year')
+                  or request.GET.get('academic_year'))
+    selected_period = (request.GET.get('0-period')
+                       or request.GET.get('1-period')
+                       or request.GET.get('period'))
 
-    # Render period HTML as before
-    html = render_to_string("partials/gradebook/pdevelopment_partials/period.html", {
+    periods = LearningPeriod.objects.filter(
+        academic_year_id=acayear_id,
+        period_name__icontains='semester'
+    ) if acayear_id else LearningPeriod.objects.none()
+
+    return render(request, "partials/gradebook/pdevelopment_partials/period.html", {
         'periods': periods,
         'selected_period': selected_period
     })
-
-    # Also render level HTML for OOB update (populated if academic_year is set)
-    level_queryset = GradeLevel.objects.all() if acayear_id else GradeLevel.objects.none()
-    selected_level = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
-    level_html = render_to_string("partials/gradebook/pdevelopment_partials/level.html", {
-        'levels': level_queryset,
-        'selected_level': selected_level
-    })
-
-    # Return period HTML + OOB update for level
-    return HttpResponse(html + f'<div hx-swap-oob="innerHTML:#pd-level-select">{level_html}</div>')
 
 
 
@@ -3619,6 +3596,24 @@ def print_pdev_pdf(request, pk):
     choice_labels = [label for val, label in PDRPT_CHOICES]
 
     # one table per group
+    label_map = {
+        'care1': 'Menunjukkan kepedulian terhadap sesama',
+        'care2': 'Membantu teman yang membutuhkan',
+        'care3': 'Peka terhadap lingkungan sekitar',
+        'respect1': 'Menghormati guru dan staff',
+        'respect2': 'Menghargai pendapat orang lain',
+        'respect3': 'Bersikap sopan dalam berkomunikasi',
+        'respect4': 'Menghormati perbedaan',
+        'responsibility1': 'Mengerjakan tugas tepat waktu',
+        'responsibility2': 'Bertanggung jawab atas tindakannya',
+        'responsibility3': 'Menjaga kebersihan kelas',
+        'responsibility4': 'Aktif dalam kegiatan kelas',
+        'excellence1': 'Berusaha memberikan yang terbaik',
+        'excellence2': 'Tidak mudah menyerah',
+        'excellence3': 'Menyelesaikan pekerjaan dengan baik',
+        'excellence4': 'Memiliki inisiatif tinggi',
+    }
+
     for group_name, field_names in PERSONAL_DEV_FIELDS.items():
         flowables.append(Paragraph(group_name, group_style))
 
@@ -3626,34 +3621,13 @@ def print_pdev_pdf(request, pk):
 
         for field_name in field_names:
             value = getattr(instance, field_name)
-            label_map = {
-                'care1': 'Menunjukkan kepedulian terhadap sesama',
-                'care2': 'Membantu teman yang membutuhkan',
-                'care3': 'Peka terhadap lingkungan sekitar',
-                'respect1': 'Menghormati guru dan staff',
-                'respect2': 'Menghargai pendapat orang lain',
-                'respect3': 'Bersikap sopan dalam berkomunikasi',
-                'respect4': 'Menghormati perbedaan',
-                'responsibility1': 'Mengerjakan tugas tepat waktu',
-                'responsibility2': 'Bertanggung jawab atas tindakannya',
-                'responsibility3': 'Menjaga kebersihan kelas',
-                'responsibility4': 'Aktif dalam kegiatan kelas',
-                'excellence1': 'Berusaha memberikan yang terbaik',
-                'excellence2': 'Tidak mudah menyerah',
-                'excellence3': 'Menyelesaikan pekerjaan dengan baik',
-                'excellence4': 'Memiliki inisiatif tinggi',
-            }
+            label = label_map.get(field_name, field_name)
+            row = [label]
+            for choice_val, _ in PDRPT_CHOICES:
+                row.append('✓' if value == choice_val else ' ')
+            table_data.append(row)
 
-            # then in the loop
-            for field_name in field_names:
-                value = getattr(instance, field_name)
-                label = label_map.get(field_name)  # fallback to field_name if not found
-                row = [label]
-                for choice_val, _ in PDRPT_CHOICES:
-                    row.append('✓' if value == choice_val else ' ')
-                table_data.append(row)
-
-        col_widths = [9*cm] + [2.5*cm] * len(PDRPT_CHOICES)
+        col_widths = [9 * cm] + [2.5 * cm] * len(PDRPT_CHOICES)
         table = Table(table_data, colWidths=col_widths)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a4a4a')),
@@ -3668,7 +3642,7 @@ def print_pdev_pdf(request, pk):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ]))
         flowables.append(table)
-        flowables.append(Spacer(1, 0.3*cm))
+        flowables.append(Spacer(1, 0.3 * cm))
 
     doc.build(flowables)
     buf.seek(0)

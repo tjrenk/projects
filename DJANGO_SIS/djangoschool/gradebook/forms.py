@@ -104,7 +104,7 @@ class GradeEntryForm(forms.ModelForm):
             )
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
             self.fields['level'].queryset = GradeLevel.objects.all()
-            if is_admin and not teacher_obj:
+            if is_admin:
                 self.fields['period'].queryset = LearningPeriod.objects.all()
                 self.fields['level'].queryset = GradeLevel.objects.all()
                 self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.all()
@@ -131,7 +131,7 @@ class GradeEntryForm(forms.ModelForm):
         if teacher:
             # Using your existing filtering logic
             self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher).distinct()
-            if is_admin and not teacher_obj:
+            if is_admin:
                 self.fields['subject'].queryset = Subject.objects.all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
@@ -139,7 +139,7 @@ class GradeEntryForm(forms.ModelForm):
         if subject:
             # Using your existing filtering logic
             self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject)
-            if is_admin and not teacher_obj:
+            if is_admin:
                 self.fields['course'].queryset = Course.objects.all()
         else:
             self.fields['course'].queryset = Course.objects.none()
@@ -986,7 +986,7 @@ class RubricEntryForm(forms.ModelForm):
         queryset=Course.objects.none(),  # starts empty, populated by HTMX
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Course'
+        label='Sub-level'
     )
 
 
@@ -1031,7 +1031,8 @@ class RubricEntryForm(forms.ModelForm):
         # Period depends on Academic Year
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
-            if is_admin and not teacher_obj:
+            # if is_admin and not teacher_obj:
+            if is_admin:
                 self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
@@ -1053,9 +1054,9 @@ class RubricEntryForm(forms.ModelForm):
         if teacher:
             self.fields['kelas'].queryset = Course.objects.filter(
                 teacher_id=teacher
-            ).select_related('subject')
-            if is_admin:
-                self.fields['kelas'].queryset = Course.objects.all().select_related('subject')
+            ).select_related('teacher')
+        elif is_admin:
+            self.fields['kelas'].queryset = Course.objects.all().select_related('teacher')
         else:
             self.fields['kelas'].queryset = Course.objects.none()
 
@@ -2123,7 +2124,7 @@ class AssignmentAvgForm(forms.Form):
         }),
     )
     subject = forms.ModelChoiceField(
-        queryset=Subject.objects.none(), # Default to none until teacher/level is known
+        queryset=Subject.objects.all(), # Default to none until teacher/level is known
         widget=forms.Select(attrs={
             'id': 'assignment-avg-subject-select',
             'class': 'custom-select mb-4',
@@ -2170,9 +2171,9 @@ class AssignmentAvgForm(forms.Form):
             self.fields['subject'].queryset = Subject.objects.none()
 
         if subject_id:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester')).select_related('academic_year')
+            self.fields['period'].queryset = LearningPeriod.objects.all()
         else:
-            self.fields['period'].queryset = LearningPeriod.objects.none()
+            self.fields['period'].queryset = LearningPeriod.objects.all()
 
         # 4. Filter KELAS: Must belong to the teacher AND the selected subject
         # if subject_id:
@@ -2183,14 +2184,19 @@ class AssignmentAvgForm(forms.Form):
         #     self.fields['period'].queryset = LearningPeriod.objects.none()
         # self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))
 
-        self.fields['subject'].widget.attrs.update({
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-period-assignment-avg/',
-        })
-
+        # self.fields['subject'].widget.attrs.update({
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-period-assignment-avg/',
+        # })
+        #
         self.fields['period'].widget.attrs.update({
+            'id': 'pd-period-select',
             'class': 'custom-select mb-4',
-            # 'hx-get': '/gradebook/get-period-assignment-avg/',
+            'hx-get': '/gradebook/get-levels-pd/',
+            'hx-trigger': 'change',
+            'hx-target': '#pd-level-select',  # target level, not itself
+            'hx-swap': 'innerHTML',
+            'hx-include': '#pd-acayear-select, #pd-period-select',
         })
 
 
