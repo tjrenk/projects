@@ -384,6 +384,7 @@ function toggleActiveRow(checkbox, idx) {
         scoreInput.setAttribute('readonly', true);
         scoreInput.style.backgroundColor = '#e9ecef';
         scoreInput.style.cursor = 'not-allowed';
+        scoreInput.value = 0;
 
         naInput.removeAttribute('readonly');
         naInput.style.backgroundColor = '';

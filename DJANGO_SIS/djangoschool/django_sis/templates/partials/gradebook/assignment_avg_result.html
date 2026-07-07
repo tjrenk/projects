@@ -30,37 +30,95 @@
                 </thead>
                 <tbody>
 {% for result in student_results %}
-<tr class="cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+<tr class="cursor-pointer hover:bg-base-200"
+    onclick="this.nextElementSibling.classList.toggle('hidden')">
+    <td>{{ result.nisn }}</td>
     <td>{{ result.student_name }}</td>
-    <td>{{ result.final_score_preview }}</td>
-    <td><span class="text-xs text-base-content/40">▼ details</span></td>
+    <td>{{ result.final_score_preview }} <span class="text-xs text-base-content/40">▼</span></td>
 </tr>
 <tr class="hidden bg-base-200">
-    <td colspan="3">
+    <td colspan="3" class="p-4">
+
+        {# Per-term scores #}
+        {% for term in result.term_breakdown %}
+        <div class="mb-3">
+            <div class="font-bold text-sm mb-1">{{ term.term_name }}</div>
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Average</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in term.rows %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td>{{ row.avg }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        {# Weighted summary #}
+        <div class="font-bold text-sm mb-1 mt-4">Weighted Summary</div>
         <table class="table table-sm w-full">
             <thead>
                 <tr>
                     <th>Type</th>
-                    <th>Average</th>
+                    <th>Avg</th>
                     <th>Weight</th>
                     <th>Weighted</th>
                 </tr>
             </thead>
             <tbody>
-                {% for label, avg, weight, weighted in result.breakdown %}
+                {% for b in result.breakdown %}
                 <tr>
-                    <td>{{ label }}</td>
-                    <td>{{ avg|floatformat:1 }}</td>
-                    <td>{{ weight }}</td>
-                    <td>{{ weighted|floatformat:2 }}</td>
+                    <td>{{ b.label }}</td>
+                    <td>{{ b.avg }}</td>
+                    <td>{{ b.weight }}</td>
+                    <td>{{ b.weighted }}</td>
                 </tr>
                 {% endfor %}
+
+                {# UTS row for UAS only #}
+                {% if result.uts_breakdown %}
+                <tr class="text-base-content/60">
+                    <td>UTS (carried)</td>
+                    <td>{{ result.uts_breakdown.score }}</td>
+                    <td>{{ result.uts_breakdown.weight }}</td>
+                    <td>{{ result.uts_breakdown.weighted }}</td>
+                </tr>
+                {% endif %}
+
                 <tr class="font-bold border-t">
                     <td colspan="3">Total</td>
-                    <td>{{ result.weighted_avg|floatformat:2 }} → <strong>{{ result.final_score_preview }}</strong></td>
+                    <td>
+                        {{ result.weighted_avg|floatformat:2 }}
+                        → <strong>{{ result.final_score_preview }}</strong>
+                    </td>
                 </tr>
+                    {% regroup result.individual_scores by type as scores_by_type %}
+        {% for type_group in scores_by_type %}
+        <tr class="bg-base-300">
+            <td colspan="4" class="font-bold text-xs">
+                {{ type_group.grouper }}
+            </td>
+        </tr>
+        {% for score in type_group.list %}
+        <tr>
+            <td class="text-base-content/50 text-xs">{{ score.type }}</td>
+            <td>{{ score.topic }}</td>
+            <td>{{ score.date }}</td>
+            <td>{{ score.score|floatformat:1 }}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
             </tbody>
         </table>
+
     </td>
 </tr>
 {% endfor %}

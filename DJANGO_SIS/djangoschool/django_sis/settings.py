@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     "slick_reporting", # django-slick-reporting
     "crispy_bootstrap4", # django-slick-reporting
     "rest_framework",
-    "rest_framework_api_key"
+    "rest_framework_api_key",
 ]
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"

@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.urls import path
 
 
+
 class SubjectAdmin(admin.ModelAdmin):
     list_display = ["subject_name", "is_activity", "short_name"]
 
@@ -38,6 +39,20 @@ class CourseAdmin(admin.ModelAdmin):
         return f"{obj.teacher.first_name} {obj.teacher.last_name}"
     get_teacher_name.short_description = "Teacher"
 
+    def get_queryset(self, request):
+        # Fetch the original base queryset
+        qs = super().get_queryset(request)
+        # is_teacher = User.groups.get(name="Teachers")
+
+        # If the user is a superuser, show all records
+        if request.user.is_superuser:
+            return qs
+        # For homeroom teachers, restrict records to their own
+        elif request.user.groups.filter(name="Homeroom Teachers").exists():
+            return qs.filter(teacher__user=request.user)
+        else:
+            return qs
+
 
 class CourseMemberAdmin(admin.ModelAdmin):
     list_display = ["get_course_name", "student", "is_active"]
@@ -45,6 +60,17 @@ class CourseMemberAdmin(admin.ModelAdmin):
     def get_course_name(self, obj: CourseMember)->str:
         return f"{obj.course.short_name}"
     get_course_name.short_description = "Course"
+
+    def get_queryset(self, request):
+        # Fetch the original base queryset
+        qs = super().get_queryset(request)
+
+        # If the user is a superuser, show all records
+        if request.user.is_superuser:
+            return qs
+
+        # For regular staff users, restrict records to their own
+        return qs.filter(course__teacher__user=request.user)
 
 class PassingGradeAdmin(admin.ModelAdmin):
     list_display = ["academic_year","subject", "level", "passing_grade"]

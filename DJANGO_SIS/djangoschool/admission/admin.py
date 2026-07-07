@@ -12,6 +12,7 @@ class LearningPeriodAdmin(admin.ModelAdmin):
     list_display = ["academic_year", "period_name", "date_start", "date_end"]
     list_filter = ["academic_year", "period_name"]
 
+
 class RegistrationAdmin(admin.ModelAdmin):
     list_display = ["form_no", "first_name", "last_name", "date_of_birth", "gender"]
     list_filter = ["form_no", "first_name", "last_name"]
@@ -27,9 +28,22 @@ class StudentAdmin(admin.ModelAdmin):
     list_filter = ["is_active", "registration_data__first_name", "registration_data__last_name", "nisn"]
     search_fields = ["registration_data__first_name", "registration_data__last_name"]
 
+
+
 class TeacherAdmin(admin.ModelAdmin):
     list_display = ["first_name", "last_name", "join_date", "user__username"]
     list_filter = ["first_name", "last_name", "user__username"]
+
+    def get_queryset(self, request):
+        # Fetch the original base queryset
+        qs = super().get_queryset(request)
+
+        # If the user is a superuser, show all records
+        if request.user.is_superuser:
+            return qs
+
+        # For regular staff users, restrict records to their own
+        return qs.filter(user=request.user)
 
 
 class ClassMemberInline(admin.TabularInline):
@@ -45,6 +59,17 @@ class KelasAdmin(admin.ModelAdmin):
     def count_students(self, obj: Class):
         return ClassMember.objects.filter(kelas_id=obj.id).count()
 
+    def get_queryset(self, request):
+        # Fetch the original base queryset
+        qs = super().get_queryset(request)
+
+        # If the user is a superuser, show all records
+        if request.user.is_superuser:
+            return qs
+
+        # For regular staff users, restrict records to their own
+        return qs.filter(teacher__user=request.user)
+
 class ClassMemberAdmin(admin.ModelAdmin):
     list_display = ["kelas", "student_name"]
     list_filter = ["student", "student__registration_data__gender", "kelas"]
@@ -52,6 +77,17 @@ class ClassMemberAdmin(admin.ModelAdmin):
 
     def student_name(self, obj: ClassMember):
         return f"{obj.student}"
+
+    def get_queryset(self, request):
+        # Fetch the original base queryset
+        qs = super().get_queryset(request)
+
+        # If the user is a superuser, show all records
+        if request.user.is_superuser:
+            return qs
+
+        # For regular staff users, restrict records to their own
+        return qs.filter(kelas__teacher__user=request.user)
     
 class ReligionAdmin(admin.ModelAdmin):
     list_display = ["religion_name"]

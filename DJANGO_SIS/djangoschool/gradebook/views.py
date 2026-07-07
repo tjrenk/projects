@@ -2558,6 +2558,11 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
                                           is_mid=is_mid)
     weight_map = {w.assignment_id: float(w.weight) for w in weightings}
 
+    assign_type_map = {
+        at.id: at
+        for at in AssignmentType.objects.filter(id__in=weight_map.keys())
+    }
+
     if not weight_map:
         return [], None
 
@@ -2582,6 +2587,37 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         assignment_head__assignment_id__in=weight_map.keys(),
         assignment_head__date__range=(term_period.date_start, term_period.date_end)
     ).values('student_id', 'assignment_head__assignment_id').annotate(avg_score=Avg('score'))
+
+    all_terms = list(terms)
+
+    all_individual_scores = AssignmentDetail.objects.filter(
+        assignment_head__course__subject=subject,
+        assignment_head__course__academic_year=academic_year,
+        assignment_head__assignment_id__in=weight_map.keys(),
+        assignment_head__date__range=(term_period.date_start, term_period.date_end)
+    ).select_related(
+        'assignment_head__assignment',
+        'assignment_head'
+    ).values(
+        'student_id',
+        'score',
+        'assignment_head__topic',
+        'assignment_head__date',
+        'assignment_head__assignment__short_name',
+        'assignment_head__assignment__name',
+    )
+
+    # group by student_id in Python — O(n) dict lookup, zero extra queries
+    from collections import defaultdict
+    scores_by_student = defaultdict(list)
+    for row in all_individual_scores:
+        scores_by_student[row['student_id']].append({
+            'topic': row['assignment_head__topic'],
+            'date': row['assignment_head__date'],
+            'type': row['assignment_head__assignment__short_name'],
+            'type_name': row['assignment_head__assignment__name'],
+            'score': float(row['score']),
+        })
 
     # 4. KHUSUS AKHIR SEMESTER (UAS): TARIK NILAI UTS (30%) DARI DB
     uts_scores = {}
@@ -2631,19 +2667,52 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         # build breakdown list for display
         breakdown = []
         for assign_id, weight in weight_map.items():
+            assign_type = assign_type_map.get(assign_id)
             type_avg = next(
                 (float(r['avg_score']) for r in grades_data
                  if r['student_id'] == s_id
                  and r['assignment_head__assignment_id'] == assign_id),
                 0.0
             )
-            assign_type = AssignmentType.objects.get(pk=assign_id)
-            breakdown.append((
-                assign_type.short_name,  # label
-                round(type_avg, 2),  # average
-                weight,  # weight
-                round(type_avg * weight, 2)  # weighted
-            ))
+            breakdown.append({
+                'label': assign_type.short_name if assign_type else str(assign_id),
+                'avg': round(type_avg, 2),
+                'weight': weight,
+                'weighted': round(type_avg * weight, 2),
+            })
+
+        # per-term breakdown — one entry per term
+        term_breakdown = []
+        for term in all_terms:
+            term_grades = AssignmentDetail.objects.filter(
+                assignment_head__course__subject=subject,
+                assignment_head__course__academic_year=academic_year,
+                assignment_head__assignment_id__in=weight_map.keys(),
+                assignment_head__date__range=(term.date_start, term.date_end),
+                student_id=s_id,
+            ).values('assignment_head__assignment_id').annotate(avg_score=Avg('score'))
+
+            term_rows = []
+            for row in term_grades:
+                assign_type = assign_type_map.get(row['assignment_head__assignment_id'])
+                term_rows.append({
+                    'label': assign_type.short_name if assign_type else '-',
+                    'avg': round(float(row['avg_score'] or 0), 2),
+                })
+
+            term_breakdown.append({
+                'term_name': term.period_name,
+                'rows': term_rows,
+            })
+
+        # UTS entry for UAS breakdown
+        uts_breakdown = None
+        if not is_mid and uts_scores.get(s_id):
+            uts_breakdown = {
+                'score': uts_scores.get(s_id, 0.0),
+                'weight': uts_weight,
+                'weighted': round(uts_scores.get(s_id, 0.0) * uts_weight, 2),
+            }
 
         results.append({
             'student_obj': student_obj,
@@ -2655,7 +2724,13 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'weighted_avg': final_score,
             'final_score_preview': round(final_score),
             'period': period,
-            'breakdown': breakdown
+            'breakdown': breakdown,
+            'term_breakdown': term_breakdown,
+            'uts_breakdown': uts_breakdown,
+            'individual_scores': sorted(
+                scores_by_student.get(s_id, []),
+                key=lambda x: (x['type'], x['date'])
+            ),
         })
 
     return results, term_period
