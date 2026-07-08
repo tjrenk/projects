@@ -305,7 +305,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
                 'selected_subject':       step0_data.get('subject'),
                 'selected_is_mid':        step0_data.get('is_mid'),
                 'selected_assignment_type': step0_data.get('assignment_type'),
-                'selected_cpmp_target':   '\n'.join(t.text for t in cpmp_targets) if cpmp_targets else '',
+                'selected_cpmp_target': [t.text for t in cpmp_targets] if cpmp_targets else [],
             })
 
         step1_data = self.get_cleaned_data_for_step('1')
@@ -3105,7 +3105,7 @@ class GradesWizard(LoginRequiredMixin, SessionWizardView):
 def get_period_grades(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     if acayear_id:
-        periods = LearningPeriod.objects.all()
+        periods = LearningPeriod.objects.none()
     else:
         periods = LearningPeriod.objects.none()
     context = {
@@ -3126,11 +3126,13 @@ def get_level_grades(request):
 
 
 def get_period_assignment_avg(request):
+    print(request.GET)
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    print(f"acayear_id: {acayear_id}")
     selected_period = request.GET.get('0-period') or request.GET.get('period')
     if acayear_id:
         # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
-        periods = LearningPeriod.objects.filter(academic_year=acayear_id).select_related('academic_year')
+        periods = LearningPeriod.objects.filter(academic_year=acayear_id, period_name__contains='semester').select_related('academic_year')
     else:
         periods = LearningPeriod.objects.none()
     html = render_to_string("partials/gradebook/assignment_avg_partials/period.html", {

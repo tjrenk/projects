@@ -406,7 +406,7 @@ class AssignmentHeadForm(forms.ModelForm):
 class AssignmentDetailItemForm(forms.ModelForm):
     student_name = forms.CharField(
         required=False, 
-        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'})
+        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'border-none outline-none focus:ring-0'})
     )
 
     student_nisn = forms.CharField(
@@ -1983,7 +1983,7 @@ class TotalGradesForm(forms.ModelForm):
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.all()
         else:
-            self.fields['period'].queryset = LearningPeriod.objects.all()
+            self.fields['period'].queryset = LearningPeriod.objects.none()
 
 
 
@@ -2001,10 +2001,10 @@ class TotalGradesForm(forms.ModelForm):
         self.fields['academic_year'].widget.attrs.update({
             'id': 'rubric-acayear-select',
             'class': 'custom-select mb-4',
-            # 'hx-get': '/gradebook/get-period-tgrade/',
-            # 'hx-trigger': 'change',
-            # 'hx-target': '#rubric-period-select',
-            # 'hx-swap': 'innerHTML',
+            'hx-get': '/gradebook/get-period-tgrade/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-period-select',
+            'hx-swap': 'innerHTML',
         })
 
         self.fields['period'].widget.attrs.update({
@@ -2170,33 +2170,37 @@ class AssignmentAvgForm(forms.Form):
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
-        if subject_id:
-            self.fields['period'].queryset = LearningPeriod.objects.all()
-        else:
-            self.fields['period'].queryset = LearningPeriod.objects.all()
+        # if subject_id:
+        #     self.fields['period'].queryset = LearningPeriod.objects.none()
+        # else:
+        #     self.fields['period'].queryset = LearningPeriod.objects.all()
 
         # 4. Filter KELAS: Must belong to the teacher AND the selected subject
-        # if subject_id:
-        #     # *NOTE: If this line gives an error, it's because Django doesn't know
-        #     # how your Class model links to your Course model.
-        #     self.fields['period'].queryset = LearningPeriod.objects.all()
-        # else:
-        #     self.fields['period'].queryset = LearningPeriod.objects.none()
-        # self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))
+        if subject_id:
+            # *NOTE: If this line gives an error, it's because Django doesn't know
+            # how your Class model links to your Course model.
+            self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
 
-        # self.fields['subject'].widget.attrs.update({
-        #     'class': 'custom-select mb-4',
-        #     'hx-get': '/gradebook/get-period-assignment-avg/',
-        # })
-        #
-        self.fields['period'].widget.attrs.update({
-            'id': 'pd-period-select',
+
+        self.fields['subject'].widget.attrs.update({
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-levels-pd/',
+            'hx-get': '/gradebook/get-period-assignment-avg/',
+        })
+
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'assignment-avg-acayear-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-assignment-avg/',
             'hx-trigger': 'change',
-            'hx-target': '#pd-level-select',  # target level, not itself
+            'hx-target': '#assignment-avg-period-select',
             'hx-swap': 'innerHTML',
-            'hx-include': '#pd-acayear-select, #pd-period-select',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'id': 'assignment-avg-period-select',
+            'class': 'custom-select mb-4',
         })
 
 

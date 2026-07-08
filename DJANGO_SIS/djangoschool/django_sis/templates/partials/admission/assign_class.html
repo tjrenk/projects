@@ -36,15 +36,17 @@
             </div>
         </div>
 
-        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-            <div class="display:flex;align-items:center;gap:6px;background:#f5f7fa;border:1px solid #e0e0e0;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:13px;">
-                <div class="flex flex-col gap-1 p-2 rounded-lg overflow-y-auto">
-                {{ form.course.label_tag }}
-                    </div>
-                {{ form.course }}
-                <div class="error">{{ form.course.errors }}</div>
-            </div>
-        </div>
+                                <div class="checkbox-group flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                {{ form.course.label_tag }}
+                                <div id="cpmp-select-ge" class="flex flex-col gap-1 p-2 rounded-lg overflow-y-auto">
+                                    {{ form.course }}
+                                </div>
+                                    <div class="error">
+                                        {{ form.course.errors }}
+                                    </div>
+                                </div>
+                                </div>
 
         <div class="flex gap-2 mt-4">
             <button type="submit" class="btn btn-sm btn-primary rounded-md">

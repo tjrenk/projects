@@ -84,12 +84,28 @@
                     {{ wizard.form.management_form }}
 
                     {% if wizard.form.forms %}
-                <div class="flex gap-10 mb-6 text-lg bg-base-200 p-3 rounded-lg">
-                    <div><h3>Topic:</h3>&nbsp;<h1><strong>{{ selected_topic }}</h1></strong></div>
-                    <div><h3>Date:</h3>&nbsp;<h1><strong>{{ selected_date }}</h1></strong></div>
-                    <div><h3>Type:</h3>&nbsp;<h1><strong>{{ selected_assignment_type.name }}</h1></strong></div>
-                    <div><h3>Learning Targets:</h3>&nbsp;<h1><strong>{{ selected_cpmp_target|linebreaksbr }}</h1></strong></div>
-                </div>
+    <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
+        <div>
+            <p class="text-gray-600 text-sm"><strong>Topic:</strong></p>
+            <p class="text-lg font-semibold">{{ selected_topic }}</p>
+        </div>
+        <div>
+            <p class="text-gray-600 text-sm"><strong>Topic:</strong></p>
+            <p class="text-lg font-semibold">{{ selected_date }}</p>
+        </div>
+        <div>
+            <p class="text-gray-600 text-sm"><strong>Type:</strong></p>
+            <p class="text-lg font-semibold">{{ selected_assignment_type.name }}</p>
+        </div>
+<div>
+    <p class="text-gray-600 text-sm"><strong>Learning Targets:</strong></p>
+    <ul class="list-disc list-inside text-lg font-semibold">
+        {% for target in selected_cpmp_target %}
+        <li>{{ target }}</li>
+        {% endfor %}
+    </ul>
+</div>
+    </div>
                         <div class="table-responsive">
                             <table class="table table-hover table-bordered align-middle">
                                 <thead class="bg-base-200 rounded-md">
@@ -152,8 +168,8 @@
                         <div class="col-md-8 offset-md-2">
                             {% comment %} <table class="table table-borderless"> {% endcomment %}
                             <fieldset class="module aligned   mb-4 overflow-visible">
-                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3   field-name ">
-                        <div class="mb-1 basis-full md:flex-1">
+                                <div class="row g-3">
+                                <div class="col-auto">
                                 {% if wizard.steps.current == '0' %}
                                 {% comment %} <tr>
                                 <td> {% endcomment %}
