@@ -421,6 +421,7 @@ class AssignmentDetailItemForm(forms.ModelForm):
         fields = ['student', 'score', 'is_active', 'na_reason', 'na_date']
         widgets = {
             'student': forms.HiddenInput(),
+            'na_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 2})
         }
 
     def __init__(self, *args, **kwargs):

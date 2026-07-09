@@ -1,0 +1,11 @@
+<th>
+    <a href="?sort={{ col }}&dir={{ next_dir }}&page=1"
+       hx-get="?sort={{ col }}&dir={{ next_dir }}&page=1"
+   hx-target="#grade-table-container" hx-select="#grade-table-container"
+   hx-swap="outerHTML"
+   hx-push-url="true"
+   class="flex items-center gap-1 cursor-pointer hover:text-primary {% if is_active %}text-primary{% endif %}">
+        {{ label }}
+        <i class="fa-solid {{ icon }} text-xs {% if not is_active %}text-base-content/30{% endif %}"></i>
+    </a>
+</th>

@@ -18,11 +18,13 @@
     {{ formset.management_form }}  {# REQUIRED: Handles the row counts #}
     <table class="mb-4">
         <tr>
-            <td><h1 class="text-2xl font-bold">Topic</h1></td>
-            <td><h1 class="text-2xl font-bold">: {{ title }}</h1></td>
+{#            <td><h1 class="text-2xl font-bold">Topic</h1></td>#}
+            <td><h1 class="text-3xl font-bold mb-4">{{ title }}</h1></td>
         </tr>
+    </table>
+<table class="mb-4">
         <tr>
-            <td><h3 class="font-bold">Date</h3></td>
+            <td style="width: 25%;"><h3 class="font-bold">Date</h3></td>
             <td><h3 class="font-bold">: {{ date }}</h3></td>
         </tr>
         <tr>
@@ -35,7 +37,7 @@
         </tr>
 
         <tr>
-            <td><h3 class="font-bold">Learning Targets</h3></td>
+            <td style="vertical-align: top;"><h3 class="font-bold">Learning Targets</h3></td>
             <td><h3 class="font-bold">: {{ cpmp_target|linebreaksbr }}</h3></td>
         </tr>
     </table>
@@ -72,7 +74,7 @@
     <td id="na_reason_td_{{ forloop.counter0 }}">
         <input id="na_reason_input_{{ forloop.counter0 }}"
                type="text"
-               class="input"
+               class="textarea textarea-bordered w-full"
                name="{{ form.na_reason.html_name }}"
                value="{{ form.na_reason.value|default_if_none:'' }}"
                {% if form.is_active.value %}readonly style="background-color: #e9ecef; cursor: not-allowed;"{% else %}placeholder="Enter reason..."{% endif %}>

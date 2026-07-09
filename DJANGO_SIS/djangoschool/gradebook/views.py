@@ -34,8 +34,21 @@ from django.template.loader import render_to_string
 from django.contrib.auth import logout
 from django.db.models.functions import Ceil
 from django.utils import timezone
+from django_htmx.http import retarget
 
 register = template.Library()
+
+
+# BUAT SORTING TABEL
+def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
+    sort_by = request.GET.get('sort', default_sort)
+    sort_dir = request.GET.get('dir', default_dir)
+    order_field = sort_map.get(sort_by, sort_map.get(default_sort, 'id'))
+    if sort_dir == 'desc':
+        order_field = f'-{order_field}'
+
+    return order_field, sort_by, sort_dir
+
 
 
 def gb_index(request):
@@ -1390,16 +1403,25 @@ def ge_table(request):
     user = request.user
     teacher = Teacher.objects.filter(user=user).first()
 
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'date': 'date',
+        'course': 'course__name',
+        'assignment': 'assignment__name',
+        'topic': 'topic',
+        'max_score': 'max_score',
+    }, default_sort='date')
+
+
     if teacher:
         ah = AssignmentHead.objects.filter(
             course__teacher=teacher
         ).select_related(
             'course__subject', 'course__teacher', 'assignment'
-        ).order_by('-date')
+        ).order_by(order_field)
     else:
         ah = AssignmentHead.objects.select_related(
             'course__subject', 'course__teacher', 'assignment'
-        ).order_by('-date')
+        ).order_by(order_field)
 
     pnation = Paginator(ah, 15)
     pnation_ah = pnation.get_page(request.GET.get('page'))
@@ -1407,7 +1429,13 @@ def ge_table(request):
     return render(request, 'partials/gradebook/grade_entry_table.html', {
         'ah': ah,
         'pnation_ah': pnation_ah,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
     })
+    response = render(request, 'partials/gradebook/grade_entry_table.html', context)
+    if request.htmx:
+        return retarget(response, '#grade-table-container')
+    return response
 
 
 # from .models import AssignmentDetail, CourseMember
@@ -2735,130 +2763,130 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
 
     return results, term_period
 
-def calc_student_avg_redone(academic_year, subject, level, is_mid, period):
-    # bobot_formatif_sem_jalan = Weighting.objects.filter(
-    #         academic_year=academic_year,
-    #         level=level,
-    #         subject=subject,
-    #         period=period,
-    #         is_mid=is_mid
-    #     )
-    #
-    # bobot_sumatif_sem_akhir = Weighting.objects.filter(
-    #     academic_year=academic_year,
-    #     level=level,
-    #     subject=subject,
-    #     period=period,
-    #     is_mid=True,
-    #     assignment__short_name='SUMM'
-    # )
-    #
-    # selected_periods = LearningPeriod.objects.filter(
-    #     academic_year=academic_year,
-    #     date_start__lte=period.date_end,
-    #     date_end__gte=period.date_start
-    # )
-    #
-    #
-    # weight_map = {w.assignment_id: w.weight for w in bobot_formatif_sem_jalan}
-    # allowed_assignment_ids = list(weight_map.keys())
-    #
-    # if not allowed_assignment_ids:
-    #     return [], None
-    #
-    # # if not period:
-    # #     period = semester_periods.first()
-    #
-    # detail_qs = AssignmentDetail.objects.filter(
-    #     assignment_head__course__subject=subject,
-    #     assignment_head__course__academic_year=academic_year,
-    #     assignment_head__assignment_id__in=allowed_assignment_ids
-    # )
-    #
-    # # ========================================================
-    # # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
-    # # ========================================================
-    # ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
-    #
-    # # Ambil periode, jika kosong gunakan periode default dari 'period'
-    # if ordered_periods.exists():
-    #     term_period = ordered_periods.first() if is_mid else ordered_periods.last()
-    # else:
-    #     term_period = period
-    #
-    #
-    #
-    # totals = Weighting.objects.aggregate(
-    #     sum1 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=is_mid)),
-    #     sum2 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=True) & Q(assignment__short_name='SUMM'))
-    # )
-    #
-    # grand_total = (totals['sum1'] or 0) + (totals['sum2'] or 0)
-    #
-    # # sum = bobot_formatif_sem_jalan + bobot_sumatif_sem_akhir
-    #
-    # results = 1 - grand_total
-    #
-    from decimal import Decimal
-    # return str(Decimal(results)), term_period
-
-    bobot_sem_jalan = Weighting.objects.filter(
-        academic_year=academic_year,
-        level=level,
-        subject=subject,
-        period=period,
-        is_mid=is_mid
-    )
-
-    weight_map = {w.assignment_id: w.weight for w in bobot_sem_jalan}
-    allowed_assignment_ids = list(weight_map.keys())
-
-    print(weight_map)
-
-    if not allowed_assignment_ids:
-        return [], None
-
-    # ========================================================
-    # 2. HITUNG SISA BOBOT UNTUK MID SEMESTER (Hasilnya 30%)
-    # ========================================================
-    # Kita totalin bobot yang aktif saat ini (Misal: 0.50 + 0.20 = 0.70)
-    current_total_weight = bobot_sem_jalan.aggregate(
-        weight_map=Sum('weight')
-    )['weight_map'] or Decimal('0.00')
-
-    # Cari sisanya (100% - Total Saat Ini)
-    # Catatan: Karena db lu pakai max_digits=2 (skala 0.00 - 0.99), 100% itu ditulis '1.0'
-    sisa_bobot = Decimal('1.0') - current_total_weight
-
-    # Pengaman biar nggak minus kalau kebetulan total bobotnya nyentuh/lebih dari 100%
-    if sisa_bobot < Decimal('0.00'):
-        sisa_bobot = Decimal('0.00')
-
-    # ========================================================
-    # 3. LANJUTAN LOGIKA QUERY DETAIL & TERM
-    # ========================================================
-    detail_qs = AssignmentDetail.objects.filter(
-        assignment_head__course__subject=subject,
-        assignment_head__course__academic_year=academic_year,
-        assignment_head__assignment_id__in=allowed_assignment_ids
-    )
-
-    selected_periods = LearningPeriod.objects.filter(
-        academic_year=academic_year,
-        date_start__lte=period.date_end,
-        date_end__gte=period.date_start
-    )
-
-    ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
-
-    # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
-    if ordered_periods.exists():
-        term_period = ordered_periods.first() if is_mid else ordered_periods.last()
-    else:
-        term_period = period
-
-    # Mengembalikan nilai sisa bobot (str) dan term_period
-    return str(sisa_bobot), term_period
+# def calc_student_avg_redone(academic_year, subject, level, is_mid, period):
+#     # bobot_formatif_sem_jalan = Weighting.objects.filter(
+#     #         academic_year=academic_year,
+#     #         level=level,
+#     #         subject=subject,
+#     #         period=period,
+#     #         is_mid=is_mid
+#     #     )
+#     #
+#     # bobot_sumatif_sem_akhir = Weighting.objects.filter(
+#     #     academic_year=academic_year,
+#     #     level=level,
+#     #     subject=subject,
+#     #     period=period,
+#     #     is_mid=True,
+#     #     assignment__short_name='SUMM'
+#     # )
+#     #
+#     # selected_periods = LearningPeriod.objects.filter(
+#     #     academic_year=academic_year,
+#     #     date_start__lte=period.date_end,
+#     #     date_end__gte=period.date_start
+#     # )
+#     #
+#     #
+#     # weight_map = {w.assignment_id: w.weight for w in bobot_formatif_sem_jalan}
+#     # allowed_assignment_ids = list(weight_map.keys())
+#     #
+#     # if not allowed_assignment_ids:
+#     #     return [], None
+#     #
+#     # # if not period:
+#     # #     period = semester_periods.first()
+#     #
+#     # detail_qs = AssignmentDetail.objects.filter(
+#     #     assignment_head__course__subject=subject,
+#     #     assignment_head__course__academic_year=academic_year,
+#     #     assignment_head__assignment_id__in=allowed_assignment_ids
+#     # )
+#     #
+#     # # ========================================================
+#     # # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
+#     # # ========================================================
+#     # ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
+#     #
+#     # # Ambil periode, jika kosong gunakan periode default dari 'period'
+#     # if ordered_periods.exists():
+#     #     term_period = ordered_periods.first() if is_mid else ordered_periods.last()
+#     # else:
+#     #     term_period = period
+#     #
+#     #
+#     #
+#     # totals = Weighting.objects.aggregate(
+#     #     sum1 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=is_mid)),
+#     #     sum2 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=True) & Q(assignment__short_name='SUMM'))
+#     # )
+#     #
+#     # grand_total = (totals['sum1'] or 0) + (totals['sum2'] or 0)
+#     #
+#     # # sum = bobot_formatif_sem_jalan + bobot_sumatif_sem_akhir
+#     #
+#     # results = 1 - grand_total
+#     #
+#     from decimal import Decimal
+#     # return str(Decimal(results)), term_period
+#
+#     bobot_sem_jalan = Weighting.objects.filter(
+#         academic_year=academic_year,
+#         level=level,
+#         subject=subject,
+#         period=period,
+#         is_mid=is_mid
+#     )
+#
+#     weight_map = {w.assignment_id: w.weight for w in bobot_sem_jalan}
+#     allowed_assignment_ids = list(weight_map.keys())
+#
+#     print(weight_map)
+#
+#     if not allowed_assignment_ids:
+#         return [], None
+#
+#     # ========================================================
+#     # 2. HITUNG SISA BOBOT UNTUK MID SEMESTER (Hasilnya 30%)
+#     # ========================================================
+#     # Kita totalin bobot yang aktif saat ini (Misal: 0.50 + 0.20 = 0.70)
+#     current_total_weight = bobot_sem_jalan.aggregate(
+#         weight_map=Sum('weight')
+#     )['weight_map'] or Decimal('0.00')
+#
+#     # Cari sisanya (100% - Total Saat Ini)
+#     # Catatan: Karena db lu pakai max_digits=2 (skala 0.00 - 0.99), 100% itu ditulis '1.0'
+#     sisa_bobot = Decimal('1.0') - current_total_weight
+#
+#     # Pengaman biar nggak minus kalau kebetulan total bobotnya nyentuh/lebih dari 100%
+#     if sisa_bobot < Decimal('0.00'):
+#         sisa_bobot = Decimal('0.00')
+#
+#     # ========================================================
+#     # 3. LANJUTAN LOGIKA QUERY DETAIL & TERM
+#     # ========================================================
+#     detail_qs = AssignmentDetail.objects.filter(
+#         assignment_head__course__subject=subject,
+#         assignment_head__course__academic_year=academic_year,
+#         assignment_head__assignment_id__in=allowed_assignment_ids
+#     )
+#
+#     selected_periods = LearningPeriod.objects.filter(
+#         academic_year=academic_year,
+#         date_start__lte=period.date_end,
+#         date_end__gte=period.date_start
+#     )
+#
+#     ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
+#
+#     # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
+#     if ordered_periods.exists():
+#         term_period = ordered_periods.first() if is_mid else ordered_periods.last()
+#     else:
+#         term_period = period
+#
+#     # Mengembalikan nilai sisa bobot (str) dan term_period
+#     return str(sisa_bobot), term_period
 
 
 class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):

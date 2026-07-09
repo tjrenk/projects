@@ -48,3 +48,21 @@ def is_homeroom_teacher(context):
         teacher__user=request.user,
         # is_home_class=True,
     ).first()
+
+
+@register.inclusion_tag('partials/gradebook/sortable_th.html')
+def sortable_header(col, label, sort_by, sort_dir):
+    if sort_by == col:
+        next_dir = 'desc' if sort_dir == 'asc' else 'asc'
+        icon = 'fa-sort-up' if sort_dir == 'asc' else 'fa-sort-down'
+    else:
+        next_dir = 'asc'
+        icon = 'fa-sort'
+
+    return {
+        'col': col,
+        'label': label,
+        'next_dir': next_dir,
+        'icon': icon,
+        'is_active': sort_by == col,
+    }

@@ -1,6 +1,8 @@
 {% extends "base_gradebook.html" %}
+{% load gradebook_tags %}
 
 {% block content %}
+
 <style>
 .wide {
     width: 100%;
@@ -26,27 +28,25 @@
     <h1 style="font-size: 30px">Students Grade List</h1>
 </div>
 <div class="navbar-end">
-<!--    <a href="{% url 'grade-entry' %}" class="btn primary-content btn-sm btn-primary "><i class="fa fa-plus"></i>Add Grade Entry</a>-->
+
     <hr>
 </div>
 </div>
-
-
+<div id="grade-table-container">
 <div class="card-body px-3 py-1 w-full">
     <div class="overflow-auto max-h-[60vh]">
         <table class="table table-sm table-hover table-pin-rows border border-base-200 table-auto">
-            <thead class="bg-base-300 text-gray-950">
-                <tr>
-                    {% comment %} <th>User</th> {% endcomment %}
-                    <th class="flex-1"><strong>Date</strong></th>
-                    <th class="flex-1"><strong>Sub-level</strong></th>
-                    <th class="flex-1"><strong>Type</strong></th>
-                    <th class="flex-1"><strong>Topic</strong></th>
-                    <th class="flex-1"><strong>Max Score</strong></th>
-                    <th class="flex-1"><strong>Action</strong></th>
-<!--                    <th class="flex-1"></th>-->
-                </tr>
-            </thead>
+
+<thead>
+    <tr>
+        {% sortable_header 'date' 'Date' sort_by sort_dir %}
+        {% sortable_header 'course' 'Course' sort_by sort_dir %}
+        {% sortable_header 'assignment' 'Type' sort_by sort_dir %}
+        {% sortable_header 'topic' 'Topic' sort_by sort_dir %}
+        {% sortable_header 'max_score' 'Max Score' sort_by sort_dir %}
+        <th>Action</th>
+    </tr>
+</thead>
             <tbody class="flex-1">
                 {% for ahead in pnation_ah %}
                 <tr class="hover:bg-base-200" onclick="window.location.href='{% url 'ge-edit' ahead.id %}'" style="cursor: pointer;">
@@ -69,38 +69,57 @@
 
         </div>
 
-        </div>
 
 
 
-                <div class="card-actions justify-center" style="margin-center: 10px;">
-        <table>
-        <div class="join">
-        <tr>
-        <td>
+
+<div class="flex justify-center mt-4">
+    <div class="join">
         {% if pnation_ah.has_previous %}
-        <a class="join-item btn" href="?page=1"><<</a>
-        <a class="join-item btn" href="?page={{ pnation_ah.previous_page_number }}"><</a>
+        <a class="join-item btn btn-sm"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page=1"
+           hx-target="#grade-table-container"
+           hx-select="#grade-table-container"
+           hx-swap="outerHTML"
+           hx-push-url="true">&laquo;&laquo;</a>
+        <a class="join-item btn btn-sm"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_ah.previous_page_number }}"
+           hx-target="#grade-table-container"
+           hx-select="#grade-table-container"
+           hx-swap="outerHTML"
+           hx-push-url="true">&laquo;</a>
         {% endif %}
-        </td>
-        <td>
-        <h4>Page {{ pnation_ah.number }} of {{ pnation_ah.paginator.num_pages }}</h4>
-        </td>
 
-        <td>
+        {% for num in pnation_ah.paginator.page_range %}
+            {% if pnation_ah.number == num %}
+            <button class="join-item btn btn-sm btn-active">{{ num }}</button>
+            {% elif num > pnation_ah.number|add:"-3" and num < pnation_ah.number|add:"3" %}
+            <a class="join-item btn btn-sm"
+               hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ num }}"
+               hx-target="#grade-table-container"
+               hx-select="#grade-table-container"
+               hx-swap="outerHTML"
+               hx-push-url="true">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
         {% if pnation_ah.has_next %}
-        <a class="join-item btn" href="?page={{ pnation_ah.next_page_number }}">></a>
-
-        <a class="join-item btn" href="?page={{ pnation_ah.paginator.num_pages }}">>></a>
+        <a class="join-item btn btn-sm"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_ah.next_page_number }}"
+           hx-target="#grade-table-container"
+           hx-select="#grade-table-container"
+           hx-swap="outerHTML"
+           hx-push-url="true">&raquo;</a>
+        <a class="join-item btn btn-sm"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_ah.paginator.num_pages }}"
+           hx-target="#grade-table-container"
+           hx-select="#grade-table-container"
+           hx-swap="outerHTML"
+           hx-push-url="true">&raquo;&raquo;</a>
         {% endif %}
-        </td>
-        </tr>
-
-       </div>
-       </table>
-
-       </div>
-
+    </div>
+</div>
+</div>
 
 
 {% endblock %}

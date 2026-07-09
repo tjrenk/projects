@@ -136,7 +136,7 @@
 </td>
 
 <td id="na_reason_td_{{ forloop.counter0 }}">
-    <input type="text" class="input"
+    <input type="text" class="textarea textarea-bordered w-full" style="field-sizing: content; min-height: 3lh; max-height: 10lh; word-wrap: break-word; overflow-y: auto; background-color: #e9ecef; cursor: not-allowed;"
            name="{{ form.na_reason.html_name }}"
            value="{{ form.na_reason.value|default_if_none:'' }}"
            readonly style="background-color:#e9ecef;cursor:not-allowed;">
