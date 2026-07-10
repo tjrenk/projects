@@ -1,14 +1,20 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.signals import user_logged_in
 from django.urls import reverse_lazy
 from .forms import CustomPasswordChangeForm
+from admission.models import Teacher
 
 # @login_required
 def home(request):
-    return render(request, 'index_new.html')
+    user = request.user
+    teacher = request.user.groups.filter(name="Teachers").exists()
+    if teacher:
+        return redirect('gb-index')
+    else:
+        return render(request, 'index_new.html')
 
 def logout_view(request):
     logout(request)

@@ -1,35 +1,69 @@
 {% extends "base_gradebook.html" %}
 
 {% block content %}
- 
+
     <div class="container mt-4">
         <div class="row justify-content-center">
             <div class="main-content h-full max-md:p-3 p-5 pt-2 pb-0">
                 <div class="card bg-base-100 shadow-md lg:p-6 p-3">
                     {% if request.resolver_match.url_name == 'ge-delete' %}
                     <div class="card-header">
-                        <h2 class="mb-0"><strong>Are you sure you want to delete this grade entry data?</strong></h2>
+                        <h2 class="text-xl mb-0"><strong>Are you sure you want to delete this grade entry data?</strong></h2>
                     </div>
                     <div class="card-body">
                         <p></p>
                         <ul>
-                            <li><strong>Topic: {{ ahead.topic }}</strong></li>
-                            <li><strong>Date: {{ ahead.date }}</strong></li>
-                            <li><strong>Max Score: {{ ahead.max_score }}</strong></li>
-<!--                            <li><strong>Learning Targets: {{ ahead.cpmp_target|linebreaksbr }}</strong></li>-->
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Topic:</h1>
+                                <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ ahead.topic }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Date:
+                                <ul class="list-disc list-inside ml-4">{{ ahead.date }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Type:
+                                <ul class="list-disc list-inside ml-4">{{ ahead.assignment.name }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Class:
+                                <ul class="list-disc list-inside ml-4">{{ ahead.course }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Max Score:
+                                <ul class="list-disc list-inside ml-4">{{ ahead.max_score }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold">
+    <strong>Learning Targets:
+    <ul class="list-disc list-inside ml-4">
+        {% for target in cpmp_target %}
+        <li>{{ target.text }}</li>
+        {% empty %}
+            <li>None</li>
+        {% endfor %}
+    </ul></strong>
+</li>
                         </ul>
-                        {% elif request.resolver_match.url_name == 'tc-del' %}
-                                   <div class="card-header">
-                        <h2 class="mb-0"><strong>Are you sure you want to delete this comment data?</strong></h2>
                     </div>
-                    <div class="card-body">
-                        <p></p>
-                        <ul>
-                            <li><strong>Addressed to: {{ src.student.registration_data.first_name }}</strong></li>
-                            <li><strong>Comment: {{ src.ht_comment }}</strong></li>
-                        </ul>
+                    {% elif request.resolver_match.url_name == 'tc-del' %}
+                               <div class="card-header">
+                    <h2 class="text-xl mb-0"><strong>Are you sure you want to delete this comment data?</strong></h2>
+                </div>
+                <div class="card-body">
+                    <p></p>
+                    <ul>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Addressed to:</h1>
+                                <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ src.student.registration_data.first_name }} {{ src.student.registration_data.middle_name }} {{ src.student.registration_data.last_name }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Academic Year:</h1>
+                                <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ src.academic_year }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Learning Period:</h1>
+                                <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ src.period }}</ul></strong></li>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Comment:
+                                <ul class="list-disc list-inside ml-4"><q>{{ src.ht_comment }}</q></ul></strong></li>
+                    <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Posted {% if src.is_mid %} after midtests {% else %} at the end of the semester {% endif %}</h1>
+                    </ul>
+                                            {% elif request.resolver_match.url_name == 'pdev-del' %}
+                               <div class="card-header">
+                    <h2 class="text-xl mb-0"><strong>Are you sure you want to delete this student's personal development data?</strong></h2>
+                </div>
+                <div class="card-body">
+                    <p></p>
+                    <ul>
+                            <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Belonging to:</h1>
+                                <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ pdev.reporcard.student }}</ul></strong></li>
+                    </ul>
                         {% endif %}
-                        
+
                         <form method="post" class="mt-4">
                             {% csrf_token %}
                             <div class="flex gap-4 mb-4">

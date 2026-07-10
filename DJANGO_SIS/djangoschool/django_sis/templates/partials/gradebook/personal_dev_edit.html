@@ -18,10 +18,13 @@
 
     <form method="post">
         {% csrf_token %}
-
-        {% if form.errors %}
+        {{ formset.management_form }}
+        {% for form in formset %}
+        {{ form.id }}
+    {% endfor %}
+        {% if formset.errors %}
         <div class="alert alert-error mb-4">
-            <strong>Errors:</strong> {{ form.errors }}
+            <strong>Errors:</strong> {{ formset.errors }}
         </div>
         {% endif %}
 

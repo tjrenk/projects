@@ -84,6 +84,7 @@ urlpatterns = [
     path('pdev-table/', views.pdev_table, name='pdev-table'),
     path('pdev-edit/<int:pk>', views.pdev_edit, name='pdev-edit'),
     path('pdev-print/<int:pk>', views.print_pdev_pdf, name='pdev-print'),
+    path('pdev-del/<int:pk>', views.pdev_del, name='pdev-del'),
     
 
     # LEAVE THIS COMMENTED, JUST IN CASE

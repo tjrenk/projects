@@ -773,10 +773,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
 
     def _get_homeroom_class(self):
         user = self.request.user
-        if user.is_staff:
-            return Class.objects.all()
-        else:
-            return Class.objects.filter(teacher__user=user).first()
+        return Class.objects.filter(teacher__user=user).first()
 
     def get_form_initial(self, step):
         initial = super().get_form_initial(step)
@@ -1518,7 +1515,7 @@ def ge_edit(request, pk):
 
 
 def ge_del(request, pk):
-    ahead = get_object_or_404(AssignmentHead, pk=pk)
+    ahead = get_object_or_404(AssignmentHead.objects.prefetch_related('cpmp_target'), pk=pk)
     cpmp_trg = '\n'.join(target.text for target in ahead.cpmp_target.all())
     # topic = ahead.topic
     if request.method == 'POST':
@@ -1529,13 +1526,21 @@ def ge_del(request, pk):
     # form = PelanggaranForm()
     context = {
         'ahead': ahead,
-        'cpmp_target': cpmp_trg
+        'cpmp_target': ahead.cpmp_target.all()
     }
     return render(request, 'partials/gradebook/grade_entry_delconf.html', context)
 
 
 @login_required
 def tc_table(request):
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'academic_year': 'academic_year',
+        'period': 'period',
+        'student': 'student',
+        'is_mid': 'is_mid',
+        'level': 'level'
+    }, default_sort='academic_year')
+
     src = StudentReportcard.objects.filter(
         ht_comment__isnull=False
     ).exclude(
@@ -1544,14 +1549,26 @@ def tc_table(request):
         'student__registration_data',
         'academic_year',
         'period',
-    ).order_by('-id')
+    ).order_by(order_field)
+
+
 
     pnation = Paginator(src, 15)
     pnation_src = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/report_card_table.html', {
         'pnation_src': pnation_src,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir
     })
+
+    response = render(request, 'partials/gradebook/report_card_table.html',
+                      {'pnation_src': pnation_src,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir})
+    if request.htmx:
+        return retarget(response, '#grade-table-container')
+    return response
 
 
 @login_required
@@ -1630,10 +1647,10 @@ def tc_del(request, pk):
 
     # For a GET request, show the empty form
     # form = PelanggaranForm()
-    # context = {
-    #     'form': form,
-    # }
-    return render(request, 'partials/gradebook/grade_entry_delconf.html')
+    context = {
+        'src': src,
+    }
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', context)
 
 
 @login_required
@@ -3551,46 +3568,37 @@ def pdev_table(request):
 
 @login_required
 def pdev_edit(request, pk):
-    instance = get_object_or_404(
-        ReportcardPersonalDev.objects.select_related(
-            'reporcard__student__registration_data',
-            'reporcard__period',
-            'reporcard__academic_year',
-            'reporcard__level',
-        ),
-        pk=pk
-    )
-    reportcard = instance.reporcard
+    instance = get_object_or_404(ReportcardPersonalDev, pk=pk)
+    queryset = ReportcardPersonalDev.objects.filter(reporcard=instance.reporcard)
 
-    all_fields = [
-        field
-        for fields in PERSONAL_DEV_FIELDS.values()
-        for field in fields
-    ]
+    pdev_fields = ['care1', 'care2', 'care3',
+                   'respect1', 'respect2', 'respect3', 'respect4',
+                   'responsibility1', 'responsibility2', 'responsibility3', 'responsibility4',
+                   'excellence1', 'excellence2', 'excellence3', 'excellence4']
 
     PersonalDevFormSet = modelformset_factory(
         ReportcardPersonalDev,
-        fields=all_fields,
+        exclude=['reporcard', 'id'],
         extra=0,
-        widgets={
-            field: forms.RadioSelect(attrs={'class': 'radio radio-primary'})
-            for field in all_fields
-        }
+        widgets={field: forms.RadioSelect for field in pdev_fields}
     )
-
-    queryset = ReportcardPersonalDev.objects.filter(pk=pk)
 
     if request.method == 'POST':
         formset = PersonalDevFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
             messages.success(request, "Personal development grades updated!")
-            return redirect('pd-edit', pk=pk)
+            return redirect('pdev-edit', pk=pk)
     else:
         formset = PersonalDevFormSet(queryset=queryset)
 
-    # apply labels and build field groups from the single form in the formset
+    if not formset.forms:
+        messages.error(request, "No record found.")
+        return redirect('pdev-table')
+
     form = formset.forms[0]
+    reportcard = instance.reporcard  # fix undefined variable
+
     label_map = {
         'care1': 'Menunjukkan kepedulian terhadap sesama',
         'care2': 'Membantu teman yang membutuhkan',
@@ -3624,6 +3632,20 @@ def pdev_edit(request, pk):
         'reportcard': reportcard,
         'field_groups': field_groups,
     })
+
+def pdev_del(request, pk):
+    pdev = get_object_or_404(ReportcardPersonalDev, pk=pk)
+    if request.method == 'POST':
+        pdev.delete()
+        return redirect('pdev-table')
+
+    # For a GET request, show the empty form
+    # form = PelanggaranForm()
+    context = {
+        'pdev': pdev,
+    }
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', context)
+
 
 def print_pdev_pdf(request, pk):
     instance = get_object_or_404(
@@ -3819,3 +3841,4 @@ def grade_ledger(request):
         'sel_period': period_id,
         'sel_is_mid': is_mid,
     })
+

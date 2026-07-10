@@ -1,4 +1,5 @@
 {% extends "base_gradebook.html" %}
+{% load gradebook_tags %}
 
 {% block content %}
 
@@ -32,18 +33,18 @@
 </div>
 </div>
 
-
+<div id="grade-table-container">
 <div class="card-body px-3 py-1 w-full">
     <div class="overflow-auto max-h-[60vh]">
         <table class="table table-sm table-hover table-pin-rows table-pin-cols border border-base-200">
             <thead class="bg-base-300 text-gray-950">
                 <tr>
                     {% comment %} <th>User</th> {% endcomment %}
-                    <th>Academic year</th>
-                    <th>Midterms</th>
-                    <th>Period</th>
-                    <th>Level</th>
-                    <th>Student</th>
+                    {% sortable_header 'academic_year' 'Academic Year' sort_by sort_dir %}
+                    {% sortable_header 'is_mid' 'Midterms?' sort_by sort_dir %}
+                    {% sortable_header 'period' 'Period' sort_by sort_dir %}
+                    {% sortable_header 'level' 'Level' sort_by sort_dir %}
+                    {% sortable_header 'student' 'Student' sort_by sort_dir %}
                     <th>Action</th>
                 </tr>
             </thead>
@@ -90,8 +91,13 @@
         <a class="join-item btn btn-sm" href="?page={{ pnation_src.next_page_number }}">&raquo;</a>
         <a class="join-item btn btn-sm" href="?page={{ pnation_src.paginator.num_pages }}">&raquo;&raquo;</a>
         {% endif %}
+
     </div>
 </div>
+</div>
+</div>
+    </div>
+
 
 
 
