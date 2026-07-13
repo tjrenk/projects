@@ -7,6 +7,7 @@ from simple_history.admin import SimpleHistoryAdmin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.urls import path
+from django.http import HttpResponse
 
 
 
@@ -79,10 +80,29 @@ class AssignmentTypeAdmin(admin.ModelAdmin):
     list_display = ["short_name", "name"]
 
 class WeightingForm(forms.ModelForm):
+    class Meta:
+        model = Weighting
+        fields = "__all__"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # acayear = self.instance.academic_year.id
-        # self.fields["period"].queryset = LearningPeriod.objects.filter(academic_year=acayear, period_name__icontains='semester')
+
+        acayear_id = None
+
+        # Case 1: editing an existing Weighting — use its saved academic_year
+        if self.instance and self.instance.pk:
+            acayear_id = self.instance.academic_year_id
+
+        # Case 2: new object, but academic_year was already submitted (validation reload)
+        if self.is_bound:
+            acayear_id = self.data.get('academic_year') or acayear_id
+
+        if acayear_id:
+            self.fields["period"].queryset = LearningPeriod.objects.filter(
+                academic_year_id=acayear_id, period_name__contains='semester'
+            )
+        else:
+            self.fields["period"].queryset = LearningPeriod.objects.all()
 
 class WeightingAdmin(admin.ModelAdmin):
     list_display = ["academic_year","period","mid_sem","subject","assignment","format_percentage"]

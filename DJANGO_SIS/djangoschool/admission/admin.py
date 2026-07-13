@@ -2,6 +2,7 @@ from django.contrib import admin
 
 # Register your models here.
 from admission.models import *
+from django import forms
 
 
 class AcademicYearAdmin(admin.ModelAdmin):
@@ -17,7 +18,18 @@ class RegistrationAdmin(admin.ModelAdmin):
     list_display = ["form_no", "first_name", "last_name", "date_of_birth", "gender"]
     list_filter = ["form_no", "first_name", "last_name"]
 
+
+class StudentForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # taroh logic dibawah
+        self.fields['registration_data'].queryset = Registration.objects.filter(student__isnull=True)
+        if self.instance and self.instance.pk:
+            self.fields['registration_data'].queryset = Registration.objects.filter(pk=self.instance.registration_data_id)
+
 class StudentAdmin(admin.ModelAdmin):
+    form = StudentForm
     list_display = [
         "id_number",
         "registration_data__first_name",
@@ -27,6 +39,7 @@ class StudentAdmin(admin.ModelAdmin):
     ]
     list_filter = ["is_active", "registration_data__first_name", "registration_data__last_name", "nisn"]
     search_fields = ["registration_data__first_name", "registration_data__last_name"]
+
 
 
 
@@ -48,8 +61,8 @@ class TeacherAdmin(admin.ModelAdmin):
 
 class ClassMemberInline(admin.TabularInline):
     model = ClassMember
-    fields = ("is_active", "na_date", "na_reason")
-    max_num = 0
+    fields = ("student", "is_active", "na_date", "na_reason")
+    max_num = 1
 
 class KelasAdmin(admin.ModelAdmin):
     list_display = ["name", "academic_year", "short_name", "teacher", "count_students"]
@@ -69,6 +82,15 @@ class KelasAdmin(admin.ModelAdmin):
 
         # For regular staff users, restrict records to their own
         return qs.filter(teacher__user=request.user)
+
+class ClassMemberForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # taroh logic dibawah
+        self.fields['student'].queryset = Student.objects.filter(classmember__isnull=True)
+        if self.instance and self.instance.pk:
+            self.fields['student'].queryset = Student.objects.filter(pk=self.instance.student_id)
 
 class ClassMemberAdmin(admin.ModelAdmin):
     list_display = ["kelas", "student_name"]

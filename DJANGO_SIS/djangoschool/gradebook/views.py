@@ -50,6 +50,13 @@ def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
     return order_field, sort_by, sort_dir
 
 
+def apply_filters(queryset, request, filter_map):
+    for param, lookup in filter_map.items():
+        value = request.GET.get(param)
+        if value:
+            queryset = queryset.filter(**{lookup: value}).distinct()
+    return queryset
+
 
 def gb_index(request):
     user = request.user
@@ -1400,6 +1407,7 @@ def ge_table(request):
     user = request.user
     teacher = Teacher.objects.filter(user=user).first()
 
+    # sorting
     order_field, sort_by, sort_dir = get_sort_params(request, {
         'date': 'date',
         'course': 'course__name',
@@ -1408,31 +1416,73 @@ def ge_table(request):
         'max_score': 'max_score',
     }, default_sort='date')
 
-
+    # base queryset
     if teacher:
         ah = AssignmentHead.objects.filter(
             course__teacher=teacher
-        ).select_related(
-            'course__subject', 'course__teacher', 'assignment'
-        ).order_by(order_field)
+        ).select_related('course__subject', 'course__teacher', 'assignment')
     else:
         ah = AssignmentHead.objects.select_related(
             'course__subject', 'course__teacher', 'assignment'
-        ).order_by(order_field)
+        )
 
+    # filtering — BEFORE pagination
+    ah = apply_filters(ah, request, {
+        'subject': 'course__subject_id',
+        'course': 'course_id',
+        'year': 'course__academic_year_id',
+    })
+
+    # search — BEFORE pagination
+    search_query = request.GET.get('q', '')
+    if search_query:
+        ah = ah.filter(
+            Q(topic__icontains=search_query) |
+            Q(course__name__icontains=search_query) |
+            Q(assignment__name__icontains=search_query)
+            # Q(max_score=search_query) if search_query.isdigit() else Q() |
+            # Q(date__year=search_query) if search_query.isdigit() else Q()
+        )
+
+    # apply sort AFTER filtering
+    ah = ah.order_by(order_field)
+
+    # pagination — LAST
     pnation = Paginator(ah, 15)
     pnation_ah = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/grade_entry_table.html', {
-        'ah': ah,
         'pnation_ah': pnation_ah,
         'sort_by': sort_by,
         'sort_dir': sort_dir,
+        'search_query': search_query,
+        'selected_subject': request.GET.get('subject', ''),
+        'selected_course': request.GET.get('course', ''),
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Subject',
+                'param': 'subject',
+                'options': Subject.objects.filter(is_activity=False),
+                'selected': request.GET.get('subject', ''),
+            },
+            {
+                'label': 'Course',
+                'param': 'course',
+                'options': Course.objects.filter(teacher=teacher, is_activity=False).select_related('subject'),
+                'selected': request.GET.get('course', ''),
+            },
+        ],
+        'academic_years': AcademicYear.objects.all(),
+        'classes': Course.objects.filter(teacher=teacher, is_activity=False).select_related('subject') if teacher else Course.objects.none(),
+        'selected_year': request.GET.get('year', ''),
+        'selected_class': request.GET.get('class', ''),
     })
-    response = render(request, 'partials/gradebook/grade_entry_table.html', context)
-    if request.htmx:
-        return retarget(response, '#grade-table-container')
-    return response
 
 
 # from .models import AssignmentDetail, CourseMember
