@@ -8,7 +8,36 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.urls import path
 from django.http import HttpResponse
+from django.contrib import admin
+from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
+from django.utils.html import format_html
 
+
+class LogEntryAdmin(admin.ModelAdmin):
+    # Prevent modifying logs from the panel for security
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    list_display = ['action_time', 'user', 'content_type', 'object_repr', 'action_flag_description']
+    list_filter = ['action_time', 'user', 'action_flag']
+    search_fields = ['object_repr', 'change_message']
+
+    def action_flag_description(self, obj):
+        if obj.action_flag == ADDITION:
+            return format_html('<span style="color: green;">Created</span>')
+        elif obj.action_flag == CHANGE:
+            return format_html('<span style="color: orange;">Updated</span>')
+        elif obj.action_flag == DELETION:
+            return format_html('<span style="color: red;">Deleted</span>')
+        return "Unknown"
+
+    action_flag_description.short_description = 'Action Type'
 
 
 class SubjectAdmin(admin.ModelAdmin):
@@ -86,23 +115,17 @@ class WeightingForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        acayear_id = None
-
-        # Case 1: editing an existing Weighting — use its saved academic_year
-        if self.instance and self.instance.pk:
-            acayear_id = self.instance.academic_year_id
-
-        # Case 2: new object, but academic_year was already submitted (validation reload)
-        if self.is_bound:
-            acayear_id = self.data.get('academic_year') or acayear_id
-
-        if acayear_id:
-            self.fields["period"].queryset = LearningPeriod.objects.filter(
-                academic_year_id=acayear_id, period_name__contains='semester'
+        acayear = None
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(
+                academic_year_id=acayear, period_name__icontains='semester'
             )
         else:
-            self.fields["period"].queryset = LearningPeriod.objects.all()
+            self.fields['period'].queryset = LearningPeriod.objects.filter(
+                period_name__icontains='semester'
+            )  # show all instead of none, so add view isn't empty
+
+
 
 class WeightingAdmin(admin.ModelAdmin):
     list_display = ["academic_year","period","mid_sem","subject","assignment","format_percentage"]
@@ -190,6 +213,13 @@ class CapaianPemelajaranLulusanAdmin(admin.ModelAdmin):
     list_display = ("text", )
     list_filter = ["text", ]
 
+class AssignmentHeadAdmin(admin.ModelAdmin):
+    list_display = ("date", "topic", "max_score", "assignment", "course")
+    list_filter = ["date", "topic", "max_score", "assignment", "course"]
+
+class AssignmentDetailAdmin(admin.ModelAdmin):
+    list_display = ("is_active", "na_date", "na_reason", "student", "score")
+    list_filter = ["is_active", "na_date", "na_reason", "student"]
 
 class CPMPForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -272,3 +302,5 @@ admin.site.register(StudentBehaviourReport, StudentBehaviourReportAdmin)
 admin.site.register(CapaianPemelajaranLulusan, CapaianPemelajaranLulusanAdmin)
 admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelajaranAdmin)
 admin.site.register(ReportcardPersonalDev, PDRPTAdmin)
+admin.site.register(AssignmentHead, AssignmentHeadAdmin)
+admin.site.register(AssignmentDetail, AssignmentDetailAdmin)

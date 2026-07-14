@@ -35,9 +35,34 @@ from django.contrib.auth import logout
 from django.db.models.functions import Ceil
 from django.utils import timezone
 from django_htmx.http import retarget
+from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
+from django.contrib.contenttypes.models import ContentType
+from django.utils.encoding import force_str
 
 register = template.Library()
 
+
+def log_activity(user, obj, action, message=""):
+    """
+    Reusable logger for frontend CRUD actions, mirrors what the admin
+    panel does automatically for admin-based changes.
+
+    action: 'add', 'change', or 'delete'
+    """
+    action_map = {
+        'add': ADDITION,
+        'change': CHANGE,
+        'delete': DELETION,
+    }
+
+    LogEntry.objects.log_action(
+        user_id=user.id,
+        content_type_id=ContentType.objects.get_for_model(obj).pk,
+        object_id=obj.pk,
+        object_repr=force_str(obj),
+        action_flag=action_map.get(action, CHANGE),
+        change_message=message or f"{action.capitalize()}d via frontend",
+    )
 
 # BUAT SORTING TABEL
 def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
@@ -376,6 +401,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             details_to_create.append(detail)
 
         AssignmentDetail.objects.bulk_create(details_to_create)
+        log_activity(self.request.user, assignment_head, 'add', "Created new grade entry")
         messages.success(self.request, "Grade entry saved successfully!")
         return redirect('grade-entry')
 
@@ -829,6 +855,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     academic_year=academic_year,
                     period=period,
                     is_mid=is_mid,
+                    level=level
                 )
             }
 
@@ -843,6 +870,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     academic_year=academic_year,
                     period=period,
                     is_mid=is_mid,
+                    level=level
                 ).first()
 
                 initial_list.append({
@@ -871,6 +899,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_academic_year'] = data0.get('academic_year')
             context['selected_period'] = data0.get('period')
             context['selected_is_mid'] = data0.get('is_mid')
+            context['selected_level'] = data0.get('level')
 
         return context
 
@@ -900,8 +929,9 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                         academic_year=academic_year,
                         period=period,
                         is_mid=is_mid,
+                        level=level,
                         defaults={
-                            'level': level,
+                            # 'level': level,
                             'ht_comment': data.get('ht_comment'),
                         }
                     )
@@ -1431,6 +1461,7 @@ def ge_table(request):
         'subject': 'course__subject_id',
         'course': 'course_id',
         'year': 'course__academic_year_id',
+        'type': 'assignment_id'
     })
 
     # search — BEFORE pagination
@@ -1465,17 +1496,23 @@ def ge_table(request):
                 'options': AcademicYear.objects.all(),
                 'selected': request.GET.get('year', ''),
             },
-            {
-                'label': 'Subject',
-                'param': 'subject',
-                'options': Subject.objects.filter(is_activity=False),
-                'selected': request.GET.get('subject', ''),
-            },
+            # {
+            #     'label': 'Subject',
+            #     'param': 'subject',
+            #     'options': Subject.objects.filter(is_activity=False),
+            #     'selected': request.GET.get('subject', ''),
+            # },
             {
                 'label': 'Course',
                 'param': 'course',
                 'options': Course.objects.filter(teacher=teacher, is_activity=False).select_related('subject'),
                 'selected': request.GET.get('course', ''),
+            },
+            {
+                'label': 'Assignment Type',
+                'param': 'type',
+                'options': AssignmentType.objects.all(),
+                'selected': request.GET.get('type', ''),
             },
         ],
         'academic_years': AcademicYear.objects.all(),
@@ -1535,6 +1572,7 @@ def ge_edit(request, pk):
         formset = AssignmentFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
+            log_activity(request.user, parent_head, 'change', "Updated via Grade Entry form")
             return redirect('grade-entry-table')
     else:
         formset = AssignmentFormSet(queryset=queryset)
@@ -1569,6 +1607,7 @@ def ge_del(request, pk):
     cpmp_trg = '\n'.join(target.text for target in ahead.cpmp_target.all())
     # topic = ahead.topic
     if request.method == 'POST':
+        log_activity(request.user, ahead, 'delete', "Deleted via table view")
         ahead.delete()
         return redirect('grade-entry-table')
 
@@ -1583,6 +1622,9 @@ def ge_del(request, pk):
 
 @login_required
 def tc_table(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+    homeroom_class = Class.objects.filter(teacher=teacher).first() if teacher else None
     order_field, sort_by, sort_dir = get_sort_params(request, {
         'academic_year': 'academic_year',
         'period': 'period',
@@ -1601,24 +1643,75 @@ def tc_table(request):
         'period',
     ).order_by(order_field)
 
+    src = apply_filters(src, request, {
+        'academic_year': 'academic_year_id',
+        'period': 'period_id',
+        'student': 'student_id',
+        'is_mid': 'is_mid'
+    })
 
+    search_query = request.GET.get('q', '')
+    if search_query:
+        src = src.filter(
+            Q(student__registration_data__first_name__icontains=search_query) |
+            Q(student__registration_data__last_name__icontains=search_query) |
+            Q(student__id_number__icontains=search_query) |
+            Q(student__nisn__icontains=search_query) |
+            Q(period__period_name__icontains=search_query)
+        )
+
+    # apply sort AFTER filtering
+    src = src.order_by(order_field)
 
     pnation = Paginator(src, 15)
     pnation_src = pnation.get_page(request.GET.get('page'))
 
+
     return render(request, 'partials/gradebook/report_card_table.html', {
         'pnation_src': pnation_src,
         'sort_by': sort_by,
-        'sort_dir': sort_dir
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Learning Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+                'selected': request.GET.get('period', ''),
+            },
+            {
+                'label': 'Student',
+                'param': 'student',
+                'options': Student.objects.filter(
+                    classmember__kelas=homeroom_class,
+                    classmember__is_active=True
+                ).distinct() if homeroom_class else Student.objects.filter(
+                    classmember__isnull=False
+                ).distinct(),
+                'selected': request.GET.get('student', ''),
+            },
+            # {
+            #     'label': 'Midtest?',
+            #     'param': 'is_mid',
+            #     'options': [('true', 'True'), ('false', 'False')],
+            #     'selected': request.GET.get('is_mid', ''),
+            # },
+        ],
     })
 
-    response = render(request, 'partials/gradebook/report_card_table.html',
-                      {'pnation_src': pnation_src,
-        'sort_by': sort_by,
-        'sort_dir': sort_dir})
-    if request.htmx:
-        return retarget(response, '#grade-table-container')
-    return response
+    # response = render(request, 'partials/gradebook/report_card_table.html',
+    #                   {'pnation_src': pnation_src,
+    #     'sort_by': sort_by,
+    #     'sort_dir': sort_dir,)
+    # if request.htmx:
+    #     return retarget(response, '#grade-table-container')
+    # return response
 
 
 @login_required
@@ -3285,6 +3378,9 @@ def print_grade_list(request, pk):
     current_course = parent_head.course
     cpmp_trg = "\n".join(target.text for target in parent_head.cpmp_target.all())
 
+    user = request.user
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
+
     # Same data sync as ge_edit
     active_members = CourseMember.objects.filter(course=current_course, is_active=True)
     for member in active_members:
@@ -3338,6 +3434,23 @@ def print_grade_list(request, pk):
         spaceAfter=2,
     )
 
+    cell_style = ParagraphStyle(
+        'CellText',
+        parent=styles['Normal'],
+        fontSize=8,
+        fontName='Helvetica',
+        leading=10,
+    )
+
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=5,
+        fontName='Times-Italic',
+        alignment=TA_LEFT,
+        textColor=colors.grey,
+    )
+
     # ─── HEADER ───────────────────────────────────────────────
     flowables = []
 
@@ -3348,7 +3461,9 @@ def print_grade_list(request, pk):
         ['Date',        ':', str(parent_head.date or '-')],
         ['Max Score',   ':', str(parent_head.max_score)],
         ['Assignment',  ':', str(parent_head.assignment.name)],
-        ['Learning Target', ':', str(cpmp_trg or '-')]
+        ['Learning Target', ':', str(cpmp_trg or '-')],
+        # ['Printed by', ':', str(user or '-')],
+        # ['Printed on', ':', str(date or '-')],
     ]
 
     meta_table = Table(meta_data, colWidths=[3*cm, 0.5*cm, 12*cm])
@@ -3361,8 +3476,10 @@ def print_grade_list(request, pk):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
 
+
     flowables.append(meta_table)
     flowables.append(Spacer(1, 0.5*cm))
+
 
     # ─── STUDENT GRADE TABLE ──────────────────────────────────
     table_data = [
@@ -3380,7 +3497,7 @@ def print_grade_list(request, pk):
             full_name,
             str(detail.score),
             'Active' if detail.is_active else 'Inactive',
-            detail.na_reason or '-',
+            Paragraph(detail.na_reason or '-', cell_style)
         ])
 
     grade_table = Table(
@@ -3422,6 +3539,8 @@ def print_grade_list(request, pk):
     ]))
 
     flowables.append(grade_table)
+    flowables.append(Spacer(1, 15.0 * cm))
+    flowables.append(Paragraph(f"Printed by {user} on {date}", footer_style))
 
     # ─── BUILD ────────────────────────────────────────────────
     doc.build(flowables)
@@ -3710,6 +3829,8 @@ def print_pdev_pdf(request, pk):
     reportcard = instance.reporcard
     student = reportcard.student
     reg = student.registration_data
+    user = request.user
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -3737,6 +3858,15 @@ def print_pdev_pdf(request, pk):
         'Group', parent=styles['Normal'],
         fontSize=10, fontName='Helvetica-Bold',
         spaceAfter=4, spaceBefore=8,
+    )
+
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=7,
+        fontName='Times-Italic',
+        alignment=TA_LEFT,
+        textColor=colors.grey,
     )
 
     flowables = []
@@ -3820,6 +3950,8 @@ def print_pdev_pdf(request, pk):
         ]))
         flowables.append(table)
         flowables.append(Spacer(1, 0.3 * cm))
+
+    flowables.append(Paragraph(f"Printed by {user} on {date}", footer_style))
 
     doc.build(flowables)
     buf.seek(0)

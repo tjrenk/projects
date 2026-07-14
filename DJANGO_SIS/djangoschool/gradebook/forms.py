@@ -1038,7 +1038,7 @@ class RubricEntryForm(forms.ModelForm):
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
-        print(f"user: {user}, is_staff: {user.is_staff if user else 'NO USER'}")
+        # print(f"user: {user}, is_staff: {user.is_staff if user else 'NO USER'}")
 
         # Teacher depends on Period
         if period:
