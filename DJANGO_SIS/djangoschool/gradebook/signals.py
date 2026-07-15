@@ -7,9 +7,9 @@ from django.db.models.functions import Replace
 from django.db.models import Value
 from django.db.models import ExpressionWrapper, F, TextField, CharField
 
-def new_subject(sender, instance, created, **kwargs):
-    if created:
-        print(f"Subject baru disimpan: {instance.subject_name} ({instance.short_name})")
+# def new_subject(sender, instance, created, **kwargs):
+#     if created:
+#         print(f"Subject baru disimpan: {instance.subject_name} ({instance.short_name})")
 
 def make_shortname(sender, instance, *args, **kwargs):
     if not instance.short_name:
@@ -166,7 +166,7 @@ def student_id_gen(sender, instance, **kwargs):
 
 #untuk tabel subject saat hendak dan setelah disimpan
 pre_save.connect(make_shortname, Subject)
-post_save.connect(new_subject, Subject)
+# post_save.connect(new_subject, Subject)
 
 #untuk tabel GradeEntry setelah guru mengisi form isi nilai
 post_save.connect(new_grade_entry, GradeEntry)

@@ -2098,6 +2098,112 @@ def student_behavior_grading(request, pk):
     }
     return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
 
+
+
+@login_required
+def rb_table(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'academic_year': 'academic_year__year',
+        'period': 'period__period_name',
+        'is_mid': 'is_mid',
+        'level': 'level__grade_name',
+    }, default_sort='academic_year')
+
+    rb = ReportcardBehaviour.objects.select_related(
+        'academic_year', 'period', 'level'
+    )
+
+    # restrict to sessions relevant to this teacher's classes, if not staff
+    if teacher and not user.is_staff:
+        rb = rb.filter(
+            level__students_level_reportcard_behaviour__isnull=False
+        ).distinct()
+
+    rb = apply_filters(rb, request, {
+        'year': 'academic_year_id',
+        'period': 'period_id',
+        'level': 'level_id',
+    })
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        rb = rb.filter(
+            Q(academic_year__year__icontains=search_query) |
+            Q(period__period_name__icontains=search_query) |
+            Q(level__grade_name__icontains=search_query)
+        )
+
+    rb = rb.order_by(order_field).distinct()
+
+    pnation = Paginator(rb, 15)
+    pnation_rb = pnation.get_page(request.GET.get('page'))
+
+    return render(request, 'partials/gradebook/rubric_table.html', {
+        'pnation_rb': pnation_rb,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+                'selected': request.GET.get('period', ''),
+            },
+            {
+                'label': 'Level',
+                'param': 'level',
+                'options': GradeLevel.objects.all(),
+                'selected': request.GET.get('level', ''),
+            },
+        ],
+    })
+
+@login_required
+def rb_edit(request, pk):
+    behaviour = get_object_or_404(
+        ReportcardBehaviour.objects.select_related('academic_year', 'period', 'level'),
+        pk=pk
+    )
+
+    queryset = StudentBehaviourReport.objects.filter(
+        behaviour=behaviour
+    ).select_related('student__registration_data', 'rubric').order_by('student__id', 'rubric__id')
+
+    BehaviourFormSet = modelformset_factory(
+        StudentBehaviourReport,
+        fields=('score', 'description'),
+        extra=0,
+    )
+
+    if request.method == 'POST':
+        formset = BehaviourFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            log_activity(request.user, behaviour, 'change', "Updated student behaviour grades")
+            messages.success(request, "Behaviour grades updated successfully!")
+            return redirect('rubric-table')
+    else:
+        formset = BehaviourFormSet(queryset=queryset)
+
+    # pair each form with its underlying instance for template display
+    rows = list(zip(formset.forms, queryset))
+
+    return render(request, 'partials/gradebook/rubric_edit.html', {
+        'formset': formset,
+        'rows': rows,
+        'behaviour': behaviour,
+    })
+
 # pls github i need this
 
 # EXTRA REPORT FORM LOGIC
