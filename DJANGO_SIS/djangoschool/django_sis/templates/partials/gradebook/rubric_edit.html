@@ -37,6 +37,9 @@
                     {% endfor %}
                 </tbody>
             </table>
+        <a href="{% url 'rubric-pdf' behaviour.pk %}" class="btn btn-secondary">
+    <i class="fa fa-file-pdf"></i> Print PDF
+</a>
         </div>
 
         <div class="mt-4 flex gap-2">

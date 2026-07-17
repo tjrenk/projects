@@ -57,7 +57,7 @@ class CourseAdmin(admin.ModelAdmin):
         # Target the specific ForeignKey field you want to filter
         if db_field.name == "subject":
             # Filter choices to show only active categories
-            kwargs["queryset"] = Subject.objects.filter(is_activity=True)
+            kwargs["queryset"] = Subject.objects.all()
 
             # Optional: Filter based on the currently logged-in admin user
             # if not request.user.is_superuser:

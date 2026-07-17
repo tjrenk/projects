@@ -7,11 +7,12 @@
 
         <!-- Optional: Top summary bar -->
         <div class="flex gap-10 mb-6 text-sm bg-base-200 p-3 rounded-lg">
-            <div><strong>Academic Year:</strong>&nbsp;{{ selected_academic_year }}</div>
-            <div><strong>Level:</strong>&nbsp;{{ selected_level }}</div>
-            <div><strong>Period:</strong>&nbsp;{{ selected_period }}</div>
-            <div><strong>Mid Terms:</strong>&nbsp;{% if is_mid %}Yes{% else %}No{% endif %}</div>
-            <div><strong>Subject:</strong>&nbsp;{{ selected_subject }}</div>
+<div><strong>Academic Year:</strong>&nbsp;{{ selected_academic_year }}</div>
+<div><strong>Level:</strong>&nbsp;{{ selected_level }}</div>
+<div><strong>Period:</strong>&nbsp;{{ selected_period }}</div>
+<div><strong>Mid Terms:</strong>&nbsp;{% if is_mid %}Yes{% else %}No{% endif %}</div>
+<div><strong>Subject:</strong>&nbsp;{{ selected_subject }}</div>
+<div><strong>Course:</strong>&nbsp;{{ selected_course }}</div>
         </div>
 
         <div class="overflow-x-auto">
@@ -139,6 +140,7 @@
         <input type="hidden" name="level_id" value="{{ selected_level.id }}">
         <input type="hidden" name="is_mid" value="{{ is_mid }}">
         <input type="hidden" name="period_id" value="{{ selected_period.id }}">
+        <input type="hidden" name="course_id" value="{{ selected_course.id }}">
 
         <button type="submit" class="btn btn-secondary">
             Save to Table

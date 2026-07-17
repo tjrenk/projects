@@ -1124,7 +1124,6 @@ def get_level_reportcard(request):
 
 
 def get_cpmp_target_ge(request):
-    print(request.GET)  # keep this temporarily to verify params
 
     acayear_id = (request.GET.get('0-academic_year')
                   or request.GET.get('1-academic_year')
@@ -2204,6 +2203,138 @@ def rb_edit(request, pk):
         'behaviour': behaviour,
     })
 
+@login_required
+def rb_del(request, pk):
+    behaviour = get_object_or_404(ReportcardBehaviour, pk=pk)
+    if request.method == 'POST':
+        log_activity(request.user, behaviour, 'delete', "Deleted behaviour session")
+        behaviour.delete()
+        messages.success(request, "Behaviour session deleted successfully!")
+        return redirect('rubric-table')
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', {'behaviour': behaviour})
+
+@login_required
+def rb_pdf(request, pk):
+    behaviour = get_object_or_404(
+        ReportcardBehaviour.objects.select_related('academic_year', 'period', 'level'),
+        pk=pk
+    )
+
+    reports = StudentBehaviourReport.objects.filter(
+        behaviour=behaviour
+    ).select_related(
+        'student__registration_data', 'rubric'
+    ).order_by('rubric__type', 'rubric__index', 'student__id')
+
+    user = request.user
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        topMargin=2*cm,
+        bottomMargin=2*cm,
+        leftMargin=2*cm,
+        rightMargin=2*cm,
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'Title', parent=styles['Normal'],
+        fontSize=14, fontName='Times-Bold',
+        alignment=TA_CENTER, spaceAfter=4,
+    )
+    subtitle_style = ParagraphStyle(
+        'Subtitle', parent=styles['Normal'],
+        fontSize=10, fontName='Times-Roman',
+        alignment=TA_CENTER, spaceAfter=4,
+    )
+    group_style = ParagraphStyle(
+        'Group', parent=styles['Normal'],
+        fontSize=11, fontName='Helvetica-Bold',
+        spaceAfter=4, spaceBefore=10,
+    )
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=7,
+        fontName='Times-Italic',
+        alignment=TA_LEFT,
+        textColor=colors.grey,
+    )
+
+    flowables = []
+
+    flowables.append(Paragraph("Student Behaviour Report", title_style))
+    flowables.append(Paragraph(
+        f"{behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
+        subtitle_style
+    ))
+    flowables.append(Spacer(1, 0.3*cm))
+
+    meta_data = [
+        ['Academic Year', ':', str(behaviour.academic_year)],
+        ['Period', ':', behaviour.period.period_name],
+        ['Level', ':', str(behaviour.level)],
+        ['Mid Term', ':', 'Yes' if behaviour.is_mid else 'No'],
+    ]
+    meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    flowables.append(meta_table)
+    flowables.append(Spacer(1, 0.5*cm))
+
+    # group by rubric type (Spiritual / Social)
+    grouped = {}
+    for report in reports:
+        grouped.setdefault(report.rubric.get_type_display(), []).append(report)
+
+    for rubric_type, rows in grouped.items():
+        flowables.append(Paragraph(rubric_type, group_style))
+
+        table_data = [['Student', 'Indicator', 'Score', 'Grade', 'Description']]
+        for r in rows:
+            reg = r.student.registration_data
+            table_data.append([
+                f"{reg.first_name} {reg.last_name}",
+                r.rubric.description,
+                str(r.score),
+                r.grade,
+                Paragraph(r.description or '-'),
+            ])
+
+        table = Table(table_data, colWidths=[3.5*cm, 4*cm, 1.5*cm, 1.5*cm, 6*cm])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a4a4a')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ALIGN', (2, 0), (3, -1), 'CENTER'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        flowables.append(table)
+        flowables.append(Spacer(1, 0.3*cm))
+        flowables.append(Paragraph(f"Printed by {user} on {date}", footer_style))
+
+    doc.build(flowables)
+    buf.seek(0)
+
+    filename = f"behaviour_{behaviour.level}_{behaviour.period.period_name}.pdf"
+    return FileResponse(buf, as_attachment=False, filename=filename)
+
+
 # pls github i need this
 
 # EXTRA REPORT FORM LOGIC
@@ -2846,7 +2977,7 @@ import json
 from django.core.serializers.json import DjangoJSONEncoder
 
 # KALKULASI NILAI AKHIR (UTS & UAS)
-def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period):
+def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period, course=None):
     # 1. AMBIL BOBOT NILAI YANG AKTIF
     weightings = Weighting.objects.filter(academic_year=academic_year, level=level, subject=subject, period=period,
                                           is_mid=is_mid)
@@ -2874,32 +3005,31 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     term_period = terms.first() if is_mid else terms.last()
     term_period = term_period or period
 
+    all_terms = list(terms)
+
     # 3. AMBIL RATA-RATA NILAI TUGAS MURID LANGSUNG DARI DB
     grades_data = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
         assignment_head__course__academic_year=academic_year,
         assignment_head__assignment_id__in=weight_map.keys(),
         assignment_head__date__range=(term_period.date_start, term_period.date_end)
-    ).values('student_id', 'assignment_head__assignment_id').annotate(avg_score=Avg('score'))
-
-    all_terms = list(terms)
+    )
+    if course:
+        grades_data = grades_data.filter(assignment_head__course=course)
+    grades_data = grades_data.values('student_id', 'assignment_head__assignment_id').annotate(avg_score=Avg('score'))
 
     all_individual_scores = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
         assignment_head__course__academic_year=academic_year,
         assignment_head__assignment_id__in=weight_map.keys(),
         assignment_head__date__range=(term_period.date_start, term_period.date_end)
-    ).select_related(
-        'assignment_head__assignment',
-        'assignment_head'
-    ).values(
-        'student_id',
-        'score',
-        'assignment_head__topic',
-        'assignment_head__date',
-        'assignment_head__assignment__short_name',
-        'assignment_head__assignment__name',
     )
+    if course:
+        all_individual_scores = all_individual_scores.filter(assignment_head__course=course)
+    all_individual_scores = all_individual_scores.select_related(
+        'assignment_head__assignment', 'assignment_head'
+    ).values('student_id', 'score', 'assignment_head__topic', 'assignment_head__date',
+              'assignment_head__assignment__short_name', 'assignment_head__assignment__name')
 
     # group by student_id in Python — O(n) dict lookup, zero extra queries
     from collections import defaultdict
@@ -2984,7 +3114,10 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
                 assignment_head__assignment_id__in=weight_map.keys(),
                 assignment_head__date__range=(term.date_start, term.date_end),
                 student_id=s_id,
-            ).values('assignment_head__assignment_id').annotate(avg_score=Avg('score'))
+            )
+            if course:
+                term_grades = term_grades.filter(assignment_head__course=course)
+            term_grades = term_grades.values('assignment_head__assignment_id').annotate(avg_score=Avg('score'))
 
             term_rows = []
             for row in term_grades:
@@ -3170,52 +3303,48 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
 
     def done(self, form_list, **kwargs):
         form_data = form_list[0].cleaned_data
-
         academic_year = form_data.get('academic_year')
         level = form_data.get('level')
-        # kelas = form_data.get('kelas')
         subject = form_data.get('subject')
+        course = form_data.get('course')
         is_mid = form_data.get('is_mid')
         period = form_data.get('period')
 
         if period is None:
-            semester_periods = LearningPeriod.objects.filter(
-                academic_year=academic_year,
-                period_name__icontains='Semester'
-            ).order_by('date_start')
-            # LANGSUNG ASSIGN KE PERIOD SUPAYA TIDAK NONE DI BAWAH
-            period = semester_periods.first()
+            period = LearningPeriod.objects.filter(
+                academic_year=academic_year, period_name__icontains='Semester'
+            ).order_by('date_start').first()
 
-        # Tangkap 2 nilai: student_results dan decided_period
-        # student_results, decided_period = calc_student_avg_redone(academic_year=academic_year,
-        #                                                                        subject=subject, level=level,
-        #                                                                        is_mid=is_mid, period=period)
-        student_results, decided_period = calculate_student_averages_optimized(academic_year=academic_year,
-                                                                               subject=subject, level=level,
-                                                                               is_mid=is_mid, period=period)
-        # print(academic_year)
-        # print(level)
-        # print(subject)
-        # print(is_mid)
-        # print(period)
+        weighting_exists = Weighting.objects.filter(
+            academic_year=academic_year, level=level, subject=subject,
+            period=period, is_mid=is_mid
+        ).exists()
 
 
+        # pengecekan jika ada data Weighting
+        if not weighting_exists:
+            messages.error(
+                self.request,
+                f"No grading weights have been set up for {subject} "
+                f"({level}, {period}, {'Mid Term' if is_mid else 'Final Term'}). "
+                f"Please add a Weighting entry in the admin panel before calculating."
+            )
+            return redirect('assignment-avg-wizard')
 
-
+        student_results, decided_period = calculate_student_averages_optimized(
+            academic_year=academic_year, subject=subject, level=level,
+            is_mid=is_mid, period=period, course=course
+        )
 
         context = {
             'student_results': student_results,
             'selected_academic_year': academic_year,
             'selected_subject': subject,
-            # 'selected_kelas': kelas,
+            'selected_course': course,
             'selected_level': level,
-            'selected_period': period,  # <--- SEKARANG ID-NYA PASTI ADA ISINYA
+            'selected_period': period,
             'is_mid': is_mid,
         }
-
-        # data = list(context.values())
-        # print(json.dumps(data, indent=4, cls=DjangoJSONEncoder, default=str))
-
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
 
 
@@ -3225,10 +3354,9 @@ def save_assignment_results(request):
     sub_id = request.POST.get('subject_id')
     lvl_id = request.POST.get('level_id')
     period_id = request.POST.get('period_id')
-    is_mid_str = request.POST.get('is_mid', 'False')
-    is_mid = is_mid_str.lower() == 'true'
+    course_id = request.POST.get('course_id')
+    is_mid = request.POST.get('is_mid', 'False').lower() == 'true'
 
-    # Validasi biar server lu aman dari crash kalau misal ke-skip
     if not period_id:
         messages.error(request, "Gagal. ID Periode tidak ditemukan dari template.")
         return redirect('assignment-avg-wizard')
@@ -3237,10 +3365,12 @@ def save_assignment_results(request):
     subject = Subject.objects.get(id=sub_id)
     level = GradeLevel.objects.get(id=lvl_id)
     period = LearningPeriod.objects.get(id=period_id)
+    course = Course.objects.filter(id=course_id).first() if course_id else None
 
-    # Tangkap list muridnya aja di indeks [0]
-    calculated_data = calculate_student_averages_optimized(academic_year=academic_year, subject=subject, level=level,
-                                                           is_mid=is_mid, period=period)[0]
+    calculated_data = calculate_student_averages_optimized(
+        academic_year=academic_year, subject=subject, level=level,
+        is_mid=is_mid, period=period, course=course
+    )[0]
 
     # --- THE DUMP (Save to DB) ---
     with transaction.atomic():
@@ -3460,22 +3590,21 @@ def get_subjects_assignment_avg(request):
 
 
 def get_courses_assignment_avg(request):
-    # 1. Get the logged-in teacher
-    user = request.user
-    teacher = Teacher.objects.filter(user=user).first()
-
     subject_id = request.GET.get('0-subject') or request.GET.get('subject')
-    selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    selected_course = request.GET.get('0-course') or request.GET.get('course')
 
-    # 2. Filter classes by both Subject AND Teacher
     if subject_id:
-        kelas = Class.objects.all()
+        courses = Course.objects.filter(subject_id=subject_id)
+        if acayear_id:
+            courses = courses.filter(academic_year_id=acayear_id)
+        courses = courses.select_related('subject', 'teacher')
     else:
-        kelas = Class.objects.none()
+        courses = Course.objects.none()
 
-    html = render_to_string("partials/gradebook/assignment_avg_partials/kelas.html", {
-        'kelas': kelas,
-        'selected_kelas': selected_kelas
+    html = render_to_string("partials/gradebook/assignment_avg_partials/course.html", {
+        'courses': courses,
+        'selected_course': selected_course
     })
     return HttpResponse(html)
 

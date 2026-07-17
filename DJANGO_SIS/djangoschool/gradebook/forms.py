@@ -2113,7 +2113,6 @@ class AssignmentAvgForm(forms.Form):
         queryset=AcademicYear.objects.all(),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
     )
-    # ADDED HTMX HERE: Level must trigger the Subject dropdown!
     level = forms.ModelChoiceField(
         queryset=GradeLevel.objects.all(),
         widget=forms.Select(attrs={
@@ -2125,7 +2124,7 @@ class AssignmentAvgForm(forms.Form):
         }),
     )
     subject = forms.ModelChoiceField(
-        queryset=Subject.objects.all(), # Default to none until teacher/level is known
+        queryset=Subject.objects.none(),
         widget=forms.Select(attrs={
             'id': 'assignment-avg-subject-select',
             'class': 'custom-select mb-4',
@@ -2133,14 +2132,22 @@ class AssignmentAvgForm(forms.Form):
             'hx-trigger': 'change',
             'hx-target': '#assignment-avg-course-select',
             'hx-swap': 'innerHTML',
+            'hx-include': '#assignment-avg-acayear-select',
+        }),
+    )
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.none(),
+        widget=forms.Select(attrs={
+            'id': 'assignment-avg-course-select',
+            'class': 'custom-select mb-4',
         }),
     )
     period = forms.ModelChoiceField(
-        queryset=LearningPeriod.objects.all(),
+        queryset=LearningPeriod.objects.none(),
         label="Period",
         widget=forms.Select(attrs={
-            'hx-get': '/gradebook/get-period-assignment-avg/',
-            'class': 'custom-select mb-4'
+            'id': 'assignment-avg-period-select',
+            'class': 'custom-select mb-4',
         })
     )
     is_mid = forms.BooleanField(
@@ -2149,7 +2156,6 @@ class AssignmentAvgForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
-        # 1. Grab the user from the view
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
@@ -2160,36 +2166,27 @@ class AssignmentAvgForm(forms.Form):
         level_id = data.get('0-level') or initial.get('level')
         subject_id = data.get('0-subject') or initial.get('subject')
 
-        # # 2. Figure out who the logged-in teacher is
-        # teacher_obj = None
-        # if user:
-        #     teacher_obj = Teacher.objects.filter(user=user).first()
+        # Subject depends on Level
+        self.fields['subject'].queryset = Subject.objects.all() if level_id else Subject.objects.none()
 
-        # 3. Filter SUBJECTS: Must belong to the teacher (and potentially the level)
-        if level_id:
-            self.fields['subject'].queryset = Subject.objects.all()
-        else:
-            self.fields['subject'].queryset = Subject.objects.none()
-
-        # if subject_id:
-        #     self.fields['period'].queryset = LearningPeriod.objects.none()
-        # else:
-        #     self.fields['period'].queryset = LearningPeriod.objects.all()
-
-        # 4. Filter KELAS: Must belong to the teacher AND the selected subject
+        # Course depends on Subject (+ Academic Year, to only show relevant classes)
         if subject_id:
-            # *NOTE: If this line gives an error, it's because Django doesn't know
-            # how your Class model links to your Course model.
-            self.fields['period'].queryset = LearningPeriod.objects.filter(Q(period_name__icontains='semester'))
+            course_qs = Course.objects.filter(subject_id=subject_id)
+            if acayear_id:
+                course_qs = course_qs.filter(academic_year_id=acayear_id)
+            self.fields['course'].queryset = course_qs.select_related('subject', 'teacher')
+        else:
+            self.fields['course'].queryset = Course.objects.none()
+
+        # Period depends on Academic Year only — NOT on subject/course
+        if acayear_id:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(
+                academic_year_id=acayear_id, period_name__icontains='semester'
+            )
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
-
-        self.fields['subject'].widget.attrs.update({
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-period-assignment-avg/',
-        })
-
+        # academic_year is the ONLY field allowed to touch period's HTMX wiring
         self.fields['academic_year'].widget.attrs.update({
             'id': 'assignment-avg-acayear-select',
             'class': 'custom-select mb-4',
@@ -2197,11 +2194,6 @@ class AssignmentAvgForm(forms.Form):
             'hx-trigger': 'change',
             'hx-target': '#assignment-avg-period-select',
             'hx-swap': 'innerHTML',
-        })
-
-        self.fields['period'].widget.attrs.update({
-            'id': 'assignment-avg-period-select',
-            'class': 'custom-select mb-4',
         })
 
 

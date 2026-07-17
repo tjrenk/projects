@@ -10,11 +10,22 @@ from admission.models import Teacher
 # @login_required
 def home(request):
     user = request.user
-    teacher = request.user.groups.filter(name="Teachers").exists()
-    if teacher:
-        return redirect('gb-index')
-    else:
+
+    if not user.is_authenticated:
         return render(request, 'index_new.html')
+
+    is_teacher = user.groups.filter(name="Teachers").exists()
+
+    # Teacher AND staff/admin → general dashboard
+    if is_teacher and user.is_staff:
+        return render(request, 'index_new.html')
+
+    # Teacher only (not staff) → gradebook dashboard
+    if is_teacher:
+        return redirect('gb-index')
+
+    # everyone else (non-teacher, including plain staff/admin) → general dashboard
+    return render(request, 'index_new.html')
 
 def logout_view(request):
     logout(request)
