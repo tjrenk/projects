@@ -350,6 +350,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
                 'selected_subject':       step0_data.get('subject'),
                 'selected_is_mid':        step0_data.get('is_mid'),
                 'selected_assignment_type': step0_data.get('assignment_type'),
+                'selected_assignment_category': dict(ASSIGNMENT_CAT_CHOICES).get(step0_data.get('assignment_category')),
                 'selected_cpmp_target': [t.text for t in cpmp_targets] if cpmp_targets else [],
             })
 
@@ -1637,7 +1638,7 @@ def ge_edit(request, pk):
         'date': parent_head.date,
         'max_score': parent_head.max_score,
         'assign_type': parent_head.assignment,
-        'assign_cat': parent_head.category,
+        'assign_cat': parent_head.get_category_display(),
         'cpmp_target': '\n'.join(t.text for t in parent_head.cpmp_target.all()) or '-',
     })
 
@@ -4305,9 +4306,31 @@ def cpmp_create(request):
     if request.method == 'POST':
         form = CpmpCreateForm(request.POST, user=request.user)
         if form.is_valid():
-            cpmp = form.save()
-            log_activity(request.user, cpmp, 'add', "Created CPMP entry via frontend")
-            messages.success(request, "Learning target added successfully!")
+            default_root, _ = CapaianPemelajaranLulusan.objects.get_or_create(text="-")
+
+            lines = [
+                line.strip()
+                for line in form.cleaned_data['text'].splitlines()
+                if line.strip()
+            ]
+
+            created = [
+                CapaianPemelajaranMataPelajaran(
+                    academic_year=form.cleaned_data['academic_year'],
+                    level=form.cleaned_data['level'],
+                    subject=form.cleaned_data['subject'],
+                    cpl_root=default_root,
+                    text=line,
+                )
+                for line in lines
+            ]
+
+            CapaianPemelajaranMataPelajaran.objects.bulk_create(created)
+
+            for cpmp in created:
+                log_activity(request.user, cpmp, 'add', "Created CPMP entry via frontend")
+
+            messages.success(request, f"{len(created)} learning target(s) added successfully!")
             return redirect('cpmp-create')
     else:
         form = CpmpCreateForm(user=request.user)

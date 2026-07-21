@@ -2410,14 +2410,29 @@ class PersonalDevGradeForm(forms.ModelForm):
 
 
 class CpmpCreateForm(forms.ModelForm):
+    teacher = forms.ModelChoiceField(
+        queryset=Teacher.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Teacher'
+    )
+
+    text = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 6,
+            'placeholder': 'Enter one learning target per line...'
+        }),
+        label='Learning Targets (one per line)'
+    )
+
     class Meta:
         model = CapaianPemelajaranMataPelajaran
-        fields = ['academic_year', 'level', 'subject', 'cpl_root', 'text']
+        fields = ['academic_year', 'level', 'subject', 'text']  # cpl_root removed (point 5)
         widgets = {
             'academic_year': forms.Select(attrs={'class': 'custom-select mb-4'}),
             'level': forms.Select(attrs={'class': 'custom-select mb-4'}),
             'subject': forms.Select(attrs={'class': 'custom-select mb-4'}),
-            'cpl_root': forms.Select(attrs={'class': 'custom-select mb-4'}),
             'text': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
@@ -2425,12 +2440,50 @@ class CpmpCreateForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
-        is_admin = user and (user.is_staff or user.is_superuser)
+        # Point 1 — move Teacher between Level and Subject.
+        # 'teacher' isn't a real model field so it can't go in Meta.fields;
+        # order_fields() is the clean way to reposition it after the fact.
+        self.order_fields(['academic_year', 'level', 'teacher', 'subject', 'text'])
 
-        # non-admin teachers only see subjects they actually teach
-        if user and not is_admin:
-            teacher = Teacher.objects.filter(user=user).first()
-            if teacher:
-                self.fields['subject'].queryset = Subject.objects.filter(
-                    course__teacher=teacher
-                ).distinct()
+        data = self.data
+        initial = self.initial
+
+        is_admin = user and (user.is_staff or user.is_superuser)
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        # Point 4 — always show Teacher, but restrict its own options
+        if is_admin:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        elif logged_in_teacher:
+            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
+            if not self.is_bound:
+                self.initial['teacher'] = logged_in_teacher.id
+        else:
+            self.fields['teacher'].queryset = Teacher.objects.none()
+
+        teacher_id = data.get('teacher') or initial.get('teacher')
+
+        # Point 2/3 — Subject actually cascades off Teacher now
+        if teacher_id:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                course__teacher_id=teacher_id
+            ).distinct()
+        else:
+            self.fields['subject'].queryset = Subject.objects.none()
+
+        # HTMX — reuse the existing Grade Entry endpoint, same filter logic
+        self.fields['teacher'].widget.attrs.update({
+            'id': 'teacher-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-ge',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-ge',
+            'class': 'custom-select mb-4',
+        })
+
+CpmpCreateFormSet = formset_factory(CpmpCreateForm, extra=1, can_delete=True)
