@@ -128,7 +128,7 @@ class GradeEntryForm(forms.ModelForm):
         # else:
         #     self.fields['teacher'].queryset = Teacher.objects.none()
         if period:
-            self.fields['teacher'].queryset = Teacher.objects.all()
+            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
