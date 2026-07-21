@@ -20,6 +20,10 @@ FINAL_GRADE_CHOICES = [
     ('E', 'E'),
 ]
 
+ASSIGNMENT_CAT_BY_TYPE = {
+    'SUMM': ['WR', 'PR'],
+    'FORM': ['OB', 'OR', 'WR', 'PR'],
+}
 
 # biar jadi text, bukan field yang gabisa diapa2in
 class PlainTextWidget(forms.Widget):
@@ -41,7 +45,7 @@ class GradeEntryForm(forms.ModelForm):
 
     class Meta:
         model = GradeEntry
-        fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_type"]
+        fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_category", "assignment_type"]
         labels = {
             'course': "Sub-level",
         }
@@ -83,6 +87,7 @@ class GradeEntryForm(forms.ModelForm):
         subject = data.get('0-subject') or initial.get('subject')
         course = data.get('0-course') or initial.get('course')
         assignment_type = data.get('0-assignment_type') or initial.get('assignment_type')
+        assignment_cat = data.get('0-assignment_cat') or initial.get('assignment_cat')
         cpmp_target = data.get('0-cpmp_target') or initial.get('cpmp_target')
 
         # 2. Logic: Period depends on Academic Year
@@ -156,6 +161,15 @@ class GradeEntryForm(forms.ModelForm):
         else:
             self.fields['assignment_type'].queryset = AssignmentType.objects.none()
 
+        if assignment_type:
+            at_obj = AssignmentType.objects.filter(pk=assignment_type).first()
+            allowed_codes = ASSIGNMENT_CAT_BY_TYPE.get(at_obj.short_name, []) if at_obj else []
+            self.fields['assignment_category'].choices = [('', '---------')] + [
+                (val, label) for val, label in ASSIGNMENT_CAT_CHOICES if val in allowed_codes
+            ]
+        else:
+            self.fields['assignment_category'].choices = [('', '---------')]
+
         # --- HTMX Attributes ---
         # Update Academic Year to trigger Period update
         self.fields['academic_year'].widget.attrs.update({
@@ -228,11 +242,16 @@ class GradeEntryForm(forms.ModelForm):
         self.fields['assignment_type'].widget.attrs.update({
             'id': 'assignment-type-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-cpmp-ge/',
+            'hx-get': '/gradebook/get-assignment-category-ge/',
             'hx-trigger': 'change',
-            'hx-target': '#cpmp-select-ge',
+            'hx-target': '#assignment-category-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #course-select-ge, #subject-select-ge',  # send both
+            'hx-include': '#acayear-select-ge, #course-select-ge, #subject-select-ge',
+        })
+
+        self.fields['assignment_category'].widget.attrs.update({
+            'id': 'assignment-category-select-ge',
+            'class': 'custom-select mb-4',
         })
 
         self.fields['cpmp_target'].widget.attrs.update({
@@ -2390,3 +2409,28 @@ class PersonalDevGradeForm(forms.ModelForm):
                 })
 
 
+class CpmpCreateForm(forms.ModelForm):
+    class Meta:
+        model = CapaianPemelajaranMataPelajaran
+        fields = ['academic_year', 'level', 'subject', 'cpl_root', 'text']
+        widgets = {
+            'academic_year': forms.Select(attrs={'class': 'custom-select mb-4'}),
+            'level': forms.Select(attrs={'class': 'custom-select mb-4'}),
+            'subject': forms.Select(attrs={'class': 'custom-select mb-4'}),
+            'cpl_root': forms.Select(attrs={'class': 'custom-select mb-4'}),
+            'text': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        is_admin = user and (user.is_staff or user.is_superuser)
+
+        # non-admin teachers only see subjects they actually teach
+        if user and not is_admin:
+            teacher = Teacher.objects.filter(user=user).first()
+            if teacher:
+                self.fields['subject'].queryset = Subject.objects.filter(
+                    course__teacher=teacher
+                ).distinct()

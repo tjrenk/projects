@@ -24,6 +24,13 @@ PDRPT_CHOICES = [
     (3, "Biasa Melakukan"),
 ]
 
+ASSIGNMENT_CAT_CHOICES = [
+    ("WR", "WRITTEN"),
+    ("PR", "PROJECT"),
+    ("OB", "OBSERVATION"),
+    ("OR", "ORAL")
+]
+
 class Subject(models.Model):
     subject_name = models.CharField(max_length=35, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
@@ -82,6 +89,7 @@ class GradeEntry(models.Model):
     level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     assignment_type = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
+    assignment_category = models.CharField(max_length=10, choices=ASSIGNMENT_CAT_CHOICES)
     assignment_date = models.DateField(auto_now_add=True)
     assignment_topic = models.CharField(max_length=100, default="to be fill later.")
     # set table to readonly by disabling all save/delete methode
@@ -107,6 +115,7 @@ class CapaianPemelajaranMataPelajaran(models.Model):
 
 class AssignmentHead(models.Model):
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
+    category = models.CharField(max_length=2, choices=ASSIGNMENT_CAT_CHOICES, default='WR')
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     cpmp_target = models.ManyToManyField(CapaianPemelajaranMataPelajaran, related_name='assignments_tp', null=True)
     date = models.DateField(null=True)

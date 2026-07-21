@@ -26,6 +26,7 @@ urlpatterns = [
     path('get-levels-ge/', views.get_levels_ge, name='get_levels_ge'),
     path('get-assignment-types-ge/', views.get_assignment_types_ge, name='get_assignment_types_ge'),
     path('get-cpmp-ge/', views.get_cpmp_target_ge, name='get-cpmp-ge'),
+path('get-assignment-category-ge/', views.get_assignment_category_ge, name='get_assignment_category_ge'),
     path('print-grade-list/<int:pk>', views.print_grade_list, name='print-grade-list'),
 
     # TEACHER COMMENTS / REPORT CARD
@@ -102,5 +103,7 @@ urlpatterns = [
     path('get-period-assignment-avg/', views.get_period_assignment_avg, name='get-period-assignment-avg'),
     path('get-subjects-assignment-avg/', views.get_subjects_assignment_avg, name='get-subjects-assignment-avg'),
     path('get-courses-assignment-avg/', views.get_courses_assignment_avg, name='get-courses-assignment-avg'),
-    path('save_grade_avg/', views.save_assignment_results, name='save_grade_avg')
+    path('save_grade_avg/', views.save_assignment_results, name='save_grade_avg'),
+
+    path('cpmp-create/', views.cpmp_create, name='cpmp-create'),
 ]

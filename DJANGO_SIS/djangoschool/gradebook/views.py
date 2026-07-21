@@ -376,6 +376,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
         assignment_head = AssignmentHead(
             assignment=data0['assignment_type'],
+            category=data0['assignment_category'],
             course=data0['course'],
             date=data1['date'],
             topic=data1['topic'],
@@ -1090,6 +1091,45 @@ def get_assignment_types_ge(request):
     return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", context)
 
 
+def get_assignment_category_ge(request):
+    assignment_type_id = request.GET.get('0-assignment_type') or request.GET.get('assignment_type')
+    selected_category = request.GET.get('0-assignment_category') or request.GET.get('assignment_category')
+
+    allowed_codes = []
+    if assignment_type_id:
+        at_obj = AssignmentType.objects.filter(pk=assignment_type_id).first()
+        if at_obj:
+            allowed_codes = ASSIGNMENT_CAT_BY_TYPE.get(at_obj.short_name, [])
+
+    category_html = render_to_string("partials/gradebook/gradeentry_partials/assignment_category.html", {
+        'categories': [c for c in ASSIGNMENT_CAT_CHOICES if c[0] in allowed_codes],
+        'selected_category': selected_category,
+    })
+
+    # OOB: refresh CPMP target too, same filter logic as get_cpmp_target_ge
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    subject_id = request.GET.get('0-subject') or request.GET.get('subject')
+    selected_cpmp_target = request.GET.getlist('0-cpmp_target') or request.GET.getlist('cpmp_target')
+
+    if acayear_id and subject_id:
+        cpmp_ids = CapaianPemelajaranMataPelajaran.objects.filter(
+            academic_year_id=acayear_id, subject_id=subject_id
+        ).values_list('id', flat=True).distinct()
+        cpmp_trg = CapaianPemelajaranMataPelajaran.objects.filter(id__in=cpmp_ids)
+    else:
+        cpmp_trg = CapaianPemelajaranMataPelajaran.objects.none()
+
+    cpmp_html = render_to_string("partials/gradebook/gradeentry_partials/cpmp_target.html", {
+        'cpmp_trg': cpmp_trg,
+        'selected_cpmp_target': selected_cpmp_target,
+    })
+
+    return HttpResponse(
+        category_html +
+        f'<div hx-swap-oob="innerHTML:#cpmp-select-ge">{cpmp_html}</div>'
+    )
+
+
 # Report Card / Teacher Notes dynamic fields
 def get_period_reportcard(request):
     # acayear_id = AcademicYear.objects.first().id
@@ -1597,6 +1637,7 @@ def ge_edit(request, pk):
         'date': parent_head.date,
         'max_score': parent_head.max_score,
         'assign_type': parent_head.assignment,
+        'assign_cat': parent_head.category,
         'cpmp_target': '\n'.join(t.text for t in parent_head.cpmp_target.all()) or '-',
     })
 
@@ -4259,3 +4300,16 @@ def grade_ledger(request):
         'sel_is_mid': is_mid,
     })
 
+@login_required
+def cpmp_create(request):
+    if request.method == 'POST':
+        form = CpmpCreateForm(request.POST, user=request.user)
+        if form.is_valid():
+            cpmp = form.save()
+            log_activity(request.user, cpmp, 'add', "Created CPMP entry via frontend")
+            messages.success(request, "Learning target added successfully!")
+            return redirect('cpmp-create')
+    else:
+        form = CpmpCreateForm(user=request.user)
+
+    return render(request, 'partials/gradebook/cpmp_create.html', {'form': form})

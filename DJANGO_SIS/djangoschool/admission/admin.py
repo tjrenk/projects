@@ -17,6 +17,23 @@ class LearningPeriodAdmin(admin.ModelAdmin):
 class RegistrationAdmin(admin.ModelAdmin):
     list_display = ["form_no", "first_name", "last_name", "date_of_birth", "gender"]
     list_filter = ["form_no", "first_name", "last_name"]
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Change individual field labels here
+        form.base_fields['nisn'].label = "NISN"
+        form.base_fields['mother_name'].label = "Mother's Name"
+        form.base_fields['mother_nik'].label = "Mother's NIK"
+        form.base_fields['mother_religion'].label = "Mother's Religion"
+        form.base_fields['mother_occupation'].label = "Mother's Occupation"
+        form.base_fields['mother_address'].label = "Mother's Address"
+        form.base_fields['mother_address_same2applicant'].label = "Is the mother's address same as the applicant?"
+        form.base_fields['father_name'].label = "Father's Name"
+        form.base_fields['father_nik'].label = "Father's NIK"
+        form.base_fields['father_religion'].label = "Father's Religion"
+        form.base_fields['father_occupation'].label = "Father's Occupation"
+        form.base_fields['father_address'].label = "Father's Address"
+        form.base_fields['father_address_same2applicant'].label = "Is the father's address same as the applicant?"
+        return form
 
 
 class StudentForm(forms.ModelForm):
@@ -47,16 +64,16 @@ class TeacherAdmin(admin.ModelAdmin):
     list_display = ["first_name", "last_name", "join_date", "user__username"]
     list_filter = ["first_name", "last_name", "user__username"]
 
-    def get_queryset(self, request):
-        # Fetch the original base queryset
-        qs = super().get_queryset(request)
-
-        # If the user is a superuser, show all records
-        if request.user.is_superuser:
-            return qs
-
-        # For regular staff users, restrict records to their own
-        return qs.filter(user=request.user)
+    # def get_queryset(self, request):
+    #     # Fetch the original base queryset
+    #     qs = super().get_queryset(request)
+    #
+    #     # If the user is a superuser, show all records
+    #     if request.user.is_superuser:
+    #         return qs
+    #
+    #     # For regular staff users, restrict records to their own
+    #     return qs.filter(user=request.user)
 
 
 class ClassMemberInline(admin.TabularInline):

@@ -247,6 +247,16 @@
                                 </div>
                                 </div>
 
+                                    <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+    <div class="mb-1 basis-full md:flex-1">
+        {{ wizard.form.assignment_category.label }}
+        {{ wizard.form.assignment_category }}
+        <div class="error">
+            {{ wizard.form.assignment_category.errors }}
+        </div>
+    </div>
+</div>
+
                                 <div class="checkbox-group flex flex-wrap justify-start gap-4 mb-3">
                                 <div class="mb-1 basis-full md:flex-1">
                                 {{ wizard.form.cpmp_target.label }}

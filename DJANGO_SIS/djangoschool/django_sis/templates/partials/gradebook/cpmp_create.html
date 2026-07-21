@@ -1,0 +1,29 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Add Learning Target (CPMP)</div>
+
+    <form method="post" class="mt-4">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="alert alert-error mb-4">{{ form.errors }}</div>
+        {% endif %}
+
+        {% for field in form %}
+        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+            <div class="mb-1 basis-full md:flex-1">
+                {{ field.label_tag }}
+                {{ field }}
+                <div class="error">{{ field.errors }}</div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="flex gap-2 mt-4">
+            <button type="submit" class="btn btn-sm btn-primary rounded-md">Save</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

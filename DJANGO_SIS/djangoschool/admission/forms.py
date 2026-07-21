@@ -14,13 +14,13 @@ class PersonalInfoForm(forms.ModelForm):
 class ContactInfoForm(forms.ModelForm):
     class Meta:
         model = Registration
-        fields = ['current_address', 'current_district', 'current_region', 'current_city', 'current_province', 'contact_whatsapp', 'contact_mobile', 'contact_email', 'contact_preference', ]
+        fields = ['current_address', 'contact_mobile', 'contact_email', 'contact_preference', ]
 
 class ParentInfoForm(forms.ModelForm):
     class Meta:
         model = Registration
-        fields = ['mother_name', 'mother_nik', 'mother_religion', 'mother_education', 'mother_occupation', 'mother_address_same2applicant', 'mother_address', 'mother_district', 'mother_region', 'mother_city', 'mother_province', 'mother_phone', 'mother_mobile', 'mother_whatsapp', 'mother_email',
-                  'father_name', 'father_nik', 'father_religion', 'father_education', 'father_occupation', 'father_address_same2applicant', 'father_address', 'father_district', 'father_region', 'father_city', 'father_province', 'father_phone', 'father_mobile', 'father_whatsapp', 'father_email']
+        fields = ['mother_name', 'mother_nik', 'mother_religion', 'mother_education', 'mother_occupation', 'mother_address_same2applicant', 'mother_address', 'mother_phone', 'mother_mobile', 'mother_email',
+                  'father_name', 'father_nik', 'father_religion', 'father_education', 'father_occupation', 'father_address_same2applicant', 'father_address', 'father_phone', 'father_mobile', 'father_email']
         
         def clean(self):
             cleaned_data = super().clean()
