@@ -1,4 +1,4 @@
 <option value="">---------</option>
 {% for teach in teachers %}
-    <option value="{{ teach.id }}" {% if selected_course and course.id|stringformat:"s" == selected_course %}selected{% endif %}>{{ teach }}</option>
+    <option value="{{ teach.id }}" {% if selected_teacher and teach.id|stringformat:"s" == selected_teacher %}selected{% endif %}>{{ teach }}</option>
 {% endfor %}

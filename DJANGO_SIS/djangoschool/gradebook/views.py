@@ -166,6 +166,8 @@ def gb_index(request):
     else:
         context['rpcard'] = ReportcardGrade.objects.select_related(
             'reportcard__student__registration_data', 'subject'
+        ).prefetch_related(
+            'reportcard__student__classmember_set__kelas'
         ).order_by('-final_score').distinct()[:10]
 
         context['announcements'] = Announcement.objects.filter(
@@ -960,6 +962,7 @@ def get_levels_ge(request):
 
 def get_teachers(request):
     period_id = request.GET.get('0-period') or request.GET.get('period')
+    selected_teacher = request.GET.get('0-teacher') or request.GET.get('teacher')
     user = request.user
 
     if period_id:
@@ -968,7 +971,12 @@ def get_teachers(request):
             teachers = Teacher.objects.all()
     else:
         teachers = Teacher.objects.none()
-    context = {'teachers': teachers}
+
+    # Non-admin teachers only ever have one option — auto-select it
+    if not user.is_staff and teachers.count() == 1:
+        selected_teacher = str(teachers.first().id)
+
+    context = {'teachers': teachers, 'selected_teacher': selected_teacher}
     return render(request, "partials/gradebook/gradeentry_partials/teacher.html", context)
 
 

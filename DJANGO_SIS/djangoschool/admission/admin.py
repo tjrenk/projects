@@ -61,8 +61,18 @@ class StudentAdmin(admin.ModelAdmin):
 
 
 class TeacherAdmin(admin.ModelAdmin):
-    list_display = ["first_name", "last_name", "join_date", "user__username"]
-    list_filter = ["first_name", "last_name", "user__username"]
+    list_display = ["fullname_wtitle", "join_date", "user__username"]
+    list_filter = ["first_name", "last_name", "fullname_wtitle", "user__username"]
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Change individual field labels here
+        form.base_fields['fullname_wtitle'].label = "Full Name and Title"
+        return form
+
+    def fullname_wtitle_fixed(self, obj):
+        return obj.fullname_wtitle
+    fullname_wtitle_fixed.short_description = "Full Name and Title"
 
     # def get_queryset(self, request):
     #     # Fetch the original base queryset

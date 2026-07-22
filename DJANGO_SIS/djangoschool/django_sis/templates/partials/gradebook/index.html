@@ -1,6 +1,6 @@
 {% extends "base_gradebook.html" %}
 {% block title %}
-    SIS - Teachers' Gradebook
+    Ekumene SIS | Gradebook
 {% endblock %}
 {% block app_name %}App Header goes here{% endblock %}
 {% block content %}
@@ -82,7 +82,7 @@
                         <tr>
                             <td>{{ record.reportcard.student.registration_data.nisn }}</td>
                             <td>{{ record.reportcard.student.registration_data.first_name }} {{ record.reportcard.student.registration_data.last_name }}</td>
-                            <td>{{ record.reportcard.student.registration_data.class_name }}</td>
+                            <td>{{ record.reportcard.student.classmember_set.first.kelas }}</td>
                             <td class="font-bold">{{ record.final_score|default:"N/A" }}</td>
                         </tr>
                     {% endfor %}

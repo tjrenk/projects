@@ -90,6 +90,7 @@ class LearningPeriod(models.Model):
         return f"{self.academic_year} / {self.period_name}"
 
 class Teacher(AbstractPerson):
+    fullname_wtitle = models.CharField(max_length=50, default='idk')
     join_date = (models.DateField())
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
     def __str__(self):

@@ -58,6 +58,9 @@ class GradeEntryForm(forms.ModelForm):
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
+        teacher_obj = Teacher.objects.filter(user=user).first() if user else None
+
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
 
         # Default Logic for Logged-in Teacher
         if user and not self.is_bound and not is_admin:
@@ -127,17 +130,23 @@ class GradeEntryForm(forms.ModelForm):
         #         self.fields['teacher'].queryset = Teacher.objects.all()
         # else:
         #     self.fields['teacher'].queryset = Teacher.objects.none()
-        if period:
-            self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
+        # 3. Logic: Teacher
+        # 3. Logic: Teacher — same pattern as CpmpCreateForm
+        if is_admin:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        elif logged_in_teacher:
+            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
+            if not self.is_bound:
+                self.initial['teacher'] = logged_in_teacher.id
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
         # 4. Logic: Subject depends on Teacher
         if teacher:
             # Using your existing filtering logic
-            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher).distinct()
+            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher, is_activity=False).distinct()
             if is_admin:
-                self.fields['subject'].queryset = Subject.objects.all()
+                self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
@@ -232,7 +241,6 @@ class GradeEntryForm(forms.ModelForm):
             'id': 'teacher-select-ge',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-subjects-ge/',
-            'hx-trigger': 'change',
             'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
         })
@@ -2485,5 +2493,3 @@ class CpmpCreateForm(forms.ModelForm):
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
         })
-
-CpmpCreateFormSet = formset_factory(CpmpCreateForm, extra=1, can_delete=True)

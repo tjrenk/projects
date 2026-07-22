@@ -112,7 +112,9 @@
                         {% endif %}
                         <li><a class="{% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
                         <li><a class="{% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>
-                        <li><a class="{% if request.resolver_match.url_name == 'pdev-table' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>
+                        <li class="mb-4"><a class="{% if request.resolver_match.url_name == 'pdev-table' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>
+                        <li class="menu-title">Processes</li>
+                        <li><a class="{% if request.resolver_match.url_name == 'assignment-avg-wizard' %}active{% endif %}" href="{% url 'assignment-avg-wizard' %}">Final Grade Calc</a></li>
                     </ul>
                 </div>
             </div>
