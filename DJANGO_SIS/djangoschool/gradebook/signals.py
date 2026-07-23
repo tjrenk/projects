@@ -154,13 +154,21 @@ def tambah_record_rubriksiswa(sender, instance, created, **kwargs):
 
 def student_id_gen(sender, instance, **kwargs):
     if not instance.id_number:
-        if instance.registration_data.gender == 'M':
-            gend = "01"
-        else:
-            gend = "02"
-        nisn = instance.nisn[:4]
-        form_no = instance.registration_data.form_no[:3]
-        instance.id_number = f"{gend}{nisn}{form_no}"
+        # TA ambil dari urutan paling pertama
+        current_ay = AcademicYear.objects.order_by('-year').first()
+        ay_year = int(current_ay.year) if current_ay else datetime.now().year
+
+        # TA sekarang - tahun berdiri sekolah (2022)
+        batch_number = ay_year - 2022
+        batch_str = f"{batch_number:02d}"
+
+        year_str = f"{ay_year % 100:02d}"
+
+        prefix = f"{batch_str}{year_str}"
+        existing_count = Student.objects.filter(id_number__startswith=prefix).count()
+        seq_str = f"{existing_count + 1:02d}"
+
+        instance.id_number = f"{batch_str}{year_str}{seq_str}"
 
 
 
