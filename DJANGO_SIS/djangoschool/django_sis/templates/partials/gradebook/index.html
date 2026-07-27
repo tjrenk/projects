@@ -65,31 +65,31 @@
         </div>
 
             &nbsp;
-        <div class="flex-1 card card-compact bg-base-100 p-4 mb-4">
-            <h1 style="font-size: 30px; text-align: center;">Top 3 Students</h1>
-            <div class="card bg-base-100 w-full card-bordered flex-col flex-1 ">
-                <table class="table table-sm border border-base-200 table-auto">
-                    <thead class="bg-base-300 text-gray-950">
-                        <tr>
-                            <th>NISN</th>
-                            <th>Name</th>
-                            <th>Class</th>
-                            <th>Average Score</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for record in rpcard|slice:"3" %}
-                        <tr>
-                            <td>{{ record.reportcard.student.registration_data.nisn }}</td>
-                            <td>{{ record.reportcard.student.registration_data.first_name }} {{ record.reportcard.student.registration_data.last_name }}</td>
-                            <td>{{ record.reportcard.student.classmember_set.first.kelas }}</td>
-                            <td class="font-bold">{{ record.final_score|default:"N/A" }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+{#        <div class="flex-1 card card-compact bg-base-100 p-4 mb-4">#}
+{#            <h1 style="font-size: 30px; text-align: center;">Top 3 Students</h1>#}
+{#            <div class="card bg-base-100 w-full card-bordered flex-col flex-1 ">#}
+{#                <table class="table table-sm border border-base-200 table-auto">#}
+{#                    <thead class="bg-base-300 text-gray-950">#}
+{#                        <tr>#}
+{#                            <th>NISN</th>#}
+{#                            <th>Name</th>#}
+{#                            <th>Class</th>#}
+{#                            <th>Average Score</th>#}
+{#                        </tr>#}
+{#                    </thead>#}
+{#                    <tbody>#}
+{#                    {% for record in rpcard|slice:"3" %}#}
+{#                        <tr>#}
+{#                            <td>{{ record.reportcard.student.registration_data.nisn }}</td>#}
+{#                            <td>{{ record.reportcard.student.registration_data.first_name }} {{ record.reportcard.student.registration_data.last_name }}</td>#}
+{#                            <td>{{ record.reportcard.student.classmember_set.first.kelas }}</td>#}
+{#                            <td class="font-bold">{{ record.final_score|default:"N/A" }}</td>#}
+{#                        </tr>#}
+{#                    {% endfor %}#}
+{#                    </tbody>#}
+{#                </table>#}
+{#            </div>#}
+{#        </div>#}
         {% comment %} <div class="rounded-box border bg-base-100 wide">
 
 <div class="navbar shadow-sm">

@@ -92,6 +92,13 @@
                                     {% endif %}
                                     {% block object-tools-items %}
                                         {% change_list_object_tools %}
+{#                                        Print Teachers List button#}
+                                        {% if opts.model_name == 'teacher' %}
+    <a href="{% url opts|admin_urlname:'print_list_pdf' %}?{{ request.GET.urlencode }}"
+       class="btn-sm btn btn-outline rounded-md">
+        <i class="fa-solid fa-file-pdf"></i> {% translate 'Print to PDF' %}
+    </a>
+{% endif %}
                                     {% endblock %}
 
                                 {% endblock %}

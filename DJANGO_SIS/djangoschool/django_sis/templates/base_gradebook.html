@@ -141,7 +141,7 @@
                     <div class="divider text-base-content/40 menu-title divider-start">Gradebook</div>
 
                     <li class="mb-2">
-                        <details open>
+                            <details {% if request.resolver_match.url_name in "grade-entry,student-attendance,report-card,rubric-entry,extra-report,personal-dev,cpmp-create" %}open{% endif %}>
                             <summary><i class="fa-solid fa-keyboard"></i>Data Entry</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry' %}active{% endif %}" href="{% url 'grade-entry' %}">Student Grade</a></li>
@@ -163,16 +163,16 @@
                     </li>
                     {% if user.is_staff %}
                 <li class="mb-2">
-                        <details open>
+                        <details {% if request.resolver_match.url_name == 'assignment-avg-wizard' %}open{% endif %}>
                             <summary><i class="fa-solid fa-calculator"></i>Processes</summary>
                             <ul>
-                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-avg-wizard' %}active{% endif %}" href="{% url 'assignment-avg-wizard' %}">Final Grade Avg</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-avg-wizard' %}active{% endif %}" href="{% url 'assignment-avg-wizard' %}">Calc Final Grade</a></li>
                             </ul>
                         </details>
                     </li>
                     {% endif %}
                     <li class="mb-2">
-                        <details open>
+                            <details {% if request.resolver_match.url_name in "grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit" %}open{% endif %}>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry-table' or request.resolver_match.url_name == 'ge-edit' or request.resolver_match.url_name == 'ge-delete' %}active{% endif %}" href="{% url 'grade-entry-table' %}">Student Grade</a></li>

@@ -2,7 +2,16 @@ from django.contrib import admin
 
 # Register your models here.
 from admission.models import *
+from gradebook.models import Course
 from django import forms
+
+# PDF stuff
+import io
+from django.http import FileResponse
+from django.urls import path
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 
 
 class AcademicYearAdmin(admin.ModelAdmin):
@@ -85,6 +94,43 @@ class TeacherAdmin(admin.ModelAdmin):
         return obj.fullname_wtitle
     fullname_wtitle_fixed.short_description = "Full Name and Title"
 
+    def get_urls(self):
+        custom_urls = [
+            path('print-list-pdf/', self.admin_site.admin_view(self.print_list_pdf), name='admission_teacher_print_list_pdf'),
+        ]
+        return custom_urls + super().get_urls()
+
+    def print_list_pdf(self, request):
+        from gradebook.models import Course  # cross-app import, exactly like your other files already do
+
+        cl = self.get_changelist_instance(request)
+        queryset = cl.get_queryset(request)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+
+        table_data = [['Full Name', 'Courses']]
+        for teacher in queryset:
+            courses = Course.objects.filter(teacher=teacher).values_list('name', flat=True)
+            table_data.append([
+                teacher.fullname_wtitle,
+                ", ".join(courses) or '-',
+            ])
+
+        table = Table(table_data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkslateblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+
+        doc.build([table])
+        buffer.seek(0)
+        return FileResponse(buffer, as_attachment=True, filename="teacher_list.pdf")
+
     # def get_queryset(self, request):
     #     # Fetch the original base queryset
     #     qs = super().get_queryset(request)
@@ -122,10 +168,16 @@ class KelasAdmin(admin.ModelAdmin):
         return qs.filter(teacher__user=request.user)
 
 class ClassMemberForm(forms.ModelForm):
+    # class Meta:
+    #     model = ClassMember
+    #     fields = '__all__'
+    #     widgets = {
+    #         'student': forms.CheckboxSelectMultiple(attrs={'class': 'checkbox'}),
+    #     }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # taroh logic dibawah
         self.fields['student'].queryset = Student.objects.filter(classmember__isnull=True)
         if self.instance and self.instance.pk:
             self.fields['student'].queryset = Student.objects.filter(pk=self.instance.student_id)
@@ -134,6 +186,16 @@ class ClassMemberAdmin(admin.ModelAdmin):
     list_display = ["kelas", "student_name"]
     list_filter = ["student", "student__registration_data__gender", "kelas"]
     autocomplete_fields = ["student", "kelas"]
+    form = ClassMemberForm
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        print("GET params:", dict(request.GET))
+        print("model_name:", request.GET.get('model_name'))
+        if request.GET.get('model_name') == 'classmember':
+            queryset = queryset.filter(classmember__isnull=True)
+            print("Filtered count:", queryset.count())
+        return queryset, use_distinct
 
     def student_name(self, obj: ClassMember):
         return f"{obj.student}"
@@ -148,6 +210,7 @@ class ClassMemberAdmin(admin.ModelAdmin):
 
         # For regular staff users, restrict records to their own
         return qs.filter(kelas__teacher__user=request.user)
+
     
 class ReligionAdmin(admin.ModelAdmin):
     list_display = ["religion_name"]

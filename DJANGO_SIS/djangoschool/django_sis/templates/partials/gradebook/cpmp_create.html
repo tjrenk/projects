@@ -4,6 +4,8 @@
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
     <div class="collapse-title text-xl font-medium">Lesson Plan</div>
 
+    <div class="card-body bg-base-100 border-base-200">
+
     <form method="post" class="mt-4">
         {% csrf_token %}
 
@@ -25,5 +27,6 @@
             <button type="submit" class="btn btn-sm btn-primary rounded-md">Save</button>
         </div>
     </form>
+    </div>
 </div>
 {% endblock %}

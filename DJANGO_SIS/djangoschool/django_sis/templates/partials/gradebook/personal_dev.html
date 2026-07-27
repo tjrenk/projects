@@ -12,6 +12,8 @@
         </ul>
     </div>
 
+    <div class="card-body bg-base-100 border-base-200">
+
     <form action="" method="post">
         {% csrf_token %}
         {{ wizard.management_form }}
@@ -39,7 +41,7 @@
         {# === STEP 2 (index '1'): Grade Input === #}
         {% elif wizard.steps.current == '1' %}
             {% if selected_student %}
-            <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+            <div class="grid grid-cols-3 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
                 <div><strong>Student:</strong> {{ selected_student.student.registration_data.first_name }}</div>
                 <div><strong>Period:</strong> {{ selected_period }}</div>
                 <div><strong>Mid Term:</strong> {{ selected_is_mid|yesno:"Yes,No" }}</div>
@@ -100,5 +102,6 @@
             {% endif %}
         </div>
     </form>
+    </div>
 </div>
 {% endblock %}

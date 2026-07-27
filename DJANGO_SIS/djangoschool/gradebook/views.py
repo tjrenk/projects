@@ -15,7 +15,7 @@ from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min, Q
 from django.db.models import F
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import letter, A4, GOV_LEGAL
 from reportlab.lib.units import inch, cm
 from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Frame, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -42,6 +42,8 @@ from django.utils.encoding import force_str
 register = template.Library()
 
 
+####### REUSABLES #######
+# BUAT LOG AKTIVITAS CRUD DARI SEMUA USER
 def log_activity(user, obj, action, message=""):
     """
     Reusable logger for frontend CRUD actions, mirrors what the admin
@@ -82,7 +84,118 @@ def apply_filters(queryset, request, filter_map):
             queryset = queryset.filter(**{lookup: value}).distinct()
     return queryset
 
+def get_pdf_styles():
+    """
+    Returns a dict of reusable ParagraphStyles and a standard TableStyle
+    for use across all PDF generation views.
+    """
+    base_styles = getSampleStyleSheet()
 
+    styles = {
+        'title': ParagraphStyle(
+            'Title', parent=base_styles['Normal'],
+            fontSize=14, fontName='Times-Bold',
+            alignment=TA_CENTER, spaceAfter=4,
+        ),
+        'subtitle': ParagraphStyle(
+            'Subtitle', parent=base_styles['Normal'],
+            fontSize=10, fontName='Times-Roman',
+            alignment=TA_CENTER, spaceAfter=4,
+        ),
+        'group': ParagraphStyle(
+            'Group', parent=base_styles['Normal'],
+            fontSize=11, fontName='Helvetica-Bold',
+            spaceAfter=4, spaceBefore=10,
+        ),
+        'label': ParagraphStyle(
+            'Label', parent=base_styles['Normal'],
+            fontSize=9, fontName='Times-Roman',
+            alignment=TA_LEFT, spaceAfter=2,
+        ),
+        'footer': ParagraphStyle(
+            'Footer', parent=base_styles['Normal'],
+            fontSize=7, fontName='Times-Italic',
+            alignment=TA_LEFT, textColor=colors.grey,
+        ),
+    }
+
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a4a4a')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ])
+
+    return styles, table_style
+
+
+def get_pdf_header():
+    """
+    Builds the reusable dark banner header (logo + school info) used across
+    all PDF documents. Returns a single Table flowable — just append it to
+    the top of your `flowables` list.
+
+    TEMP: using a text placeholder instead of an image logo for now.
+    Once you're ready to swap in a real logo, replace the `logo = Paragraph(...)`
+    block below with an `Image(LOGO_PATH, width=..., height=...)` call.
+    """
+    header_text_styles = {
+        'line1': ParagraphStyle(
+            'HeaderLine1', fontName='Helvetica', fontSize=10,
+            textColor=colors.black, spaceAfter=2,
+        ),
+        'line2': ParagraphStyle(
+            'HeaderLine2', fontName='Helvetica-Bold', fontSize=15,
+            textColor=colors.black, spaceAfter=2,
+        ),
+        'line3': ParagraphStyle(
+            'HeaderLine3', fontName='Helvetica', fontSize=9,
+            textColor=colors.black, spaceAfter=1,
+        ),
+    }
+
+    logo = Paragraph(
+        "LOGO",
+        ParagraphStyle(
+            'LogoFallback', fontName='Helvetica-Bold', fontSize=18,
+            textColor=colors.black, alignment=TA_CENTER,
+        )
+    )
+
+    info_block = [
+        Paragraph("HEADER TEXT 1", header_text_styles['line1']),
+        Paragraph("HEADER TEXT 2 ALIAS COMPANY NAME", header_text_styles['line2']),
+        Paragraph("CODE HERE: 12345676767", header_text_styles['line3']),
+        Paragraph("Address: insertaddresshere", header_text_styles['line3']),
+        Paragraph("Phone Number &nbsp;&nbsp; Email", header_text_styles['line3']),
+    ]
+
+    header_table = Table(
+        [[logo, info_block]],
+        colWidths=[4 * cm, 13 * cm],
+    )
+    header_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('LEFTPADDING', (1, 0), (1, 0), 14),
+        ('TOPPADDING', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+    ]))
+
+    return header_table
+
+
+
+
+
+####### MAIN FUNCTIONS #######
 def gb_index(request):
     user = request.user
 
@@ -693,102 +806,6 @@ def midterm_report_pdf(request, student_id=None):
     flowables.append(akt_text)
     flowables.append(table_aktivitas)
 
-    # total_para_text = f"<b>Total Aktivitas:</b> {aktivitas_total}"
-    # # total_para = Paragraph(f"<b>Total Aktivitas:</b> {aktivitas_total}", styles['Normal'])
-    # total_para = Paragraph(total_para_text, times_nr)
-    # flowables.append(Spacer(1, 6))
-    # flowables.append(total_para)
-
-    # # Spacer between tables
-    # flowables.append(Spacer(1, 24))
-
-    # # Pelanggaran table
-    # # styles = getSampleStyleSheet()
-    # # small = ParagraphStyle('small', parent=styles['Normal'], fontSize=8, leading=10)
-    # # headers_pelanggaran = ["Pelanggaran", "Lingkup", "Poin", "Kuantitas", "Keterangan", "Tanggal"]
-    # headers_pelanggaran = ["Pelanggaran", "Poin", "Kuantitas", "Keterangan", "Tanggal"]
-    # data_pelanggaran = [headers_pelanggaran]
-    # for obj in pelanggaran:
-    #     aturan_para = Paragraph(str(obj.aturan_demerit) if obj.aturan_demerit else '', small)
-    #     pelanggaran_para = Paragraph(obj.aturan_demerit.pelanggaran or '', small)
-    #     keterangan_para = Paragraph(obj.keterangan or '', small)
-    #     lingkup_para = Paragraph(obj.aturan_demerit.lingkup or '', small)
-    #     kuantitas_para = Paragraph(str(obj.kuantitas) or '', small)
-    #     created_at_para = Paragraph(obj.created_at.strftime('%Y-%m-%d %H:%M') if obj.created_at else '', small)
-    #     data_row = [
-    #         # obj.user.get_full_name() if obj.user else '',
-    #         aturan_para,
-    #         # pelanggaran_para,
-    #         # obj.aturan_demerit.lingkup or '',
-    #         getattr(obj, 'poin', '') or '',
-    #         kuantitas_para,
-    #         keterangan_para,
-    #         created_at_para,
-    #     ]
-    #     data_pelanggaran.append(data_row)
-
-    # colWidths = [80, 180, 200, 60, 40, 40, 160, 80, 50, 80]
-
-    # table_pelanggaran = Table(data_pelanggaran, repeatRows=1)
-    # table_pelanggaran.setStyle(TableStyle([
-    #     # ('BOX', (0, 0), (-1, 0), 1.1, '#000000'),
-    #     ('GRID', (0,0), (-1,-1), 0.5, '#000000'),
-    #     ('BACKGROUND', (0,0), (-1,0), '#eeeeee'),
-    #     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-    #     ('FONTSIZE', (0,0), (-1, -1), 8),
-    #     ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
-    #     ('FONTNAME', (0, 1), (-1, -1), 'Times-Roman')
-    # ]))
-    # flowables.append(pel_text)
-    # flowables.append(table_pelanggaran)
-
-    #     # add Pelanggaran total
-    # total_pel_para_text = f"<b>Total Pelanggaran:</b> {pelanggaran_total}"
-    # # total_pel_para = Paragraph(f"<b>Total Pelanggaran:</b> {pelanggaran_total}", styles['Normal'])
-    # total_pel_para = Paragraph(total_pel_para_text, times_nr)
-    # flowables.append(Spacer(1, 6))
-    # flowables.append(total_pel_para)
-
-    # # grand total
-    # grand_total = aktivitas_total - pelanggaran_total + modal_poin
-    # grand_para_text = f"<b>Total (+ Modal Poin {modal_poin}):</b> {grand_total}"
-    # # grand_para = Paragraph(f"<b>Total (+ Modal Poin {modal_poin}):</b> {grand_total}", styles['Heading3'])
-    # grand_para = Paragraph(grand_para_text, times_nr)
-    # flowables.append(Spacer(1, 12))
-    # flowables.append(grand_para)
-
-    # sig_left_content = [
-    #     Paragraph("Dosen Wali", center_style),
-    #     Paragraph("Akademik", center_style),
-    #     Spacer(1, 80),
-    #     Paragraph("(_________________)", center_style),
-    # ]
-
-    # sig_right_content = [
-    #     Paragraph(f"Jakarta, {timezone.now().strftime('%d %B %Y')}", center_style,),
-    #     Paragraph("Wakil Ketua Bidang Kemahasiswaan, ", center_style),
-    #     Paragraph("Alumni, dan Kerja Sama", center_style),
-    #     Spacer(1, 60), # 60-point gap for signature
-    #     Paragraph("(_________________)", center_style),
-    # ]
-
-    # footer_data_1 = [
-    #     [sig_left_content,'  ', sig_right_content],
-    # ]
-
-    # footer1_table = Table(footer_data_1)
-
-    # footer1_table.setStyle(TableStyle([
-    #         ('GRID', (0, 0), (-1, -1), 0.5, "#FFFFFF"), # No grid
-    #         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    #         ('ALIGN', (0, 0), (0, -1), 'LEFT'),  # Align labels (col 0) to the left
-    #         ('ALIGN', (1, 0), (1, -1), 'LEFT'), # Align values (col 1) to the left
-    #         ('FONTNAME', (0, 0), (0, -1), 'Times-Roman') # Make labels bold
-    #     ]))
-    # flowables.append(Spacer(1, 24))
-    # flowables.append(footer1_table)
-    # flowables.append(Spacer(1, 24))
-
     doc.build(flowables)
     buf.seek(0)
     return FileResponse(buf, as_attachment=True, filename=filename)
@@ -963,6 +980,7 @@ def get_levels_ge(request):
 def get_teachers(request):
     period_id = request.GET.get('0-period') or request.GET.get('period')
     selected_teacher = request.GET.get('0-teacher') or request.GET.get('teacher')
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     user = request.user
 
     if period_id:
@@ -972,13 +990,31 @@ def get_teachers(request):
     else:
         teachers = Teacher.objects.none()
 
-    # Non-admin teachers only ever have one option — auto-select it
     if not user.is_staff and teachers.count() == 1:
         selected_teacher = str(teachers.first().id)
 
-    context = {'teachers': teachers, 'selected_teacher': selected_teacher}
-    return render(request, "partials/gradebook/gradeentry_partials/teacher.html", context)
+    teacher_html = render_to_string("partials/gradebook/gradeentry_partials/teacher.html", {
+        'teachers': teachers, 'selected_teacher': selected_teacher
+    })
 
+    # OOB: also refresh Course now that academic_year is known
+    teacher_id = selected_teacher
+    subject_id = request.GET.get('0-subject') or request.GET.get('subject')
+    selected_course = request.GET.get('0-course') or request.GET.get('course')
+
+    if teacher_id and acayear_id and subject_id:
+        courses = Course.objects.filter(teacher_id=teacher_id, academic_year_id=acayear_id, subject_id=subject_id)
+    else:
+        courses = Course.objects.none()
+
+    course_html = render_to_string("partials/gradebook/gradeentry_partials/course.html", {
+        'courses': courses, 'selected_course': selected_course
+    })
+
+    return HttpResponse(
+        teacher_html +
+        f'<div hx-swap-oob="innerHTML:#course-select-ge">{course_html}</div>'
+    )
 
 def get_courses(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year')  or request.GET.get('subject')
@@ -2282,45 +2318,21 @@ def rb_pdf(request, pk):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
-        pagesize=A4,
+        pagesize=GOV_LEGAL,
         topMargin=2*cm,
         bottomMargin=2*cm,
         leftMargin=2*cm,
         rightMargin=2*cm,
     )
 
-    styles = getSampleStyleSheet()
+    styles, table_style = get_pdf_styles()
 
-    title_style = ParagraphStyle(
-        'Title', parent=styles['Normal'],
-        fontSize=14, fontName='Times-Bold',
-        alignment=TA_CENTER, spaceAfter=4,
-    )
-    subtitle_style = ParagraphStyle(
-        'Subtitle', parent=styles['Normal'],
-        fontSize=10, fontName='Times-Roman',
-        alignment=TA_CENTER, spaceAfter=4,
-    )
-    group_style = ParagraphStyle(
-        'Group', parent=styles['Normal'],
-        fontSize=11, fontName='Helvetica-Bold',
-        spaceAfter=4, spaceBefore=10,
-    )
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=7,
-        fontName='Times-Italic',
-        alignment=TA_LEFT,
-        textColor=colors.grey,
-    )
+    flowables = [get_pdf_header(), Spacer(1, 0.5*cm)]
 
-    flowables = []
-
-    flowables.append(Paragraph("Student Behaviour Report", title_style))
+    flowables.append(Paragraph("Student Behaviour Report", styles['title']))
     flowables.append(Paragraph(
         f"{behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
-        subtitle_style
+        styles['subtitle']
     ))
     flowables.append(Spacer(1, 0.3*cm))
 
@@ -2341,13 +2353,12 @@ def rb_pdf(request, pk):
     flowables.append(meta_table)
     flowables.append(Spacer(1, 0.5*cm))
 
-    # group by rubric type (Spiritual / Social)
     grouped = {}
     for report in reports:
         grouped.setdefault(report.rubric.get_type_display(), []).append(report)
 
     for rubric_type, rows in grouped.items():
-        flowables.append(Paragraph(rubric_type, group_style))
+        flowables.append(Paragraph(rubric_type, styles['group']))
 
         table_data = [['Student', 'Indicator', 'Score', 'Grade', 'Description']]
         for r in rows:
@@ -2361,22 +2372,10 @@ def rb_pdf(request, pk):
             ])
 
         table = Table(table_data, colWidths=[3.5*cm, 4*cm, 1.5*cm, 1.5*cm, 6*cm])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a4a4a')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('ALIGN', (2, 0), (3, -1), 'CENTER'),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('BOX', (0, 0), (-1, -1), 1, colors.black),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
+        table.setStyle(table_style)
         flowables.append(table)
         flowables.append(Spacer(1, 0.3*cm))
-        flowables.append(Paragraph(f"Printed by {user} on {date}", footer_style))
+        flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
     doc.build(flowables)
     buf.seek(0)
@@ -3683,7 +3682,7 @@ def print_grade_list(request, pk):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
-        pagesize=A4,
+        pagesize=GOV_LEGAL,
         topMargin=2*cm,
         bottomMargin=2*cm,
         leftMargin=2*cm,

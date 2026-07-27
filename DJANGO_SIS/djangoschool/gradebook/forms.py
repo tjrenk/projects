@@ -67,11 +67,15 @@ class GradeEntryForm(forms.ModelForm):
             teacher_obj = Teacher.objects.filter(user=user).first()
             if teacher_obj:
                 self.initial['teacher'] = teacher_obj.id
-                
-                # Filter and potentially default Subject
-                teacher_subjects = Subject.objects.filter(course__teacher=teacher_obj).distinct()
-                if teacher_subjects.count() == 1:
-                    self.initial['subject'] = teacher_subjects.first().id
+
+                # Match the is_activity filter used later for the actual field queryset
+                # teacher_subjects = Subject.objects.filter(
+                #     course__teacher=teacher_obj, is_activity=False
+                # ).distinct()
+                # print("teacher_subjects (unfiltered):",
+                #       list(teacher_subjects.values('id', 'subject_name', 'is_activity')))
+                # if teacher_subjects.count() == 1:
+                #     self.initial['subject'] = teacher_subjects.first().id
 
             # Default to the most recent Academic Year and Period
             # curr_ay = AcademicYear.objects.order_by('-id').first()
@@ -143,8 +147,8 @@ class GradeEntryForm(forms.ModelForm):
 
         # 4. Logic: Subject depends on Teacher
         if teacher:
-            # Using your existing filtering logic
-            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher, is_activity=False).distinct()
+            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher,
+                                                                     is_activity=False).distinct()
             if is_admin:
                 self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
         else:

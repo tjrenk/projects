@@ -2,12 +2,16 @@
 
 {% block content %}
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
-<div>
-<div class="collapse-title text-xl font-medium">Homeroom Teacher Comments</div>
-</div>
 
-        <div class="w-full flex justify-center mb-8 mt-2">
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+
+    <div>
+        <div class="collapse-title text-xl font-medium">
+            Homeroom Teacher Comments
+        </div>
+    </div>
+
+    <div class="w-full flex justify-center mb-8 mt-2">
         <ul class="steps w-full max-w-2xl">
             <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">
                 <h1 class="{% if wizard.steps.step1 >= 1 %}bold{% endif %}">Select Academic Year</h1>
@@ -17,216 +21,231 @@
             </li>
         </ul>
     </div>
-    {% comment %} <div class="card shadow-sm"> {% endcomment %}
-    <fieldset class="mb-3 collpase-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1">
-        {% comment %} <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Teacher's Notes Entry - Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</h4>
-        </div> {% endcomment %}
 
-<!--        <div class="mb-3 w-full max-w-screen-lg" style="max-width: 100%; width: 100%; height: auto; padding: 20px;">-->
-        {% if not is_homeroom %}
-        &nbsp
-        {% else %}
-        <div class="flex gap-10 mb-6 text-sm">
-            <div style="font-size: 20px; "><strong>Homeroom Class - {{ homeroom_class }}</strong></div>
-        </div>
-        {% endif %}
+    <div class="card-body bg-base-100 border-base-200">
 
-            {% comment %} <div class="card-body bg-secondary bg-opacity-3" style="width: 600px;"> {% endcomment %}
+        <fieldset class="module aligned mb-4 overflow-visible">
+
+            {% if is_homeroom %}
+            <div class="flex gap-10 mb-6 text-sm">
+                <div style="font-size:20px;">
+                    <strong>Homeroom Class - {{ homeroom_class }}</strong>
+                </div>
+            </div>
+            {% endif %}
+
             {% if selected_student %}
-            <div class="alert alert-info d-flex justify-content-between align-items-center">
+            <div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
                 <span>
-                    <i class="bi bi-person-badge"></i> 
+                    <i class="bi bi-person-badge"></i>
                     <strong>Student:</strong> {{ selected_student }}
                 </span>
-                {% comment %} <span class="badge bg-light text-dark border">
-                    Period: {{ selected_period }}
-                </span> {% endcomment %}
             </div>
             {% endif %}
 
             <form action="" method="post">
                 {% csrf_token %}
-                
+
                 {{ wizard.management_form }}
-                
-                {# === STEP 1 (index '1'): List of Subjects === #}
+
                 {% if wizard.steps.current == '1' %}
-                
+
                     {{ wizard.form.management_form }}
 
                     {% if wizard.form.forms %}
+
+                        <div class="grid grid-cols-3 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
+                            <div>
+                                <p class="text-gray-600 text-sm">
+                                    <strong>Academic Year:</strong>
+                                </p>
+                                <p class="text-lg font-semibold">
+                                    {{ selected_academic_year }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p class="text-gray-600 text-sm">
+                                    <strong>Period:</strong>
+                                </p>
+                                <p class="text-lg font-semibold">
+                                    {{ selected_period }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <p class="text-gray-600 text-sm">
+                                    <strong>Midterms:</strong>
+                                </p>
+                                <p class="text-lg font-semibold">
+                                    {{ selected_is_mid }}
+                                </p>
+                            </div>
+                        </div>
+
                         <div class="table-responsive">
-                            <div class="flex gap-10 mb-6 text-sm bg-base-200 p-3 rounded-lg">
-<!--                                        <h1 class="font-bold mb-4">Academic Year: {{ selected_academic_year }}</h1>-->
-<!--            <h1 class="font-bold mb-4">Period: {{ selected_period }}</h1>-->
-            <div><strong>Academic Year:</strong> &nbsp;{{ selected_academic_year }}</div>
-            <div><strong>Period:</strong> &nbsp;{{ selected_period }}</div>
-            <div><strong>Midterms:</strong> &nbsp;{{ selected_is_mid }}</div>
-<!--            <h1 class="font-bold mb-4">Midterms: {{ selected_is_mid }}</h1>-->
-                                </div>
-                            <table class="table table-responsive table-auto w-full">
+
+                            <table class="table table-hover table-bordered align-middle">
                                 <thead class="bg-base-200 rounded-md">
                                     <tr>
-                                        <th style="width: 20%;">Student Name</th>
-
-                                        <th style="width: 30%;">Comment</th>
+                                        <th style="width:20%;">Student Name</th>
+                                        <th style="width:80%;">Comment</th>
                                     </tr>
                                 </thead>
-<tbody>
-    {% if wizard.form.non_form_errors %}
-        <tr>
-            <td colspan="2">
-                <div class="alert alert-error text-red-500">
-                    {{ wizard.form.non_form_errors }}
-                </div>
-            </td>
-        </tr>
-    {% endif %}
 
-    {% for form in wizard.form.forms %}
-    <tr>
-        {% for hidden in form.hidden_fields %}
-            {{ hidden }}
-        {% endfor %}
+                                <tbody>
 
-        <td>
-            {{ form.initial.student_name }}
+                                    {% if wizard.form.non_form_errors %}
+                                    <tr>
+                                        <td colspan="2">
+                                            <div class="alert alert-error text-red-500">
+                                                {{ wizard.form.non_form_errors }}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
 
-            {% if form.student_id and not form.student_id.is_hidden %}
-                <div class="hidden">{{ form.student_id }}</div>
-            {% endif %}
+                                    {% for form in wizard.form.forms %}
+                                    <tr>
 
-            {% if form.errors %}
-                <div class="text-red-500 text-xs mt-1">
-                    {{ form.errors }}
-                </div>
-            {% endif %}
-        </td>
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
 
-        <td>
-            {{ form.ht_comment }}
-        </td>
-    </tr>
-    {% endfor %}
-</tbody>
+                                        <td>
+                                            {{ form.initial.student_name }}
+
+                                            {% if form.student_id and not form.student_id.is_hidden %}
+                                                <div class="hidden">
+                                                    {{ form.student_id }}
+                                                </div>
+                                            {% endif %}
+
+                                            {% if form.errors %}
+                                                <div class="text-red-500 text-xs mt-1">
+                                                    {{ form.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {{ form.ht_comment }}
+                                        </td>
+
+                                    </tr>
+                                    {% endfor %}
+
+                                </tbody>
                             </table>
+
                         </div>
+
                     {% else %}
+
                         <div class="alert alert-warning">
                             No active courses found for this student. Please check Course Member assignments.
                         </div>
+
                     {% endif %}
 
-
-            
-                {# === STEP 0: Student Selection === #}
-                {% comment %} {% else %}
-                    <div class="row">
-                        <div class="col-md-8 offset-md-2">
-                            <table class="table table-borderless">
-                                {{ wizard.form.as_table }}
-                            </table>
-                        </div>
-                    </div>
-                {% endif %} {% endcomment %}
                 {% else %}
-                    <div class="row">
-                    {{ wizard.form.management_form }}
-                        <div class="col-md-8 offset-md-2">
-                        <fieldset class="module aligned   mb-4 overflow-visible">
-                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3   field-name ">
-                        <div class="mb-1 basis-full md:flex-1">
-                            {% comment %} <table class="table table-borderless"> {% endcomment %}
-                                {% if wizard.steps.current == '0' %}
-                                {% comment %} <tr> {% endcomment %}
-                                {% comment %} <td> {% endcomment %}
-                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                <div class="mb-1 basis-full md:flex-1">
-                                {{ wizard.form.academic_year.label }}
-                                {% comment %} </td> {% endcomment %}
-                                {% comment %} <td> {% endcomment %}
-                                {{ wizard.form.academic_year }}
-                                    <div class="error">
-                                        {{ wizard.form.academic_year.errors }}
-                                    </div>
-                                </div>
-                                </div>
-                                {% comment %} </td> {% endcomment %}
-                                {% comment %} </tr> {% endcomment %}
+
+                    <div>
+
+                        {{ wizard.form.management_form }}
+
+                        <fieldset class="module aligned mb-4 overflow-visible">
+
+                            {% if wizard.steps.current == '0' %}
 
                                 <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                <div class="mb-1 basis-full md:flex-1">
-                                {{ wizard.form.period.label }}
-                                {{ wizard.form.period }}
-                                    <div class="error">
-                                        {{ wizard.form.period.errors }}
+                                    <div class="mb-1 basis-full md:flex-1">
+                                        {{ wizard.form.academic_year.label }}
+                                        {{ wizard.form.academic_year }}
+                                        <div class="error">
+                                            {{ wizard.form.academic_year.errors }}
+                                        </div>
                                     </div>
-                                </div>
                                 </div>
 
                                 <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                <div class="mb-1 basis-full md:flex-1">
-                                {{ wizard.form.level.label }}
-                                {{ wizard.form.level }}
-                                    <div class="error">
-                                        {{ wizard.form.level.errors }}
+                                    <div class="mb-1 basis-full md:flex-1">
+                                        {{ wizard.form.period.label }}
+                                        {{ wizard.form.period }}
+                                        <div class="error">
+                                            {{ wizard.form.period.errors }}
+                                        </div>
                                     </div>
                                 </div>
-                                </div>
-{% if not is_homeroom %}
-                                                            <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                <div class="mb-1 basis-full md:flex-1">
-                                {{ wizard.form.kelas.label }}
-                                {{ wizard.form.kelas }}
-                                    <div class="error">
-                                        {{ wizard.form.kelas.errors }}
+
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                    <div class="mb-1 basis-full md:flex-1">
+                                        {{ wizard.form.level.label }}
+                                        {{ wizard.form.level }}
+                                        <div class="error">
+                                            {{ wizard.form.level.errors }}
+                                        </div>
                                     </div>
                                 </div>
+
+                                {% if not is_homeroom %}
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                    <div class="mb-1 basis-full md:flex-1">
+                                        {{ wizard.form.kelas.label }}
+                                        {{ wizard.form.kelas }}
+                                        <div class="error">
+                                            {{ wizard.form.kelas.errors }}
+                                        </div>
+                                    </div>
                                 </div>
-                            {% endif %}
+                                {% endif %}
 
-
-                                <div class="mt-2 flex align-center gap-4">
-                                {{ wizard.form.is_mid.label }}
-                                {{ wizard.form.is_mid }}
+                                <div class="mt-2 flex items-center gap-4">
+                                    {{ wizard.form.is_mid.label }}
+                                    {{ wizard.form.is_mid }}
                                     <div class="error">
                                         {{ wizard.form.is_mid.errors }}
                                     </div>
                                 </div>
 
-                                {% endif %}
-                            {% comment %} </table> {% endcomment %}
-                            </div>
-                            </div>
-                            </fieldset>
-                        </div>
+                            {% endif %}
+
+                        </fieldset>
+
                     </div>
+
                 {% endif %}
 
-                <hr class="my-4">
-
-                <div class="d-flex justify-content-between">
-                    {% if wizard.steps.prev %}
-                        <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
-                            &laquo; Back
-                        </button>
-                    {% else %}
-                        <div></div> 
-                    {% endif %}
-                    
-                    <button type="submit" class="btn-sm btn-primary btn rounded-md legitRipple">
-                        {% if wizard.steps.current == '1' %}
-                            Save
-                        {% else %}
-                            Next &raquo;
-                        {% endif %}
+                {% if wizard.steps.prev %}
+                    <button
+                        name="wizard_goto_step"
+                        type="submit"
+                        value="{{ wizard.steps.prev }}"
+                        class="btn-sm btn-secondary btn rounded-md legitRipple">
+                        &laquo; Back
                     </button>
-                </div>
-                
+                {% else %}
+                    <div></div>
+                {% endif %}
+
+                <button
+                    type="submit"
+                    class="btn-sm {% if wizard.steps.current == '1' %}btn-success{% else %}btn-primary{% endif %} btn rounded-md legitRipple">
+
+                    {% if wizard.steps.current == '1' %}
+                        Save
+                    {% else %}
+                        Next
+                    {% endif %}
+
+                </button>
+
             </form>
-        </div>
-    {% comment %} </div> {% endcomment %}
-    </fieldset>
+
+        </fieldset>
+
+    </div>
+
 </div>
+
 {% endblock %}

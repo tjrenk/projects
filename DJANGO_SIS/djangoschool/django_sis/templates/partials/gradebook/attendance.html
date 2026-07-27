@@ -2,47 +2,64 @@
 {% block content %}
 
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
-<div>
-<div class="collapse-title text-xl font-medium">Student Attendance</div>
+
+    <div>
+        <div class="collapse-title text-xl font-medium">
+            Student Attendance
+        </div>
+    </div>
+
+    <div class="card-body bg-base-100 border-base-200">
+
+        <fieldset class="module aligned mb-4 overflow-visible">
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% for field in teach_form %}
+                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                    <div class="mb-1 basis-full md:flex-1">
+                        {{ field.label }}
+                        {{ field }}
+
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+
+                        <div class="error">
+                            {{ field.errors }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% for field in form %}
+                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                    <div class="mb-1 basis-full md:flex-1">
+                        {{ field.label }}
+                        {{ field }}
+
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+
+                        <div class="error">
+                            {{ field.errors }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <button type="submit" class="btn btn-primary">
+                    Submit
+                </button>
+
+            </form>
+
+        </fieldset>
+
+    </div>
+
 </div>
-<fieldset class="flex-1 mb-3 collapse-content overflow-hidden ltr:!rounded-tl-none rtl:!rounded-tr-none collapse w-full collapse-arrow overflow-visible fieldset card bg-base-100 p-1" style="width: 100%; height: auto;">
-
- {% comment %} <div class="card-body bg-secondary bg-opacity-3" style="width: 600px;"> {% endcomment %}
- 
-                        <form method="post" enctype="multipart/form-data" style="padding: 20px; width: 100%; height: auto;">
-                            {% csrf_token %}
-
-                            {% for field in teach_form %}
-                            <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.help_text %}
-                                <div class="form-text">{{ field.help_text }}</div>
-                                {% endif %}
-                                {% if field.errors %}
-                                <div class="text-danger">{{ field.errors }}</div>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% for field in form %}
-                            <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.help_text %}
-                                <div class="form-text">{{ field.help_text }}</div>
-                                {% endif %}
-                                {% if field.errors %}
-                                <div class="text-danger">{{ field.errors }}</div>
-                                {% endif %}
-                                
-                            </div>
-                            {% endfor %}
-                            
-                            <div class="d-flex justify-content-between">
-                                <button type="submit" class="btn btn-primary">Submit</button>
-                            </div>
-                        </form>
-                    {% comment %} </div> {% endcomment %}
-                    </fieldset>
 
 {% endblock %}
