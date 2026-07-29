@@ -62,7 +62,9 @@
             {% if selected_course %}
             <div class="alert alert-info d-flex justify-content-between align-items-center">
                 <span>
-                    <i class="bi bi-book"></i> 
+                    <i class="bi bi-book"></i>
+                            <strong>Subject:</strong> {{ selected_subject }} &nbsp;|&nbsp;
+        <strong>Teacher:</strong> {{ selected_teacher }} &nbsp;|&nbsp;
                     <strong>Class:</strong> {{ selected_course }} 
                 </span>
                 {% if wizard.steps.current == '2' and assignment_head_data %}

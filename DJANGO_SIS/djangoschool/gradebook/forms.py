@@ -47,7 +47,7 @@ class GradeEntryForm(forms.ModelForm):
         model = GradeEntry
         fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_category", "assignment_type"]
         labels = {
-            'course': "Sub-level",
+            'course': "Course",
         }
         
     def __init__(self, *args, **kwargs):
@@ -715,7 +715,7 @@ class CourseByTeacher(forms.ModelForm):
         model = GradeEntry
         fields = ["subject", "course"]
         labels = {
-            'course': 'Sub-level'
+            'course': 'Course'
         }
         
     def __init__(self, *args, **kwargs):

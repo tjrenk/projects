@@ -150,6 +150,9 @@ def build_pdf_header_table():
     """
     LOGO_PATH = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_ecs1.png')
 
+
+
+    # DEV VERSION
     if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
         FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
         FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
@@ -185,6 +188,47 @@ def build_pdf_header_table():
         os.path.join(settings.BASE_DIR, 'static_files', 'images', 'mail.png'),
         width=0.3 * cm, height=0.3 * cm
     )
+
+
+
+    # PROD / LIVE VERSION
+    # if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
+    #     FONT_PATH_REG = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
+    #     FONT_PATH_SEMIB = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
+    #     FONT_PATH_BOLD = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
+    #     pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
+    #     pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
+    #     pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
+    #
+    # header_text_styles = {
+    #     'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
+    #     'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
+    #     'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
+    #     'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2)
+    # }
+    #
+    # if os.path.exists(LOGO_PATH):
+    #     logo = Image(LOGO_PATH, width=4.0 * cm, height=1.9 * cm)
+    # else:
+    #     logo = Paragraph(
+    #         "LOGO",
+    #         ParagraphStyle('LogoFallback', fontName='Helvetica-Bold', fontSize=18, textColor=colors.black, alignment=TA_CENTER)
+    #     )
+    #
+    # location_icon = Image(
+    #     os.path.join(settings.STATIC_ROOT, 'images', 'location.png'),
+    #     width=0.3 * cm, height=0.3 * cm
+    # )
+    # phone_icon = Image(
+    #     os.path.join(settings.STATIC_ROOT, 'images', 'phone.png'),
+    #     width=0.3 * cm, height=0.3 * cm
+    # )
+    # email_icon = Image(
+    #     os.path.join(settings.STATIC_ROOT, 'images', 'mail.png'),
+    #     width=0.3 * cm, height=0.3 * cm
+    # )
+
+
 
     contact_row = Table(
         [[
@@ -534,6 +578,8 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
                 'selected_period':        step0_data.get('period'),
                 'selected_level':         step0_data.get('level'),
                 'selected_subject':       step0_data.get('subject'),
+                'selected_teacher':       step0_data.get('teacher'),
+                'selected_course':       step0_data.get('course'),
                 'selected_is_mid':        step0_data.get('is_mid'),
                 'selected_assignment_type': step0_data.get('assignment_type'),
                 'selected_assignment_category': dict(ASSIGNMENT_CAT_CHOICES).get(step0_data.get('assignment_category')),
@@ -1733,6 +1779,9 @@ def ge_edit(request, pk):
         'assign_type': parent_head.assignment,
         'assign_cat': parent_head.get_category_display(),
         'cpmp_target': '\n'.join(t.text for t in parent_head.cpmp_target.all()) or '-',
+        'subject': parent_head.course.subject,
+        'teacher': parent_head.course.teacher,
+        'course': parent_head.course,
     })
 
 

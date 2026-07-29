@@ -250,3 +250,8 @@ class ReportcardPersonalDev(models.Model):
     excellence2 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
     excellence3 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
     excellence4 = models.IntegerField(default=0, choices=PDRPT_CHOICES)
+
+
+class LockDataEntry(models.Model):
+    lock_start = models.DateField(null=True, blank=True)
+    lock_end = models.DateField(null=True, blank=True)
