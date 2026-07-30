@@ -153,6 +153,7 @@ def build_pdf_header_table():
 
 
     # DEV VERSION
+
     if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
         FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
         FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
@@ -192,6 +193,7 @@ def build_pdf_header_table():
 
 
     # PROD / LIVE VERSION
+
     # if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
     #     FONT_PATH_REG = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
     #     FONT_PATH_SEMIB = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
@@ -2289,43 +2291,59 @@ def rb_table(request):
     teacher = Teacher.objects.filter(user=user).first()
 
     order_field, sort_by, sort_dir = get_sort_params(request, {
-        'academic_year': 'academic_year__year',
-        'period': 'period__period_name',
-        'is_mid': 'is_mid',
-        'level': 'level__grade_name',
-    }, default_sort='academic_year')
+        'student':       'student__registration_data__first_name',
+        'academic_year': 'behaviour__academic_year__year',
+        'period':        'behaviour__period__period_name',
+        'is_mid':        'behaviour__is_mid',
+        'level':         'behaviour__level__grade_name',
+    }, default_sort='student')
 
-    rb = ReportcardBehaviour.objects.select_related(
-        'academic_year', 'period', 'level'
+    reports = StudentBehaviourReport.objects.select_related(
+        'student__registration_data',
+        'behaviour__academic_year',
+        'behaviour__period',
+        'behaviour__level',
     )
 
-    # restrict to sessions relevant to this teacher's classes, if not staff
     if teacher and not user.is_staff:
-        rb = rb.filter(
-            level__students_level_reportcard_behaviour__isnull=False
-        ).distinct()
+        reports = reports.filter(
+            student__classmember__kelas__teacher=teacher,
+            student__classmember__is_active=True,
+        )
 
-    rb = apply_filters(rb, request, {
-        'year': 'academic_year_id',
-        'period': 'period_id',
-        'level': 'level_id',
+    reports = apply_filters(reports, request, {
+        'year':   'behaviour__academic_year_id',
+        'period': 'behaviour__period_id',
+        'level':  'behaviour__level_id',
     })
 
     search_query = request.GET.get('q', '')
     if search_query:
-        rb = rb.filter(
-            Q(academic_year__year__icontains=search_query) |
-            Q(period__period_name__icontains=search_query) |
-            Q(level__grade_name__icontains=search_query)
+        reports = reports.filter(
+            Q(student__registration_data__first_name__icontains=search_query) |
+            Q(student__registration_data__last_name__icontains=search_query) |
+            Q(student__id_number__icontains=search_query)
         )
 
-    rb = rb.order_by(order_field).distinct()
+    # Collapse to ONE row per student per behaviour session, instead of
+    # one row per individual rubric score
+    sessions = reports.values(
+        'student_id',
+        'student__id_number',
+        'student__registration_data__first_name',
+        'student__registration_data__last_name',
+        'behaviour_id',
+        'behaviour__academic_year__year',
+        'behaviour__period__period_name',
+        'behaviour__is_mid',
+        'behaviour__level__grade_name',
+    ).distinct().order_by(order_field)
 
-    pnation = Paginator(rb, 15)
-    pnation_rb = pnation.get_page(request.GET.get('page'))
+    pnation = Paginator(sessions, 15)
+    pnation_sessions = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/rubric_table.html', {
-        'pnation_rb': pnation_rb,
+        'pnation_sessions': pnation_sessions,
         'sort_by': sort_by,
         'sort_dir': sort_dir,
         'search_query': search_query,
@@ -2358,9 +2376,15 @@ def rb_edit(request, pk):
         pk=pk
     )
 
+    student_id = request.GET.get('student')
+    student = get_object_or_404(Student, pk=student_id) if student_id else None
+
     queryset = StudentBehaviourReport.objects.filter(
         behaviour=behaviour
-    ).select_related('student__registration_data', 'rubric').order_by('student__id', 'rubric__id')
+    ).select_related('student__registration_data', 'rubric').order_by('rubric__type', 'rubric__index')
+
+    if student:
+        queryset = queryset.filter(student=student)
 
     BehaviourFormSet = modelformset_factory(
         StudentBehaviourReport,
@@ -2374,28 +2398,45 @@ def rb_edit(request, pk):
             formset.save()
             log_activity(request.user, behaviour, 'change', "Updated student behaviour grades")
             messages.success(request, "Behaviour grades updated successfully!")
-            return redirect('rubric-table')
+            redirect_url = reverse('rubric-table')
+            return redirect(redirect_url)
     else:
         formset = BehaviourFormSet(queryset=queryset)
 
-    # pair each form with its underlying instance for template display
     rows = list(zip(formset.forms, queryset))
 
     return render(request, 'partials/gradebook/rubric_edit.html', {
         'formset': formset,
         'rows': rows,
         'behaviour': behaviour,
+        'student': student,
     })
 
 @login_required
 def rb_del(request, pk):
-    behaviour = get_object_or_404(ReportcardBehaviour, pk=pk)
+    behaviour = get_object_or_404(
+        ReportcardBehaviour.objects.select_related('academic_year', 'period', 'level'),
+        pk=pk
+    )
+
+    student_id = request.GET.get('student')
+    student = get_object_or_404(Student, pk=student_id) if student_id else None
+
+    reports = StudentBehaviourReport.objects.filter(behaviour=behaviour)
+    if student:
+        reports = reports.filter(student=student)
+
     if request.method == 'POST':
-        log_activity(request.user, behaviour, 'delete', "Deleted behaviour session")
-        behaviour.delete()
-        messages.success(request, "Behaviour session deleted successfully!")
+        log_activity(request.user, behaviour, 'delete', f"Deleted behaviour records for {student}")
+        reports.delete()
+        messages.success(request, "Behaviour records deleted successfully!")
         return redirect('rubric-table')
-    return render(request, 'partials/gradebook/grade_entry_delconf.html', {'behaviour': behaviour})
+
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', {
+        'behaviour': behaviour,
+        'student': student,
+        'reports': reports,
+    })
 
 @login_required
 def rb_pdf(request, pk):
@@ -2430,7 +2471,7 @@ def rb_pdf(request, pk):
 
     flowables = [Spacer(1, 0.5*cm)]
 
-    flowables.append(Paragraph("Student Behaviour Report", styles['title']))
+    flowables.append(Paragraph("Laporan Nilai Sikap", styles['title']))
     flowables.append(Paragraph(
         f"{behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
         styles['subtitle']
@@ -2438,10 +2479,10 @@ def rb_pdf(request, pk):
     flowables.append(Spacer(1, 0.3*cm))
 
     meta_data = [
-        ['Academic Year', ':', str(behaviour.academic_year)],
-        ['Period', ':', behaviour.period.period_name],
-        ['Level', ':', str(behaviour.level)],
-        ['Mid Term', ':', 'Yes' if behaviour.is_mid else 'No'],
+        ['Tahun Ajaran', ':', str(behaviour.academic_year)],
+        ['Semester', ':', behaviour.period.period_name],
+        ['Kelas', ':', str(behaviour.level)],
+        ['Mid Semester', ':', 'Yes' if behaviour.is_mid else 'No'],
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
@@ -2454,14 +2495,20 @@ def rb_pdf(request, pk):
     flowables.append(meta_table)
     flowables.append(Spacer(1, 0.5*cm))
 
+    RUBRIC_TYPE_PDF_LABELS = {
+        "Spiritual": "Sikap Spiritual",
+        "Social": "Sikap Sosial",
+    }
+
     grouped = {}
     for report in reports:
-        grouped.setdefault(report.rubric.get_type_display(), []).append(report)
+        pdf_label = RUBRIC_TYPE_PDF_LABELS.get(report.rubric.type, report.rubric.get_type_display())
+        grouped.setdefault(pdf_label, []).append(report)
 
     for rubric_type, rows in grouped.items():
         flowables.append(Paragraph(rubric_type, styles['group']))
 
-        table_data = [['Student', 'Indicator', 'Score', 'Grade', 'Description']]
+        table_data = [['Peserta Didik', 'Indikator', 'Nilai', 'Grade', 'Deskripsi']]
         for r in rows:
             reg = r.student.registration_data
             table_data.append([
@@ -3800,11 +3847,14 @@ def print_grade_list(request, pk):
     flowables = []
 
     meta_data = [
-        ['Topic',       ':', str(parent_head.topic or '-')],
-        ['Date',        ':', str(parent_head.date or '-')],
-        ['Max Score',   ':', str(parent_head.max_score)],
-        ['Assignment',  ':', str(parent_head.assignment.name)],
-        ['Learning Target', ':', str(cpmp_trg or '-')],
+        ['Mata Pelajaran', ':', str(parent_head.course.subject or '-')],
+        ['Nama Guru', ':', str(parent_head.course.teacher or '-')],
+        ['Kelas', ':', str(parent_head.course or '-')],
+        ['Topik',       ':', str(parent_head.topic or '-')],
+        ['Tanggal',        ':', str(parent_head.date or '-')],
+        ['Nilai Max',   ':', str(parent_head.max_score)],
+        ['Tipe Tugas',  ':', str(parent_head.assignment.name)],
+        ['Tujuan Pembelajaran', ':', str(cpmp_trg or '-')],
     ]
     meta_table = Table(meta_data, colWidths=[3*cm, 0.5*cm, 12*cm])
     meta_table.setStyle(TableStyle([
@@ -3818,7 +3868,7 @@ def print_grade_list(request, pk):
     flowables.append(meta_table)
     flowables.append(Spacer(1, 0.5*cm))
 
-    table_data = [['#', 'ID Number', 'Student Name', 'Score', 'Status', 'Notes']]
+    table_data = [['#', 'ID', 'Peserta Didik', 'Nilai', 'Status', 'Keterangan']]
     for i, detail in enumerate(queryset, start=1):
         student = detail.student
         reg = student.registration_data
@@ -4147,20 +4197,20 @@ def print_pdev_pdf(request, pk):
     styles, table_style = get_pdf_styles()
 
     flowables = []
-    flowables.append(Paragraph("Personal Development Report", styles['title']))
+    flowables.append(Paragraph("Laporan Konseling Peserta Didik", styles['title']))
     flowables.append(Paragraph(
-        f"{reg.first_name} {reg.last_name} — {reportcard.academic_year} / {reportcard.period.period_name}",
+        f"{reportcard.academic_year} / {reportcard.period.period_name}",
         styles['subtitle']
     ))
     flowables.append(Spacer(1, 0.3*cm))
 
     meta_data = [
-        ['Student', ':', f"{reg.first_name} {reg.last_name}"],
-        ['ID Number', ':', student.id_number],
-        ['Academic Year', ':', str(reportcard.academic_year)],
-        ['Period', ':', reportcard.period.period_name],
-        ['Level', ':', str(reportcard.level)],
-        ['Mid Term', ':', 'Yes' if reportcard.is_mid else 'No'],
+        ['Peserta Didik', ':', f"{reg.first_name} {reg.last_name}"],
+        ['ID', ':', student.id_number],
+        ['Tahun Ajaran', ':', str(reportcard.academic_year)],
+        ['Semester', ':', reportcard.period.period_name],
+        ['Kelas', ':', str(reportcard.level)],
+        ['Mid Semester', ':', 'Yes' if reportcard.is_mid else 'No'],
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([

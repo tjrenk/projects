@@ -161,7 +161,7 @@ class KelasAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
 
         # If the user is a superuser, show all records
-        if request.user.is_superuser:
+        if request.user.is_superuser or request.user.is_staff:
             return qs
 
         # For regular staff users, restrict records to their own
@@ -200,16 +200,16 @@ class ClassMemberAdmin(admin.ModelAdmin):
     def student_name(self, obj: ClassMember):
         return f"{obj.student}"
 
-    def get_queryset(self, request):
-        # Fetch the original base queryset
-        qs = super().get_queryset(request)
-
-        # If the user is a superuser, show all records
-        if request.user.is_superuser:
-            return qs
-
-        # For regular staff users, restrict records to their own
-        return qs.filter(kelas__teacher__user=request.user)
+    # def get_queryset(self, request):
+    #     # Fetch the original base queryset
+    #     qs = super().get_queryset(request)
+    #
+    #     # If the user is a superuser, show all records
+    #     if request.user.is_superuser or request.user.is_staff:
+    #         return qs
+    #
+    #     # For regular staff users, restrict records to their own
+    #     return qs.filter(kelas__teacher__user=request.user)
 
     
 class ReligionAdmin(admin.ModelAdmin):

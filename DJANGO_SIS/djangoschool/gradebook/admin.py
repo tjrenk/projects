@@ -91,16 +91,6 @@ class CourseMemberAdmin(admin.ModelAdmin):
         return f"{obj.course.short_name}"
     get_course_name.short_description = "Course"
 
-    def get_queryset(self, request):
-        # Fetch the original base queryset
-        qs = super().get_queryset(request)
-
-        # If the user is a superuser, show all records
-        if request.user.is_superuser:
-            return qs
-
-        # For regular staff users, restrict records to their own
-        return qs.filter(course__teacher__user=request.user)
 
 class PassingGradeAdmin(admin.ModelAdmin):
     list_display = ["academic_year","subject", "level", "passing_grade"]
@@ -227,6 +217,9 @@ class CPMPForm(forms.ModelForm):
 
         self.fields['cpl_root'].choices = CapaianPemelajaranLulusan.objects.all().values_list('id', 'text')
 
+class LockData(forms.ModelForm):
+    list_display = ("lock_start", "lock_end")
+
 
 class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "level", "subject", "get_cpl_str", "text")
@@ -304,3 +297,4 @@ admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelaj
 admin.site.register(ReportcardPersonalDev, PDRPTAdmin)
 admin.site.register(AssignmentHead, AssignmentHeadAdmin)
 admin.site.register(AssignmentDetail, AssignmentDetailAdmin)
+admin.site.register(LockData, LockDataEntry)

@@ -69,14 +69,8 @@
 <div class="card-body">
     <p></p>
     <ul>
-        <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Academic Year:</h1>
-            <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ behaviour.academic_year }}</ul></strong></li>
-        <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Period:</h1>
-            <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ behaviour.period }}</ul></strong></li>
-        <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Level:</h1>
-            <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ behaviour.level }}</ul></strong></li>
-        <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Midterms?</h1>
-            <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ behaviour.is_mid|yesno:"Yes,No" }}</ul></strong></li>
+        <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Addressed to:</h1>
+            <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ student }}</ul></strong></li>
     </ul>
                         {% endif %}
 
