@@ -2445,18 +2445,30 @@ def rb_pdf(request, pk):
         pk=pk
     )
 
+    student_id = request.GET.get('student')
+    student = get_object_or_404(Student, pk=student_id) if student_id else None
+
     reports = StudentBehaviourReport.objects.filter(
         behaviour=behaviour
     ).select_related(
         'student__registration_data', 'rubric'
-    ).order_by('rubric__type', 'rubric__index', 'student__id')
+    ).order_by('rubric__type', 'rubric__index')
+
+    student_class = None
+    if student:
+        student_class = ClassMember.objects.filter(
+            student=student, is_active=True
+        ).select_related('kelas').first()
+
+    if student:
+        reports = reports.filter(student=student)
 
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
     buf = io.BytesIO()
     HEADER_GAP = 0.5 * cm
-    page_width, page_height = GOV_LEGAL  # or A4, matching that view's pagesize
+    page_width, page_height = GOV_LEGAL
     header_height = get_pdf_header_height(page_width)
     doc = SimpleDocTemplate(
         buf,
@@ -2473,15 +2485,16 @@ def rb_pdf(request, pk):
 
     flowables.append(Paragraph("Laporan Nilai Sikap", styles['title']))
     flowables.append(Paragraph(
-        f"{behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
+        f"{student} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
         styles['subtitle']
     ))
     flowables.append(Spacer(1, 0.3*cm))
 
     meta_data = [
+        ['Peserta Didik', ':', str(student)],
         ['Tahun Ajaran', ':', str(behaviour.academic_year)],
         ['Semester', ':', behaviour.period.period_name],
-        ['Kelas', ':', str(behaviour.level)],
+        ['Kelas', ':', str(student_class.kelas) if student_class else '-'],
         ['Mid Semester', ':', 'Yes' if behaviour.is_mid else 'No'],
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
@@ -2500,35 +2513,39 @@ def rb_pdf(request, pk):
         "Social": "Sikap Sosial",
     }
 
+    RUBRIC_TYPE_ORDER = ["Spiritual", "Social"]
+
     grouped = {}
     for report in reports:
-        pdf_label = RUBRIC_TYPE_PDF_LABELS.get(report.rubric.type, report.rubric.get_type_display())
-        grouped.setdefault(pdf_label, []).append(report)
+        grouped.setdefault(report.rubric.type, []).append(report)
 
-    for rubric_type, rows in grouped.items():
-        flowables.append(Paragraph(rubric_type, styles['group']))
+    for rubric_key in RUBRIC_TYPE_ORDER:
+        rows = grouped.get(rubric_key)
+        if not rows:
+            continue
+        pdf_label = RUBRIC_TYPE_PDF_LABELS.get(rubric_key, rubric_key)
+        flowables.append(Paragraph(pdf_label, styles['group']))
 
-        table_data = [['Peserta Didik', 'Indikator', 'Nilai', 'Grade', 'Deskripsi']]
+        table_data = [['Indikator', 'Nilai', 'Grade', 'Deskripsi']]
         for r in rows:
-            reg = r.student.registration_data
             table_data.append([
-                f"{reg.first_name} {reg.last_name}",
-                r.rubric.description,
+                Paragraph(r.rubric.description or '-'),
                 str(r.score),
                 r.grade,
                 Paragraph(r.description or '-'),
             ])
 
-        table = Table(table_data, colWidths=[3.5*cm, 4*cm, 1.5*cm, 1.5*cm, 6*cm])
+        table = Table(table_data, colWidths=[5*cm, 1.5*cm, 1.5*cm, 8*cm])
         table.setStyle(table_style)
         flowables.append(table)
         flowables.append(Spacer(1, 0.3*cm))
-        flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
+
+    flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
     doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
     buf.seek(0)
 
-    filename = f"behaviour_{behaviour.level}_{behaviour.period.period_name}.pdf"
+    filename = f"behaviour_{student.id_number if student else behaviour.pk}_{behaviour.level}_{behaviour.period.period_name}.pdf"
     return FileResponse(buf, as_attachment=False, filename=filename)
 
 

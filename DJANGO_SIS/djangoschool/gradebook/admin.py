@@ -217,8 +217,8 @@ class CPMPForm(forms.ModelForm):
 
         self.fields['cpl_root'].choices = CapaianPemelajaranLulusan.objects.all().values_list('id', 'text')
 
-class LockData(forms.ModelForm):
-    list_display = ("lock_start", "lock_end")
+# class LockData(forms.ModelForm):
+#     list_display = ("lock_start", "lock_end")
 
 
 class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
@@ -297,4 +297,4 @@ admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelaj
 admin.site.register(ReportcardPersonalDev, PDRPTAdmin)
 admin.site.register(AssignmentHead, AssignmentHeadAdmin)
 admin.site.register(AssignmentDetail, AssignmentDetailAdmin)
-admin.site.register(LockData, LockDataEntry)
+# admin.site.register(LockData, LockDataEntry)
