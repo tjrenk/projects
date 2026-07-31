@@ -122,8 +122,8 @@ def get_pdf_styles():
         ),
         'footer': ParagraphStyle(
             'Footer', parent=base_styles['Normal'],
-            fontSize=5, fontName='Times-Italic',
-            alignment=TA_LEFT, textColor=colors.grey,
+            fontSize=6, fontName='Times-Italic',
+            alignment=TA_LEFT, textColor=colors.HexColor('#cfcfcf'),
         ),
     }
 
@@ -596,6 +596,15 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
             })
 
         return context
+
+    # Grade Entry Form lock
+    #
+    # def is_grade_entry_locked():
+    #     lock = LockDataEntry.objects.first()
+    #     if not lock or not lock.lock_start or not lock.lock_end:
+    #         return False
+    #     today = timezone.now().date()
+    #     return lock.lock_start <= today <= lock.lock_end
 
     def post(self, *args, **kwargs):
         wizard_goto_step = self.request.POST.get('wizard_goto_step')
@@ -1521,16 +1530,16 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         response['Content-Disposition'] = 'inline; filename="grade_report.pdf"'
 
         buffer = io.BytesIO()
-        page_width, page_height = (800, 600)
+        HEADER_GAP = 0.5 * cm
+        page_width, page_height = GOV_LEGAL
         header_height = get_pdf_header_height(page_width)
-
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=(page_width, page_height),
-            topMargin=header_height + 0.5 * cm,
-            bottomMargin=1 * cm,
-            leftMargin=1 * cm,
-            rightMargin=1 * cm,
+            pagesize=GOV_LEGAL,
+            topMargin=header_height + HEADER_GAP,
+            bottomMargin=2 * cm,
+            leftMargin=2.3 * cm,
+            rightMargin=2.3 * cm,
         )
         elements = []
 
@@ -2063,8 +2072,16 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
                 behaviour__is_mid=False
             ).values_list('student_id', flat=True).distinct()
 
-            students = CourseMember.objects.filter(
-                course=data0['kelas'],  # kelas now holds a Course instance
+            # filter by coursemember (child of Course)
+            # students = CourseMember.objects.filter(
+            #     course=data0['kelas'],  # kelas now holds a Course instance
+            #     is_active=True
+            # ).select_related('student')
+
+
+            # filter by classmember (child of Class / kelas)
+            students = ClassMember.objects.filter(
+                kelas=data0['kelas'],  # kelas now holds a Course instance
                 is_active=True
             ).select_related('student')
 
@@ -2102,7 +2119,12 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         if self.steps.current == '0':
             context['selected_acayear'] = AcademicYear.objects.all()
             context['selected_period'] = LearningPeriod.objects.all().select_related('academic_year')
-            context['selected_kelas'] = Course.objects.all().select_related('subject')  # Course not Class
+
+            # filter by course
+            # context['selected_kelas'] = Course.objects.all().select_related('subject')  # Course not Class
+
+            # filter by hr class
+            context['selected_kelas'] = Class.objects.all().select_related('teacher')  # Course not Class
             context['selected_level'] = GradeLevel.objects.all()
 
         return context
@@ -2156,10 +2178,18 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 def get_kelas_rubric(request):
     teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+
+    # filter by course
+    # if teacher_id:
+    #     classes = Course.objects.filter(teacher_id=teacher_id).select_related('subject')
+    # else:
+    #     classes = Course.objects.none()
+
+    # filter by hr class
     if teacher_id:
-        classes = Course.objects.filter(teacher_id=teacher_id).select_related('subject')
+        classes = Class.objects.filter(teacher_id=teacher_id).select_related('teacher')
     else:
-        classes = Course.objects.none()
+        classes = Class.objects.none()
     return render(request, "partials/gradebook/gradeentry_partials/kelas.html", {
         'kelas_list': classes,  # ← match the template's variable name
         'selected_kelas': selected_kelas
@@ -2383,6 +2413,10 @@ def rb_edit(request, pk):
         behaviour=behaviour
     ).select_related('student__registration_data', 'rubric').order_by('rubric__type', 'rubric__index')
 
+    student_class = ClassMember.objects.filter(
+        student=student, is_active=True
+    ).select_related('kelas').first()
+
     if student:
         queryset = queryset.filter(student=student)
 
@@ -2410,6 +2444,7 @@ def rb_edit(request, pk):
         'rows': rows,
         'behaviour': behaviour,
         'student': student,
+        'student_class': student_class
     })
 
 @login_required
@@ -2446,37 +2481,32 @@ def rb_pdf(request, pk):
     )
 
     student_id = request.GET.get('student')
-    student = get_object_or_404(Student, pk=student_id) if student_id else None
+    student = get_object_or_404(
+        Student.objects.select_related('registration_data'), pk=student_id
+    )  # no longer optional — always require a student
 
     reports = StudentBehaviourReport.objects.filter(
-        behaviour=behaviour
-    ).select_related(
-        'student__registration_data', 'rubric'
-    ).order_by('rubric__type', 'rubric__index')
+        behaviour=behaviour, student=student
+    ).select_related('rubric').order_by('rubric__type', 'rubric__index')
 
-    student_class = None
-    if student:
-        student_class = ClassMember.objects.filter(
-            student=student, is_active=True
-        ).select_related('kelas').first()
-
-    if student:
-        reports = reports.filter(student=student)
+    student_class = ClassMember.objects.filter(
+        student=student, is_active=True
+    ).select_related('kelas').first()
 
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
     buf = io.BytesIO()
-    HEADER_GAP = 0.5 * cm
+    # HEADER_GAP = 0.5 * cm
     page_width, page_height = GOV_LEGAL
     header_height = get_pdf_header_height(page_width)
     doc = SimpleDocTemplate(
         buf,
         pagesize=GOV_LEGAL,
-        topMargin=header_height + HEADER_GAP,
+        topMargin=header_height + 0.5*cm,
         bottomMargin=2*cm,
-        leftMargin=2*cm,
-        rightMargin=2*cm,
+        leftMargin=2.3*cm,
+        rightMargin=2.3*cm,
     )
 
     styles, table_style = get_pdf_styles()
@@ -2485,13 +2515,13 @@ def rb_pdf(request, pk):
 
     flowables.append(Paragraph("Laporan Nilai Sikap", styles['title']))
     flowables.append(Paragraph(
-        f"{student} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
+        f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
         styles['subtitle']
     ))
     flowables.append(Spacer(1, 0.3*cm))
 
     meta_data = [
-        ['Peserta Didik', ':', str(student)],
+        ['Peserta Didik', ':', f"{student.registration_data.first_name} {student.registration_data.last_name}"],
         ['Tahun Ajaran', ':', str(behaviour.academic_year)],
         ['Semester', ':', behaviour.period.period_name],
         ['Kelas', ':', str(student_class.kelas) if student_class else '-'],
@@ -2504,6 +2534,8 @@ def rb_pdf(request, pk):
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ]))
     flowables.append(meta_table)
     flowables.append(Spacer(1, 0.5*cm))
@@ -3850,8 +3882,8 @@ def print_grade_list(request, pk):
         pagesize=GOV_LEGAL,
         topMargin=header_height + 0.5*cm,
         bottomMargin=2*cm,
-        leftMargin=2*cm,
-        rightMargin=2*cm,
+        leftMargin=2.3*cm,
+        rightMargin=2.3*cm,
     )
 
     styles, table_style = get_pdf_styles()
@@ -4200,15 +4232,15 @@ def print_pdev_pdf(request, pk):
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
     buf = io.BytesIO()
-    page_width, page_height = A4
+    page_width, page_height = GOV_LEGAL
     header_height = get_pdf_header_height(page_width)
     doc = SimpleDocTemplate(
         buf,
-        pagesize=A4,
+        pagesize=GOV_LEGAL,
         topMargin=header_height + 0.5*cm,
         bottomMargin=2*cm,
-        leftMargin=2*cm,
-        rightMargin=2*cm,
+        leftMargin=2.3*cm,
+        rightMargin=2.3*cm,
     )
 
     styles, table_style = get_pdf_styles()

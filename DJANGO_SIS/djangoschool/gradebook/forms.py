@@ -1014,8 +1014,18 @@ class RubricEntryForm(forms.ModelForm):
         # label='Nama Guru'
     )
 
+
+# filter by course
+#     kelas = forms.ModelChoiceField(
+#         queryset=Course.objects.none(),  # starts empty, populated by HTMX
+#         required=True,
+#         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+#         label='Sub-level'
+#     )
+
+# filter by hr class
     kelas = forms.ModelChoiceField(
-        queryset=Course.objects.none(),  # starts empty, populated by HTMX
+        queryset=Class.objects.none(),  # starts empty, populated by HTMX
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         label='Sub-level'
@@ -1083,14 +1093,25 @@ class RubricEntryForm(forms.ModelForm):
             self.fields['teacher'].queryset = Teacher.objects.none()
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
+        # filter by course
+        # if teacher:
+        #     self.fields['kelas'].queryset = Course.objects.filter(
+        #         teacher_id=teacher
+        #     ).select_related('teacher')
+        # elif is_admin:
+        #     self.fields['kelas'].queryset = Course.objects.all().select_related('teacher')
+        # else:
+        #     self.fields['kelas'].queryset = Course.objects.none()
+
+        # filter by hr class
         if teacher:
-            self.fields['kelas'].queryset = Course.objects.filter(
+            self.fields['kelas'].queryset = Class.objects.filter(
                 teacher_id=teacher
             ).select_related('teacher')
         elif is_admin:
-            self.fields['kelas'].queryset = Course.objects.all().select_related('teacher')
+            self.fields['kelas'].queryset = Class.objects.all().select_related('teacher')
         else:
-            self.fields['kelas'].queryset = Course.objects.none()
+            self.fields['kelas'].queryset = Class.objects.none()
 
         # HTMX Attributes for dynamic cascading
         self.fields['academic_year'].widget.attrs.update({

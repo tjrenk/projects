@@ -190,11 +190,11 @@ class ClassMemberAdmin(admin.ModelAdmin):
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        print("GET params:", dict(request.GET))
-        print("model_name:", request.GET.get('model_name'))
+        # print("GET params:", dict(request.GET))
+        # print("model_name:", request.GET.get('model_name'))
         if request.GET.get('model_name') == 'classmember':
             queryset = queryset.filter(classmember__isnull=True)
-            print("Filtered count:", queryset.count())
+            # print("Filtered count:", queryset.count())
         return queryset, use_distinct
 
     def student_name(self, obj: ClassMember):

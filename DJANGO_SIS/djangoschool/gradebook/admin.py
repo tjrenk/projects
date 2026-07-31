@@ -5,7 +5,7 @@ from django import forms
 from .models import *
 from simple_history.admin import SimpleHistoryAdmin
 from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import path
 from django.http import HttpResponse
 from django.contrib import admin
@@ -240,6 +240,25 @@ class PDRPTAdmin(admin.ModelAdmin):
     list_filter = ["reporcard", ]
     form = PDRPTAdminForm
 
+
+class LockDataEntryAdmin(admin.ModelAdmin):
+    list_display = ["lock_start", "lock_end"]
+
+    def has_add_permission(self, request):
+        return not LockDataEntry.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        obj, created = LockDataEntry.objects.get_or_create(
+            pk=1,
+            defaults={'lock_start': None, 'lock_end': None}
+        )
+        return redirect(f'/admin/gradebook/lockdataentry/{obj.pk}/change/')
+
+
+
 @staff_member_required
 def admin_statistics_view(request):
     return render(request, "admin/statistics.html", {
@@ -297,4 +316,4 @@ admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelaj
 admin.site.register(ReportcardPersonalDev, PDRPTAdmin)
 admin.site.register(AssignmentHead, AssignmentHeadAdmin)
 admin.site.register(AssignmentDetail, AssignmentDetailAdmin)
-# admin.site.register(LockData, LockDataEntry)
+admin.site.register(LockDataEntry, LockDataEntryAdmin)

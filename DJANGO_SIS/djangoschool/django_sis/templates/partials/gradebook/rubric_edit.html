@@ -5,6 +5,8 @@
     <div class="collapse-title text-xl font-medium">Edit Student Behaviour Grades</div>
 
     <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+        <div><strong>Student:</strong> {{ student }}</div>
+        <div><strong>Homeroom Class:</strong> {{ student_class.kelas }}</div>
         <div><strong>Academic Year:</strong> {{ behaviour.academic_year }}</div>
         <div><strong>Period:</strong> {{ behaviour.period }}</div>
         <div><strong>Mid Term:</strong> {{ behaviour.is_mid|yesno:"Yes,No" }}</div>
@@ -19,7 +21,7 @@
             <table class="table table-hover table-bordered align-middle">
                 <thead class="bg-base-200">
                     <tr>
-                        <th>Student</th>
+<!--                        <th>Student</th>-->
                         <th>Rubric</th>
                         <th style="width: 15%;">Score</th>
                         <th>Description</th>
@@ -29,7 +31,7 @@
                     {% for form, instance in rows %}
                     <tr>
                         {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
-                        <td>{{ instance.student }}</td>
+<!--                        <td>{{ instance.student }}</td>-->
                         <td>{{ instance.rubric }}</td>
                         <td>{{ form.score }}</td>
                         <td>{{ form.description }}</td>
@@ -37,7 +39,7 @@
                     {% endfor %}
                 </tbody>
             </table>
-        <a href="{% url 'rubric-pdf' behaviour.pk %}" class="btn btn-secondary">
+        <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn btn-secondary">
     <i class="fa fa-file-pdf"></i> Print PDF
 </a>
         </div>
