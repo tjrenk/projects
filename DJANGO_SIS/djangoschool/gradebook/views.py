@@ -599,12 +599,12 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
     # Grade Entry Form lock
     #
-    # def is_grade_entry_locked():
-    #     lock = LockDataEntry.objects.first()
-    #     if not lock or not lock.lock_start or not lock.lock_end:
-    #         return False
-    #     today = timezone.now().date()
-    #     return lock.lock_start <= today <= lock.lock_end
+    def is_grade_entry_locked():
+        lock = LockDataEntry.objects.first()
+        if not lock or not lock.lock_start or not lock.lock_end:
+            return False
+        today = timezone.now().date()
+        return lock.lock_start <= today <= lock.lock_end
 
     def post(self, *args, **kwargs):
         wizard_goto_step = self.request.POST.get('wizard_goto_step')

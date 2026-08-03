@@ -22,15 +22,16 @@
         <div class="card-body px-3 py-1 w-full">
             <div class="overflow-auto max-h-[60vh]">
                 <table class="table table-sm table-hover table-pin-rows border border-base-200 table-auto">
-                    <thead>
-                        <tr>
-                            {% sortable_header 'academic_year' 'Academic Year' sort_by sort_dir %}
-                            {% sortable_header 'period' 'Period' sort_by sort_dir %}
-                            {% sortable_header 'is_mid' 'Midterms?' sort_by sort_dir %}
-                            {% sortable_header 'level' 'Level' sort_by sort_dir %}
-                            <th>Action</th>
-                        </tr>
-                    </thead>
+<thead>
+    <tr>
+        {% sortable_header 'student' 'Student' sort_by sort_dir %}
+        {% sortable_header 'academic_year' 'Academic Year' sort_by sort_dir %}
+        {% sortable_header 'period' 'Period' sort_by sort_dir %}
+        {% sortable_header 'is_mid' 'Midterms?' sort_by sort_dir %}
+        {% sortable_header 'level' 'Level' sort_by sort_dir %}
+        <th>Action</th>
+    </tr>
+</thead>
 <tbody>
     {% for row in pnation_sessions %}
     <tr class="hover:bg-base-200 cursor-pointer"
