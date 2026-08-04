@@ -43,6 +43,7 @@ from django.utils.encoding import force_str
 import os
 from django.conf import settings
 from reportlab.pdfgen import canvas as pdfcanvas
+from functools import partial
 
 
 
@@ -84,7 +85,7 @@ def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
 
     return order_field, sort_by, sort_dir
 
-
+# filtering
 def apply_filters(queryset, request, filter_map):
     for param, lookup in filter_map.items():
         value = request.GET.get(param)
@@ -92,6 +93,8 @@ def apply_filters(queryset, request, filter_map):
             queryset = queryset.filter(**{lookup: value}).distinct()
     return queryset
 
+
+# styling isi dokumen PDF
 def get_pdf_styles():
     """
     Returns a dict of reusable ParagraphStyles and a standard TableStyle
@@ -120,24 +123,36 @@ def get_pdf_styles():
             fontSize=9, fontName='Times-Roman',
             alignment=TA_LEFT, spaceAfter=2,
         ),
+        'content': ParagraphStyle(
+            'Content', parent=base_styles['Normal'],
+            fontSize=9,
+            alignment=TA_LEFT, spaceAfter=2, leading=10
+        ),
+        'grading': ParagraphStyle(
+            'Grading', parent=base_styles['Normal'],
+            fontSize=10,
+            alignment=TA_CENTER, spaceAfter=2, leading=10
+        ),
         'footer': ParagraphStyle(
             'Footer', parent=base_styles['Normal'],
             fontSize=6, fontName='Times-Italic',
             alignment=TA_LEFT, textColor=colors.HexColor('#cfcfcf'),
         ),
+
     }
 
     table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0D4DA0')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
     ])
 
     return styles, table_style
@@ -149,6 +164,7 @@ def build_pdf_header_table():
     drawing anything. Used both for measuring height and for drawing.
     """
     LOGO_PATH = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_ecs1.png')
+
 
 
 
@@ -303,10 +319,65 @@ def get_pdf_header(canvas, doc):
     onFirstPage/onLaterPages.
     """
     canvas.saveState()
+    # WATERMARK_PATH = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_ecs1.png')
+    # if os.path.exists(WATERMARK_PATH):
+    #     canvas.setFillAlpha(0.08)
+    #     page_width, page_height = doc.pagesize
+    #     img_width, img_height = 12*cm, 12*cm
+    #     canvas.drawImage(
+    #         WATERMARK_PATH,
+    #         x=(page_width - img_width) / 2,
+    #         y=(page_height - img_height) / 2,
+    #         width=img_width,
+    #         height=img_height,
+    #         preserveAspectRatio=True,
+    #         mask='auto',
+    #     )
+    #     canvas.setFillAlpha(1)
     header_table = build_pdf_header_table()
     header_width, header_height = header_table.wrapOn(canvas, doc.width, doc.topMargin)
     header_table.drawOn(canvas, doc.leftMargin - 1.5*cm, doc.pagesize[1] - header_height)
     canvas.restoreState()
+
+def get_pdf_footer(canvas, doc, user=None, date=None):
+    styles, _ = get_pdf_styles()
+    footer_style = styles['footer']
+
+    canvas.saveState()
+    canvas.setFont(footer_style.fontName, footer_style.fontSize)
+    canvas.setFillColor(footer_style.textColor)
+    footer_text = f"Printed by {user} on {date}" if user and date else ""
+    canvas.drawString(2*cm, 1*cm, footer_text)
+    canvas.restoreState()
+
+def get_pdf_watermark(canvas, doc):
+    canvas.saveState()
+
+    WATERMARK_PATH = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_ecs1.png')
+
+    if os.path.exists(WATERMARK_PATH):
+        canvas.setFillAlpha(0.08)  # low opacity — adjust to taste (0.0 = invisible, 1.0 = fully opaque)
+
+        page_width, page_height = doc.pagesize
+        img_width, img_height = 12*cm, 12*cm  # adjust to your image's aspect ratio
+
+        canvas.drawImage(
+            WATERMARK_PATH,
+            x=(page_width - img_width) / 2,
+            y=(page_height - img_height) / 2,
+            width=img_width,
+            height=img_height,
+            preserveAspectRatio=True,
+            mask='auto',
+        )
+
+    canvas.restoreState()
+
+# decorator / combiner, karena onFirstPage & onLastPage cuma bisa terima 1 value, atau canvas & doc
+def get_pdf_page_decorations(canvas, doc, user=None, date=None):
+    get_pdf_header(canvas, doc)
+    get_pdf_watermark(canvas, doc)
+    get_pdf_footer(canvas, doc, user=user, date=date)
 
 
 
@@ -2514,19 +2585,21 @@ def rb_pdf(request, pk):
     flowables = [Spacer(1, 0.5*cm)]
 
     flowables.append(Paragraph("Laporan Nilai Sikap", styles['title']))
-    flowables.append(Paragraph(
-        f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
-        styles['subtitle']
-    ))
-    flowables.append(Spacer(1, 0.3*cm))
+    # flowables.append(Paragraph(
+    #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
+    #     styles['subtitle']
+    # ))
+    flowables.append(Spacer(1, 1*cm))
 
     meta_data = [
         ['Peserta Didik', ':', f"{student.registration_data.first_name} {student.registration_data.last_name}"],
         ['Tahun Ajaran', ':', str(behaviour.academic_year)],
         ['Semester', ':', behaviour.period.period_name],
         ['Kelas', ':', str(student_class.kelas) if student_class else '-'],
-        ['Mid Semester', ':', 'Yes' if behaviour.is_mid else 'No'],
+        ['Mid Semester', ':', 'Ya' if behaviour.is_mid else 'Tidak'],
     ]
+
+
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -2561,20 +2634,24 @@ def rb_pdf(request, pk):
         table_data = [['Indikator', 'Nilai', 'Grade', 'Deskripsi']]
         for r in rows:
             table_data.append([
-                Paragraph(r.rubric.description or '-'),
-                str(r.score),
-                r.grade,
-                Paragraph(r.description or '-'),
+                Paragraph(r.rubric.description or '-', styles['content']),
+                Paragraph(str(r.score) or '-', styles['grading']),
+                Paragraph(r.grade or '-', styles['grading']),
+                Paragraph(r.description or '-', styles['content']),
             ])
 
-        table = Table(table_data, colWidths=[5*cm, 1.5*cm, 1.5*cm, 8*cm])
+        # col_widths = [9 * cm] + [2.5 * cm] * len(RUBRIC_TYPE_PDF_LABELS)
+        table = Table(table_data, colWidths=[7.5*cm, 1.2*cm, 1.2*cm, 6.6*cm])
         table.setStyle(table_style)
         flowables.append(table)
         flowables.append(Spacer(1, 0.3*cm))
 
-    flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
+    # flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
-    doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+    page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
+
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
+    # doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
     buf.seek(0)
 
     filename = f"behaviour_{student.id_number if student else behaviour.pk}_{behaviour.level}_{behaviour.period.period_name}.pdf"
@@ -3894,6 +3971,12 @@ def print_grade_list(request, pk):
     )
 
     flowables = []
+    flowables.append(Paragraph("Laporan Penilaian Ujian Siswa", styles['title']))
+    # flowables.append(Paragraph(
+    #     f"{reportcard.academic_year} / {reportcard.period.period_name}",
+    #     styles['subtitle']
+    # ))
+    flowables.append(Spacer(1, 1*cm))
 
     meta_data = [
         ['Mata Pelajaran', ':', str(parent_head.course.subject or '-')],
@@ -3905,19 +3988,21 @@ def print_grade_list(request, pk):
         ['Tipe Tugas',  ':', str(parent_head.assignment.name)],
         ['Tujuan Pembelajaran', ':', str(cpmp_trg or '-')],
     ]
-    meta_table = Table(meta_data, colWidths=[3*cm, 0.5*cm, 12*cm])
+    meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
-        ('FONTNAME',  (0, 0), (-1, -1), 'Times-Roman'),
-        ('FONTSIZE',  (0, 0), (-1, -1), 9),
-        ('FONTNAME',  (0, 0), (0, -1),  'Times-Bold'),
-        ('VALIGN',    (0, 0), (1, -1), 'TOP'),
-        ('TOPPADDING',    (0, 0), (-1, -1), 2),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     flowables.append(meta_table)
     flowables.append(Spacer(1, 0.5*cm))
 
-    table_data = [['#', 'ID', 'Peserta Didik', 'Nilai', 'Status', 'Keterangan']]
+    table_data = [['No', 'NIS', 'Peserta Didik', 'Nilai', 'Status', 'Keterangan']]
     for i, detail in enumerate(queryset, start=1):
         student = detail.student
         reg = student.registration_data
@@ -3934,7 +4019,7 @@ def print_grade_list(request, pk):
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (3, 1), (4, -1), 'CENTER'),
         *[
-            ('BACKGROUND', (0, i+1), (-1, i+1), colors.HexColor('#ffe0e0'))
+            ('BACKGROUND', (0, i+1), (-1, i+1), colors.transparent) # <---- keep this just incase they want this to be differentiated
             for i, detail in enumerate(queryset)
             if not detail.is_active
         ],
@@ -3944,7 +4029,7 @@ def print_grade_list(request, pk):
     flowables.append(Spacer(1, 15.0 * cm))
     flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
-    doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+    doc.build(flowables, onFirstPage=get_pdf_page_decorations, onLaterPages=get_pdf_page_decorations)
     buf.seek(0)
 
     filename = f"grade_entry_{current_course.short_name}_{parent_head.date}.pdf"
@@ -4247,15 +4332,15 @@ def print_pdev_pdf(request, pk):
 
     flowables = []
     flowables.append(Paragraph("Laporan Konseling Peserta Didik", styles['title']))
-    flowables.append(Paragraph(
-        f"{reportcard.academic_year} / {reportcard.period.period_name}",
-        styles['subtitle']
-    ))
-    flowables.append(Spacer(1, 0.3*cm))
+    # flowables.append(Paragraph(
+    #     f"{reportcard.academic_year} / {reportcard.period.period_name}",
+    #     styles['subtitle']
+    # ))
+    flowables.append(Spacer(1, 1*cm))
 
     meta_data = [
         ['Peserta Didik', ':', f"{reg.first_name} {reg.last_name}"],
-        ['ID', ':', student.id_number],
+        ['NIS', ':', student.id_number],
         ['Tahun Ajaran', ':', str(reportcard.academic_year)],
         ['Semester', ':', reportcard.period.period_name],
         ['Kelas', ':', str(reportcard.level)],

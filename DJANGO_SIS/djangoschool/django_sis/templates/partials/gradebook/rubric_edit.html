@@ -39,15 +39,30 @@
                     {% endfor %}
                 </tbody>
             </table>
-        <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn btn-secondary">
-    <i class="fa fa-file-pdf"></i> Print PDF
-</a>
+
         </div>
 
-        <div class="mt-4 flex gap-2">
-            <button type="submit" class="btn btn-primary">Save</button>
-            <a href="{% url 'rubric-table' %}" class="btn btn-secondary">Cancel</a>
+<div class="w-full z-20 border-t border-base-300 sticky max-lg:fixed max-lg:-mx-3 bottom-0 lg:top-3 lg:bottom-auto">
+    <div class="p-3 bg-base-100 justify-between flex flex-row-reverse gap-15">
+        <div class="text-start flex gap-2">
+            <button type="submit" class="btn-sm btn-primary px-4 primary-content btn rounded-md legitRipple">
+                Save
+                <i class="fas fa-save px-1"></i>
+            </button>
+            <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}"
+               class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple">
+                Print PDF
+                <i class="fa fa-file-pdf px-1"></i>
+            </a>
         </div>
+        <div class="text-end">
+            <a href="{% url 'rubric-table' %}"
+               class="btn-sm btn-block mt-1 btn rounded-md place-self-end closelink">
+                Cancel
+            </a>
+        </div>
+    </div>
+</div>
     </form>
 </div>
 {% endblock %}
