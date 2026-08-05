@@ -2,13 +2,7 @@
 
 {% block content %}
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
-    <div class="flex justify-between items-center mb-4">
-        <div class="collapse-title text-xl font-medium">Edit Personal Development Grade</div>
-        <a href="{% url 'pdev-print' pk=instance.pk %}"
-           class="btn btn-sm btn-outline rounded-md">
-            <i class="fa-solid fa-file-pdf"></i> Download PDF
-        </a>
-    </div>
+    <div class="collapse-title text-xl font-medium">Edit Personal Development Grade</div>
 
     <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
         <div><strong>Student:</strong> {{ reportcard.student.registration_data.first_name }} {{ reportcard.student.registration_data.last_name }}</div>
@@ -16,12 +10,13 @@
         <div><strong>Mid Term:</strong> {{ reportcard.is_mid|yesno:"Yes,No" }}</div>
     </div>
 
-    <form method="post">
+    <form method="post" id="personal-dev-edit-form">
         {% csrf_token %}
         {{ formset.management_form }}
         {% for form in formset %}
-        {{ form.id }}
-    {% endfor %}
+            {{ form.id }}
+        {% endfor %}
+
         {% if formset.errors %}
         <div class="alert alert-error mb-4">
             <strong>Errors:</strong> {{ formset.errors }}
@@ -55,16 +50,19 @@
             </table>
         </div>
         {% endfor %}
-
-        <div class="flex gap-2 mt-4">
-            <button type="submit" class="btn btn-sm btn-success rounded-md">
-                Save
-            </button>
-            <a href="{% url 'pdev-table' %}"
-               class="btn btn-sm btn-ghost rounded-md">
-                Back
-            </a>
-        </div>
     </form>
+</div>
+</div>
+
+<div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
+    <button type="submit" form="personal-dev-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">
+        Save Grades
+    </button>
+    <a href="{% url 'pdev-print' pk=instance.pk %}" class="btn-sm btn-secondary btn rounded-md legitRipple">
+        <i class="fa-solid fa-file-pdf"></i> Print PDF
+    </a>
+    <a href="{% url 'pdev-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">
+        Cancel
+    </a>
 </div>
 {% endblock %}

@@ -1,32 +1,55 @@
 {% extends "base_gradebook.html" %}
 
 {% block content %}
+<style>
+.sticky { position: sticky; }
+</style>
+
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
     <div class="collapse-title text-xl font-medium">Lesson Plan</div>
 
     <div class="card-body bg-base-100 border-base-200">
+        <fieldset class="module aligned mb-4 overflow-visible">
 
-    <form method="post" class="mt-4">
-        {% csrf_token %}
+            <form id="lesson-plan-form" method="post" class="mt-4">
+                {% csrf_token %}
 
-        {% if form.errors %}
-        <div class="alert alert-error mb-4">{{ form.errors }}</div>
-        {% endif %}
+                {% if form.errors %}
+                <div class="alert alert-error mb-4">
+                    <strong>Errors:</strong> {{ form.errors }}
+                </div>
+                {% endif %}
 
-        {% for field in form %}
-        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-            <div class="mb-1 basis-full md:flex-1">
-                {{ field.label_tag }}
-                {{ field }}
-                <div class="error">{{ field.errors }}</div>
-            </div>
-        </div>
-        {% endfor %}
+                <div class="row">
+                    <div class="col-md-8 offset-md-2">
+                        <fieldset class="module aligned mb-4 overflow-visible">
 
-        <div class="flex gap-2 mt-4">
-            <button type="submit" class="btn btn-sm btn-primary rounded-md">Save</button>
-        </div>
-    </form>
+                            {% for field in form %}
+                            <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    <div class="error">{{ field.errors }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                        </fieldset>
+                    </div>
+                </div>
+
+            </form>
+
+        </fieldset>
     </div>
+</div>
+</div>
+
+{# === Navigation Footer === #}
+<div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
+    <button type="submit" form="lesson-plan-form" class="btn-sm btn-success btn rounded-md legitRipple"
+            onclick="confirmSubmit(event)">
+        Save
+    </button>
 </div>
 {% endblock %}

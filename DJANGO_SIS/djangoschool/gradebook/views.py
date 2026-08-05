@@ -4390,7 +4390,7 @@ def print_pdev_pdf(request, pk):
 
     flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
-    doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+    doc.build(flowables, onFirstPage=get_pdf_page_decorations, onLaterPages=get_pdf_page_decorations)
     buf.seek(0)
 
     filename = f"pd_{reg.first_name}_{reg.last_name}_{reportcard.period.period_name}.pdf"

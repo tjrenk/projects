@@ -13,7 +13,7 @@
         <div><strong>Level:</strong> {{ behaviour.level }}</div>
     </div>
 
-    <form method="post">
+    <form method="post" id="rubric-edit-form">
         {% csrf_token %}
         {{ formset.management_form }}
 
@@ -21,7 +21,6 @@
             <table class="table table-hover table-bordered align-middle">
                 <thead class="bg-base-200">
                     <tr>
-<!--                        <th>Student</th>-->
                         <th>Rubric</th>
                         <th style="width: 15%;">Score</th>
                         <th>Description</th>
@@ -31,7 +30,6 @@
                     {% for form, instance in rows %}
                     <tr>
                         {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
-<!--                        <td>{{ instance.student }}</td>-->
                         <td>{{ instance.rubric }}</td>
                         <td>{{ form.score }}</td>
                         <td>{{ form.description }}</td>
@@ -39,30 +37,16 @@
                     {% endfor %}
                 </tbody>
             </table>
-
         </div>
-
-<div class="w-full z-20 border-t border-base-300 sticky max-lg:fixed max-lg:-mx-3 bottom-0 lg:top-3 lg:bottom-auto">
-    <div class="p-3 bg-base-100 justify-between flex flex-row-reverse gap-15">
-        <div class="text-start flex gap-2">
-            <button type="submit" class="btn-sm btn-primary px-4 primary-content btn rounded-md legitRipple">
-                Save
-                <i class="fas fa-save px-1"></i>
-            </button>
-            <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}"
-               class="btn-sm bg-blue-300 text-black btn rounded-md legitRipple">
-                Print PDF
-                <i class="fa fa-file-pdf px-1"></i>
-            </a>
-        </div>
-        <div class="text-end">
-            <a href="{% url 'rubric-table' %}"
-               class="btn-sm btn-block mt-1 btn rounded-md place-self-end closelink">
-                Cancel
-            </a>
-        </div>
-    </div>
-</div>
     </form>
+</div>
+</div>
+
+<div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
+    <button type="submit" form="rubric-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">Save</button>
+    <a href="{% url 'rubric-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>
+    <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
+        <i class="fa fa-file-pdf"></i> Print PDF
+    </a>
 </div>
 {% endblock %}
