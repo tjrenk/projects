@@ -1899,14 +1899,14 @@ def tc_table(request):
     }, default_sort='academic_year')
 
     src = StudentReportcard.objects.filter(
-        ht_comment__isnull=False
-    ).exclude(
-        ht_comment=""
-    ).select_related(
-        'student__registration_data',
-        'academic_year',
-        'period',
-    ).order_by(order_field)
+    ht_comment__isnull=False,
+    student__classmember__kelas=homeroom_class,
+    student__classmember__is_active=True,
+).select_related(
+    'student__registration_data',
+    'academic_year',
+    'period',
+).order_by(order_field).distinct()
 
     src = apply_filters(src, request, {
         'academic_year': 'academic_year_id',

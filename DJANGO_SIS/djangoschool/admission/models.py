@@ -70,6 +70,8 @@ class Registration(AbstractPerson):
     father_mobile = models.CharField(max_length=20, blank=True, null=True)
     # father_whatsapp = models.CharField(max_length=20, blank=True, null=True)
     father_email = models.CharField(max_length=20, blank=True, null=True)
+    class Meta:
+        verbose_name = "Registration"
 
     def __str__(self):
         return f"{self.form_no} ({self.first_name} {self.last_name})" 
@@ -78,14 +80,23 @@ class AcademicYear(models.Model):
     year = models.CharField(max_length=4)
     begin_date = models.DateField()
     end_date = models.DateField()
+    class Meta:
+        verbose_name_plural = "Academic Years"
+        verbose_name = "Academic Year"
+
     def __str__(self):
         return f"{self.year}"
+
 
 class LearningPeriod(models.Model):
     academic_year = (models.ForeignKey(AcademicYear, on_delete=models.CASCADE))
     period_name = models.CharField(max_length=15)
     date_start = models.DateField()
     date_end = models.DateField()
+    class Meta:
+        verbose_name_plural = "Learning Periods"
+        verbose_name = "Learning Period"
+
     def __str__(self):
         return f"{self.academic_year} / {self.period_name}"
 
@@ -93,6 +104,8 @@ class Teacher(AbstractPerson):
     fullname_wtitle = models.CharField(max_length=50, default='idk')
     join_date = (models.DateField())
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
+    class Meta:
+        verbose_name = "Teacher"
     def __str__(self):
         return f"{self.last_name}, {self.first_name}"
 
@@ -108,6 +121,7 @@ class Student(models.Model):
             models.UniqueConstraint(fields=['registration_data', 'nisn', 'is_active'],
                                     name='unique_student_data'),
         ]
+        verbose_name = "Student"
     def __str__(self):
         return f"{self.id_number} - {self.registration_data.first_name} {self.registration_data.last_name}"
 
@@ -123,6 +137,10 @@ class AbstractClass(models.Model):
 class Class(AbstractClass):
     # is_home_class = models.BooleanField(default=True)
     # is_activity = models.BooleanField(default=False)
+    class Meta:
+        verbose_name_plural = "Classes"
+        verbose_name = "Class"
+
     def __str__(self):
         return self.name
 
@@ -138,6 +156,8 @@ class ClassMember(models.Model):
             models.UniqueConstraint(fields=['kelas', 'student', 'is_active'],
                                     name='unique_class_members'),
         ]
+        verbose_name_plural = "Class Members"
+        verbose_name = "Class Member"
 
     def __str__(self):
         return f"{self.student}"
@@ -150,6 +170,9 @@ class SchoolData(models.Model):
     district2 = models.CharField(max_length=100)
     city_name = models.CharField(max_length=50)
     province = models.CharField(max_length=50)
+    class Meta:
+        verbose_name_plural = "School Datas"
+        verbose_name = "School Data"
 
     def __str__(self):
         return self.school_name
@@ -157,6 +180,9 @@ class SchoolData(models.Model):
 class SchoolLevel(models.Model):
     level_name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
+    class Meta:
+        verbose_name_plural = "School Levels"
+        verbose_name = "School Level"
     def __str__(self):
         return self.level_name
 
@@ -179,6 +205,9 @@ class HeadMaster(models.Model):
     school = models.ForeignKey(SchoolData, on_delete=models.CASCADE)
     level = models.ForeignKey(SchoolLevel, default=1, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=100)
+    class Meta:
+        verbose_name = "Headmaster"
+        verbose_name_plural = "Headmasters"
 
     class Meta:
         constraints = [
@@ -205,6 +234,8 @@ class Announcement(models.Model):
 
     class Meta:
         ordering = ['-is_pinned', '-created_at']
+        verbose_name_plural = "Announcements"
+        verbose_name = "Announcement Details"
 
     def __str__(self):
         return self.title

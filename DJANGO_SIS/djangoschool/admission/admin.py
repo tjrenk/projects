@@ -16,7 +16,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 
 class AcademicYearAdmin(admin.ModelAdmin):
     pass
-    #list_display = ["year", "begin_date", "end_date"]
+    # list_display = ["year", "begin_date", "end_date"]
+
 
 class LearningPeriodAdmin(admin.ModelAdmin):
     list_display = ["academic_year", "period_name", "date_start", "date_end"]
@@ -26,6 +27,7 @@ class LearningPeriodAdmin(admin.ModelAdmin):
 class RegistrationAdmin(admin.ModelAdmin):
     list_display = ["form_no", "first_name", "last_name", "date_of_birth", "gender"]
     list_filter = ["form_no", "first_name", "last_name"]
+
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         # Change individual field labels here
@@ -63,7 +65,9 @@ class StudentForm(forms.ModelForm):
         # taroh logic dibawah
         self.fields['registration_data'].queryset = Registration.objects.filter(student__isnull=True)
         if self.instance and self.instance.pk:
-            self.fields['registration_data'].queryset = Registration.objects.filter(pk=self.instance.registration_data_id)
+            self.fields['registration_data'].queryset = Registration.objects.filter(
+                pk=self.instance.registration_data_id)
+
 
 class StudentAdmin(admin.ModelAdmin):
     form = StudentForm
@@ -78,8 +82,6 @@ class StudentAdmin(admin.ModelAdmin):
     search_fields = ["registration_data__first_name", "registration_data__last_name"]
 
 
-
-
 class TeacherAdmin(admin.ModelAdmin):
     list_display = ["fullname_wtitle", "join_date", "user__username"]
     list_filter = ["first_name", "last_name", "fullname_wtitle", "user__username"]
@@ -92,11 +94,13 @@ class TeacherAdmin(admin.ModelAdmin):
 
     def fullname_wtitle_fixed(self, obj):
         return obj.fullname_wtitle
+
     fullname_wtitle_fixed.short_description = "Full Name and Title"
 
     def get_urls(self):
         custom_urls = [
-            path('print-list-pdf/', self.admin_site.admin_view(self.print_list_pdf), name='admission_teacher_print_list_pdf'),
+            path('print-list-pdf/', self.admin_site.admin_view(self.print_list_pdf),
+                 name='admission_teacher_print_list_pdf'),
         ]
         return custom_urls + super().get_urls()
 
@@ -143,16 +147,39 @@ class TeacherAdmin(admin.ModelAdmin):
     #     return qs.filter(user=request.user)
 
 
+class ClassMemberForm(forms.ModelForm):
+    # class Meta:
+    #     model = ClassMember
+    #     fields = '__all__'
+    #     widgets = {
+    #         'student': forms.CheckboxSelectMultiple(attrs={'class': 'checkbox'}),
+    #     }
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['student'].queryset = Student.objects.exclude(
+            classmember__is_active=True
+        )
+        if self.instance and self.instance.pk:
+            self.fields['student'].queryset = Student.objects.filter(pk=self.instance.student_id)
+
 class ClassMemberInline(admin.TabularInline):
     model = ClassMember
     fields = ("student", "is_active", "na_date", "na_reason")
-    max_num = 1
+    extra = 1
+    form = ClassMemberForm
+
 
 class KelasAdmin(admin.ModelAdmin):
     list_display = ["name", "academic_year", "short_name", "teacher", "count_students"]
     list_filter = ["academic_year", "teacher"]
     search_fields = ["academic_year__class__name"]
-    inlines = [ ClassMemberInline, ]
+    inlines = [ClassMemberInline, ]
+    class Meta:
+        verbose_name_plural = 'Classes'
+
     def count_students(self, obj: Class):
         return ClassMember.objects.filter(kelas_id=obj.id).count()
 
@@ -167,25 +194,14 @@ class KelasAdmin(admin.ModelAdmin):
         # For regular staff users, restrict records to their own
         return qs.filter(teacher__user=request.user)
 
-class ClassMemberForm(forms.ModelForm):
-    # class Meta:
-    #     model = ClassMember
-    #     fields = '__all__'
-    #     widgets = {
-    #         'student': forms.CheckboxSelectMultiple(attrs={'class': 'checkbox'}),
-    #     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
-        self.fields['student'].queryset = Student.objects.filter(classmember__isnull=True)
-        if self.instance and self.instance.pk:
-            self.fields['student'].queryset = Student.objects.filter(pk=self.instance.student_id)
+
 
 class ClassMemberAdmin(admin.ModelAdmin):
     list_display = ["kelas", "student_name"]
     list_filter = ["student", "student__registration_data__gender", "kelas"]
-    autocomplete_fields = ["student", "kelas"]
+    # autocomplete_fields = ["student", "kelas"]
     form = ClassMemberForm
 
     def get_search_results(self, request, queryset, search_term):
@@ -211,24 +227,24 @@ class ClassMemberAdmin(admin.ModelAdmin):
     #     # For regular staff users, restrict records to their own
     #     return qs.filter(kelas__teacher__user=request.user)
 
-    
+
 class ReligionAdmin(admin.ModelAdmin):
     list_display = ["religion_name"]
+
 
 class GradeLevelAdmin(admin.ModelAdmin):
     list_display = ["school_level", "grade_name", "short_name"]
 
+
 class AnnouncementAdmin(admin.ModelAdmin):
     list_display = ["title", "author", "is_active", "created_at", "updated_at"]
     list_filter = ["title", "author", "is_active", "created_at", "updated_at"]
-
 
     def get_changeform_initial_data(self, request):
         initial = super().get_changeform_initial_data(request)
         # Sets the default author field to the logged-in user
         initial['author'] = request.user.id
         return initial
-
 
 
 admin.site.register(Registration, RegistrationAdmin)

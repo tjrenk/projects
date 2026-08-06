@@ -43,10 +43,23 @@ class LogEntryAdmin(admin.ModelAdmin):
 class SubjectAdmin(admin.ModelAdmin):
     list_display = ["subject_name", "is_activity", "short_name"]
 
+class CourseMemberForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['student'].queryset = Student.objects.exclude(
+            coursemember__is_active=True
+        )
+        if self.instance and self.instance.pk:
+            self.fields['student'].queryset = Student.objects.filter(pk=self.instance.student_id)
+
+
 class CourseMemberInLine(admin.TabularInline):
     model = CourseMember
     fields = ("student", "is_active", "na_date", "na_reason")
-    max_num = 1
+    extra = 1
+    form = CourseMemberForm
 
 class CourseAdmin(admin.ModelAdmin):
     list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name']
@@ -86,7 +99,8 @@ class CourseAdmin(admin.ModelAdmin):
 
 class CourseMemberAdmin(admin.ModelAdmin):
     list_display = ["get_course_name", "student", "is_active"]
-    autocomplete_fields = ["student", "course"]
+    # autocomplete_fields = ["student", "course"]
+    form = CourseMemberForm
     def get_course_name(self, obj: CourseMember)->str:
         return f"{obj.course.short_name}"
     get_course_name.short_description = "Course"
@@ -241,21 +255,21 @@ class PDRPTAdmin(admin.ModelAdmin):
     form = PDRPTAdminForm
 
 
-class LockDataEntryAdmin(admin.ModelAdmin):
-    list_display = ["lock_start", "lock_end"]
-
-    def has_add_permission(self, request):
-        return not LockDataEntry.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def changelist_view(self, request, extra_context=None):
-        obj, created = LockDataEntry.objects.get_or_create(
-            pk=1,
-            defaults={'lock_start': None, 'lock_end': None}
-        )
-        return redirect(f'/admin/gradebook/lockdataentry/{obj.pk}/change/')
+# class LockDataEntryAdmin(admin.ModelAdmin):
+#     list_display = ["lock_start", "lock_end"]
+#
+#     def has_add_permission(self, request):
+#         return not LockDataEntry.objects.exists()
+#
+#     def has_delete_permission(self, request, obj=None):
+#         return False
+#
+#     def changelist_view(self, request, extra_context=None):
+#         obj, created = LockDataEntry.objects.get_or_create(
+#             pk=1,
+#             defaults={'lock_start': None, 'lock_end': None}
+#         )
+#         return redirect(f'/admin/gradebook/lockdataentry/{obj.pk}/change/')
 
 
 
@@ -316,4 +330,4 @@ admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelaj
 admin.site.register(ReportcardPersonalDev, PDRPTAdmin)
 admin.site.register(AssignmentHead, AssignmentHeadAdmin)
 admin.site.register(AssignmentDetail, AssignmentDetailAdmin)
-admin.site.register(LockDataEntry, LockDataEntryAdmin)
+# admin.site.register(LockDataEntry, LockDataEntryAdmin)
