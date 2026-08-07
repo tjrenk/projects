@@ -41,6 +41,10 @@ class Subject(models.Model):
 class AssignmentType(models.Model):
     name = models.CharField(max_length=25, unique=True)
     short_name = models.CharField(max_length=10)
+    class Meta:
+        verbose_name_plural = "Assignment Types"
+        verbose_name = "Assignment Type"
+
     def __str__(self):
         return self.short_name
 
@@ -66,6 +70,9 @@ class CourseMember(models.Model):
     na_date = models.DateField(null=True, blank=True)
     na_reason = models.CharField(max_length=100, blank=True, null=True)
 
+    class Meta:
+        verbose_name_plural = "Course Members"
+
     def __str__(self):
         return self.student.__str__()
 
@@ -80,6 +87,8 @@ class PassingGrade(models.Model):
             models.UniqueConstraint(fields=['academic_year', 'subject', 'level'],
                                     name='unique_passing_grades'),
         ]
+        verbose_name_plural = "Passing Grades"
+        verbose_name = "Passing Grade"
 
 class GradeEntry(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
@@ -93,6 +102,9 @@ class GradeEntry(models.Model):
     assignment_date = models.DateField(auto_now_add=True)
     assignment_topic = models.CharField(max_length=100, default="to be fill later.")
     # set table to readonly by disabling all save/delete methode
+
+    class Meta:
+        verbose_name_plural = "Grade Entries"
 
     #def save(self, *args, **kwargs):
     #    pass
@@ -112,6 +124,10 @@ class CapaianPemelajaranMataPelajaran(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     cpl_root = models.ForeignKey(CapaianPemelajaranLulusan, on_delete=models.CASCADE)
     text = models.TextField(null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = "Lesson Plans"
+        verbose_name = "Lesson Plan"
 
 class AssignmentHead(models.Model):
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)

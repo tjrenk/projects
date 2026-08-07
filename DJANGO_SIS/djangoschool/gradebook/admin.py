@@ -11,6 +11,8 @@ from django.http import HttpResponse
 from django.contrib import admin
 from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
 from django.utils.html import format_html
+from django.core.exceptions import ValidationError
+from django.forms.models import BaseInlineFormSet
 
 
 class LogEntryAdmin(admin.ModelAdmin):
@@ -43,16 +45,51 @@ class LogEntryAdmin(admin.ModelAdmin):
 class SubjectAdmin(admin.ModelAdmin):
     list_display = ["subject_name", "is_activity", "short_name"]
 
+
 class CourseMemberForm(forms.ModelForm):
+    parent_course = None  # will be set dynamically per inline instance
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields['student'].queryset = Student.objects.exclude(
-            coursemember__is_active=True
-        )
+        qs = Student.objects.all()
+        if self.parent_course:
+            qs = qs.exclude(
+                coursemember__course=self.parent_course,
+                coursemember__is_active=True
+            )
+        self.fields['student'].queryset = qs
+
+        # Preserve the current row's own selected student even though
+        # they'd otherwise get excluded by the rule above
         if self.instance and self.instance.pk:
             self.fields['student'].queryset = Student.objects.filter(pk=self.instance.student_id)
+
+
+class CourseMemberFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        seen_students = {}
+
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data') or not form.cleaned_data:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+
+            student = form.cleaned_data.get('student')
+            if not student:
+                continue
+
+            if student in seen_students:
+                # Point the error at THIS row's student field
+                form.add_error('student', f"Siswa {student} sudah ditambah sebagai member sebelumnya.")
+                # Also mark the FIRST row where this student appeared
+                seen_students[student].add_error('student', f"Siswa {student} sudah ditambah sebagai member di bawahnya.")
+            else:
+                seen_students[student] = form
+
+
 
 
 class CourseMemberInLine(admin.TabularInline):
@@ -60,10 +97,19 @@ class CourseMemberInLine(admin.TabularInline):
     fields = ("student", "is_active", "na_date", "na_reason")
     extra = 1
     form = CourseMemberForm
+    formset = CourseMemberFormSet
+
+    def get_formset(self, request, obj=None, **kwargs):
+        class BoundForm(CourseMemberForm):
+            parent_course = obj
+
+        kwargs['form'] = BoundForm
+        return super().get_formset(request, obj, **kwargs)
+
 
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name']
-    inlines = [ CourseMemberInLine, ]
+    list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name', 'count_students']
+    inlines = [CourseMemberInLine, ]
     search_fields = ["name"]
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -80,7 +126,11 @@ class CourseAdmin(admin.ModelAdmin):
 
     def get_teacher_name(self, obj):
         return f"{obj.teacher.first_name} {obj.teacher.last_name}"
+
     get_teacher_name.short_description = "Teacher"
+
+    def count_students(self, obj: Course):
+        return CourseMember.objects.filter(course_id=obj.id).count()
 
     def get_queryset(self, request):
         # Fetch the original base queryset
@@ -101,16 +151,30 @@ class CourseMemberAdmin(admin.ModelAdmin):
     list_display = ["get_course_name", "student", "is_active"]
     # autocomplete_fields = ["student", "course"]
     form = CourseMemberForm
-    def get_course_name(self, obj: CourseMember)->str:
+
+    def get_course_name(self, obj: CourseMember) -> str:
         return f"{obj.course.short_name}"
+
     get_course_name.short_description = "Course"
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        if request.GET.get('model_name') == 'classmember':
+            queryset = queryset.filter(coursemember__isnull=True)
+            # print("Filtered count:", queryset.count())
+        return queryset, use_distinct
+
+    def student_name(self, obj: CourseMember):
+        return f"{obj.student}"
 
 
 class PassingGradeAdmin(admin.ModelAdmin):
-    list_display = ["academic_year","subject", "level", "passing_grade"]
+    list_display = ["academic_year", "subject", "level", "passing_grade"]
+
 
 class AssignmentTypeAdmin(admin.ModelAdmin):
     list_display = ["short_name", "name"]
+
 
 class WeightingForm(forms.ModelForm):
     class Meta:
@@ -130,14 +194,14 @@ class WeightingForm(forms.ModelForm):
             )  # show all instead of none, so add view isn't empty
 
 
-
 class WeightingAdmin(admin.ModelAdmin):
-    list_display = ["academic_year","period","mid_sem","subject","assignment","format_percentage"]
+    list_display = ["academic_year", "period", "mid_sem", "subject", "assignment", "format_percentage"]
     list_filter = ["academic_year", "period", "subject", "is_mid"]
     form = WeightingForm
 
-    def format_percentage(self, obj: Weighting)->decimal:
-        return obj.weight*100
+    def format_percentage(self, obj: Weighting) -> decimal:
+        return obj.weight * 100
+
     format_percentage.short_description = "Weight %"
 
     # def filter_period(self, request, obj=None, **kwargs):
@@ -151,85 +215,102 @@ class WeightingAdmin(admin.ModelAdmin):
 
     @admin.display(description="Mid Semester?")
     def mid_sem(self, obj):
-        if obj.is_mid==True:
+        if obj.is_mid == True:
             return "Yes"
         else:
             return "No"
 
+
 class GradeEntryAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "course", "period", "subject", "teacher")
+
     def delete_queryset(self, request, queryset):
         pass
+
 
 class RubricIndicatorAdmin(admin.TabularInline):
     model = RubricIndicator
 
+
 class RubricAdmin(admin.ModelAdmin):
     list_display = ("type", "description", "index")
-    list_filter = ["type" ]
-    inlines = [ RubricIndicatorAdmin ]
+    list_filter = ["type"]
+    inlines = [RubricIndicatorAdmin]
 
-    
+
 class ReportcardGradeAdmin(admin.TabularInline):
     model = ReportcardGrade
 
 
 class StudentReportcardAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "period", "is_mid", "level", "student")
-    list_filter = ["academic_year", "period", "is_mid", "student" ]
-    inlines = [ ReportcardGradeAdmin ]
+    list_filter = ["academic_year", "period", "is_mid", "student"]
+    inlines = [ReportcardGradeAdmin]
+
 
 class StudentReportcardHistory(SimpleHistoryAdmin):
     list_display = ("academic_year", "period", "is_mid", "level", "student")
-    history_list_display = ["academic_year", "is_mid", "student" ]
-    inlines = [ ReportcardGradeAdmin ]
+    history_list_display = ["academic_year", "is_mid", "student"]
+    inlines = [ReportcardGradeAdmin]
+
 
 class ReportcardGradeAdmin(admin.ModelAdmin):
     list_display = ("reportcard", "subject", "grade", "comments")
-    history_list_display = ["reportcard", "subject" ]
+    history_list_display = ["reportcard", "subject"]
     max_num = 0
+
 
 class ReportCardGradeHistory(SimpleHistoryAdmin):
     list_display = ("reportcard", "subject")
     history_list_display = ["reportcard", "subject"]
 
+
 class GradeLevelAdmin(admin.ModelAdmin):
     list_display = ("grade_name", "school_level", "short_name")
     list_filter = ["school_level"]
+
 
 class StudentBehaviorAdmin(admin.ModelAdmin):
     list_display = ("student", "behavior", "rubric", "score")
     list_filter = ["student", "behavior", "rubric", "score"]
 
+
 class StudentReportExtraAdmin(admin.ModelAdmin):
     list_display = ("reportcard", "extra_type", "extra_description", "extra_score", "extra_notes")
     list_filter = ["reportcard", "extra_type", "extra_description", "extra_score", "extra_notes"]
 
+
 class ReportcardRubricTemplateAdmin(admin.ModelAdmin):
-    list_display = ("academic_year","rubric","lookup_grade","text")
-    list_filter = ["academic_year","rubric","lookup_grade","text"]
+    list_display = ("academic_year", "rubric", "lookup_grade", "text")
+    list_filter = ["academic_year", "rubric", "lookup_grade", "text"]
+
 
 class StudentBehaviourReportAdmin(admin.ModelAdmin):
-    list_display = ("score","rubric","student","description","grade")
-    list_filter = ["score","rubric","student","description","grade"]
+    list_display = ("score", "rubric", "student", "description", "grade")
+    list_filter = ["score", "rubric", "student", "description", "grade"]
+
 
 class CapaianPemelajaranLulusanAdmin(admin.ModelAdmin):
-    list_display = ("text", )
+    list_display = ("text",)
     list_filter = ["text", ]
+
 
 class AssignmentHeadAdmin(admin.ModelAdmin):
     list_display = ("date", "topic", "max_score", "assignment", "course")
     list_filter = ["date", "topic", "max_score", "assignment", "course"]
 
+
 class AssignmentDetailAdmin(admin.ModelAdmin):
     list_display = ("is_active", "na_date", "na_reason", "student", "score")
     list_filter = ["is_active", "na_date", "na_reason", "student"]
+
 
 class CPMPForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.fields['cpl_root'].choices = CapaianPemelajaranLulusan.objects.all().values_list('id', 'text')
+
 
 # class LockData(forms.ModelForm):
 #     list_display = ("lock_start", "lock_end")
@@ -239,9 +320,12 @@ class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "level", "subject", "get_cpl_str", "text")
     list_filter = ["academic_year", "level", "subject"]
     form = CPMPForm
-    def get_cpl_str(self, obj: CapaianPemelajaranMataPelajaran)->str:
+
+    def get_cpl_str(self, obj: CapaianPemelajaranMataPelajaran) -> str:
         return f"{obj.cpl_root.text}"
+
     get_cpl_str.short_description = "Capaian Pembelajaran Lulusan"
+
 
 class PDRPTAdminForm(forms.ModelForm):
     class Meta:
@@ -249,8 +333,9 @@ class PDRPTAdminForm(forms.ModelForm):
             'care1': 'test'
         }
 
+
 class PDRPTAdmin(admin.ModelAdmin):
-    list_display = ("reporcard", )
+    list_display = ("reporcard",)
     list_filter = ["reporcard", ]
     form = PDRPTAdminForm
 
@@ -270,7 +355,6 @@ class PDRPTAdmin(admin.ModelAdmin):
 #             defaults={'lock_start': None, 'lock_end': None}
 #         )
 #         return redirect(f'/admin/gradebook/lockdataentry/{obj.pk}/change/')
-
 
 
 @staff_member_required
@@ -305,7 +389,6 @@ class CustomAdminSite(admin.AdminSite):
             path("statistics/", admin_statistics_view, name="admin-statistics"),
         ]
         return urls
-
 
 
 # Register your models here.
