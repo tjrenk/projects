@@ -1295,16 +1295,18 @@ def get_kelas_ge(request):
 
 
 def get_courses_ge(request):
-    print(request.GET)
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     subject_id = request.GET.get('0-subject') or request.GET.get('subject')
     selected_course = request.GET.get('0-course') or request.GET.get('course')
+    level_id = request.GET.get('0-level') or request.GET.get('level')
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
 
-    if subject_id and acayear_id:
-        courses = Course.objects.filter(subject_id=subject_id, academic_year_id=acayear_id)
-    elif subject_id:
-        # fallback: filter by subject only if acayear didn't come through
-        courses = Course.objects.filter(subject_id=subject_id)
+    if subject_id and level_id and teacher_id:
+        courses = Course.objects.filter(
+            subject_id=subject_id, level_id=level_id, teacher_id=teacher_id
+        )
+        if acayear_id:
+            courses = courses.filter(academic_year_id=acayear_id)
     else:
         courses = Course.objects.none()
 
@@ -2036,7 +2038,8 @@ def tc_view(request, pk):
             formset.save()
             return redirect('report-card-table')  # Make sure this URL name is correct in urls.py
         else:
-            print(formset.errors)
+            # print(formset.errors)
+            pass
     else:
         formset = ReportCardGradeFormset(queryset=queryset)
 
@@ -3873,9 +3876,9 @@ def get_level_grades(request):
 
 
 def get_period_assignment_avg(request):
-    print(request.GET)
+    # print(request.GET)
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
-    print(f"acayear_id: {acayear_id}")
+    # print(f"acayear_id: {acayear_id}")
     selected_period = request.GET.get('0-period') or request.GET.get('period')
     if acayear_id:
         # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)

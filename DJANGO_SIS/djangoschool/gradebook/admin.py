@@ -107,10 +107,17 @@ class CourseMemberInLine(admin.TabularInline):
         return super().get_formset(request, obj, **kwargs)
 
 
+class CourseForm(forms.ModelForm):
+    class Meta:
+        labels = {
+            'level': 'Grade',
+        }
+
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name', 'count_students']
+    list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name', 'count_students', 'level_to_grade']
     inlines = [CourseMemberInLine, ]
     search_fields = ["name"]
+    form = CourseForm
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Target the specific ForeignKey field you want to filter
@@ -128,6 +135,11 @@ class CourseAdmin(admin.ModelAdmin):
         return f"{obj.teacher.first_name} {obj.teacher.last_name}"
 
     get_teacher_name.short_description = "Teacher"
+
+    def level_to_grade(self, obj):
+        return obj.level
+
+    level_to_grade.short_description = "Grade"
 
     def count_students(self, obj: Course):
         return CourseMember.objects.filter(course_id=obj.id).count()
@@ -394,7 +406,7 @@ class CustomAdminSite(admin.AdminSite):
 # Register your models here.
 admin.site.register(Subject, SubjectAdmin)
 admin.site.register(Course, CourseAdmin)
-admin.site.register(CourseMember, CourseMemberAdmin)
+# admin.site.register(CourseMember, CourseMemberAdmin)
 admin.site.register(AssignmentType, AssignmentTypeAdmin)
 admin.site.register(Weighting, WeightingAdmin)
 admin.site.register(PassingGrade, PassingGradeAdmin)

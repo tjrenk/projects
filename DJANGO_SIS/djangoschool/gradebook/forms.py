@@ -154,9 +154,9 @@ class GradeEntryForm(forms.ModelForm):
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
-        if subject:
+        if subject and level:
             # Using your existing filtering logic
-            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject)
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject, level_id=level)
             if is_admin:
                 self.fields['course'].queryset = Course.objects.all()
         else:
@@ -209,21 +209,19 @@ class GradeEntryForm(forms.ModelForm):
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-courses-ge/',
-            'hx-trigger': 'change',
+            'hx-trigger': 'change from:#level-select-ge',
             'hx-target': '#course-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #subject-select-ge'
+            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge',
         })
 
-        # --- 3. LEVEL (The Listener) ---
-        # "I will update myself whenever Academic Year changes"
         self.fields['level'].widget.attrs.update({
             'id': 'level-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-levels-ge/', # Separate View
-            'hx-trigger': 'change from:#acayear-select-ge', # LISTEN to the Year field
-            'hx-include': '#acayear-select-ge', # Send the Year data
-            'hx-target': '#level-select-ge', # Update myself
+            'hx-get': '/gradebook/get-levels-ge/',
+            'hx-trigger': 'change from:#acayear-select-ge',
+            'hx-include': '#acayear-select-ge',
+            'hx-target': '#level-select-ge',
             'hx-swap': 'innerHTML',
         })
 
@@ -236,7 +234,7 @@ class GradeEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#assignment-type-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #subject-select-ge'
+            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge',
             # hx-include is not strictly needed if we just need the course ID 
             # (htmx sends the trigger element's value by default)
         })

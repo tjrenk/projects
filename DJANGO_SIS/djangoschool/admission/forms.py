@@ -83,4 +83,53 @@ class AssignHomeroomAndClassForm(forms.Form):
                 )
 
         return cleaned_data
-    
+
+
+class GradeAdvanceForm(forms.Form):
+    source_class = forms.ModelChoiceField(
+        queryset=Class.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Source'
+    )
+
+    target_class = forms.ModelChoiceField(
+        queryset=Class.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Target'
+    )
+
+    students = forms.ModelMultipleChoiceField(
+        queryset=Student.objects.none(),
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'custom-checkbox-list'}),
+        required=True,
+        label='Students'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        source_id = self.data.get('source_class') if self.is_bound else None
+
+        self.fields['source_class'].widget.attrs.update({
+            'id': 'source-class-select',
+            'hx-get': '/admission/get-source-students/',
+            'hx-trigger': 'change',
+            'hx-target': '#source-students-list',
+            'hx-swap': 'innerHTML',
+        })
+
+        if source_id:
+            self.fields['students'].queryset = Student.objects.filter(
+                classmember__kelas_id=source_id,
+                classmember__is_active=True
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        source_class = cleaned_data.get('source_class')
+        target_class = cleaned_data.get('target_class')
+
+        if source_class and target_class and source_class == target_class:
+            raise forms.ValidationError("Source and target class cannot be the same.")
+
+        return cleaned_data

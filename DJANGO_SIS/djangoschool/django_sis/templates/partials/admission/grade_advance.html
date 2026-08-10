@@ -1,0 +1,47 @@
+{% extends "base_admission.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium mb-4">Grade Advance</div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="flex flex-col lg:flex-row gap-8">
+
+            <!-- SOURCE -->
+            <div class="w-full lg:flex-1">
+                <label class="label">
+                    <span class="label-text font-bold text-lg">Source</span>
+                </label>
+                {{ form.source_class }}
+
+                <div id="source-students-list" class="border border-base-300 rounded-md p-3 h-96 overflow-y-auto mt-2 bg-base-100">
+                    <p class="text-sm text-base-content/50">Select a source class to see its students.</p>
+                </div>
+                <div class="error text-error text-sm mt-1">{{ form.students.errors }}</div>
+            </div>
+
+            <!-- TARGET -->
+            <div class="w-full lg:flex-1">
+                <label class="label">
+                    <span class="label-text font-bold text-lg">Target</span>
+                </label>
+                {{ form.target_class }}
+                <div class="error text-error text-sm mt-1">{{ form.target_class.errors }}</div>
+            </div>
+
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-error mt-4">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <div class="mt-6">
+            <button type="submit" class="btn btn-sm btn-primary rounded-md">Advance Selected Students</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

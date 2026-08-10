@@ -509,3 +509,43 @@ class AssignHomeroomAndClass(LoginRequiredMixin, FormView):
         messages.success(self.request, f"{student} assigned successfully!")
         return super().form_valid(form)
 
+
+@login_required
+def grade_advance(request):
+    if request.method == 'POST':
+        form = GradeAdvanceForm(request.POST)
+        if form.is_valid():
+            source_class = form.cleaned_data['source_class']
+            target_class = form.cleaned_data['target_class']
+            students = form.cleaned_data['students']
+
+            with transaction.atomic():
+                for student in students:
+                    ClassMember.objects.filter(
+                        student=student, kelas=source_class, is_active=True
+                    ).update(is_active=False, na_date=date.today(), na_reason="Advanced to next grade")
+
+                    ClassMember.objects.create(
+                        student=student, kelas=target_class, is_active=True
+                    )
+
+            messages.success(request, f"{students.count()} student(s) advanced from {source_class} to {target_class}.")
+            return redirect('grade-advance')
+    else:
+        form = GradeAdvanceForm()
+
+    return render(request, 'partials/admission/grade_advance.html', {'form': form})
+
+
+@login_required
+def get_source_students(request):
+    source_id = request.GET.get('source_class')
+
+    students = Student.objects.none()
+    if source_id:
+        students = Student.objects.filter(
+            classmember__kelas_id=source_id,
+            classmember__is_active=True
+        ).select_related('registration_data').order_by('id_number')
+
+    return render(request, 'partials/admission/source_students_list.html', {'students': students})

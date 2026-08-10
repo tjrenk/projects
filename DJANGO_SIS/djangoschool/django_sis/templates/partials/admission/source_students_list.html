@@ -1,0 +1,12 @@
+{% if students %}
+<div class="flex flex-col gap-1">
+    {% for student in students %}
+    <label class="flex items-center gap-2 text-sm py-1 cursor-pointer hover:bg-base-200 rounded px-1">
+        <input type="checkbox" name="students" value="{{ student.id }}" class="checkbox checkbox-sm">
+        {{ student.id_number }} - {{ student.registration_data.first_name }} {{ student.registration_data.last_name }}
+    </label>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-base-content/50">No active students found in this class.</p>
+{% endif %}

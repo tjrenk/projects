@@ -11,5 +11,7 @@ urlpatterns = [
     path("get_student_counts/", views.get_student_counts, name="get_student_counts"),
     path("student_table/", views.regist_table, name="student-table"),
     path("pdf_regist_table/", views.pdf_regist_table, name="pdf_regist_table"),
-    path("assign_class/", views.AssignHomeroomAndClass.as_view(), name="assign_class")
+    path("assign_class/", views.AssignHomeroomAndClass.as_view(), name="assign_class"),
+    path('grade-advance/', views.grade_advance, name='grade-advance'),
+    path('get-source-students/', views.get_source_students, name='get-source-students'),
     ]
