@@ -2516,3 +2516,203 @@ class CpmpCreateForm(forms.ModelForm):
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
         })
+
+class GetRPCAcademicComments(forms.ModelForm):
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
+    class Meta:
+        model = GradeEntry
+        fields = ["level", "academic_year", "period", "teacher", "subject", "course"]
+        labels = {
+            'course': "Course",
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        data = self.data
+        initial = self.initial
+
+        is_admin = user and (user.is_staff or user.is_superuser)
+        teacher_obj = Teacher.objects.filter(user=user).first() if user else None
+
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        # Default Logic for Logged-in Teacher
+        if user and not self.is_bound and not is_admin:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+            if teacher_obj:
+                self.initial['teacher'] = teacher_obj.id
+
+                # Match the is_activity filter used later for the actual field queryset
+                # teacher_subjects = Subject.objects.filter(
+                #     course__teacher=teacher_obj, is_activity=False
+                # ).distinct()
+                # print("teacher_subjects (unfiltered):",
+                #       list(teacher_subjects.values('id', 'subject_name', 'is_activity')))
+                # if teacher_subjects.count() == 1:
+                #     self.initial['subject'] = teacher_subjects.first().id
+
+            # Default to the most recent Academic Year and Period
+            # curr_ay = AcademicYear.objects.order_by('-id').first()
+            # if curr_ay:
+            #     self.initial['academic_year'] = curr_ay.id
+            # curr_period = LearningPeriod.objects.filter(Q(academic_year=curr_ay) & Q(period_name__icontains='semester')).order_by('-id').first()
+            curr_period = LearningPeriod.objects.filter(
+                Q(period_name__icontains='semester')).order_by('-id').first()
+            if curr_period:
+                self.initial['period'] = curr_period.id
+
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        level = data.get('0-level') or initial.get('level')
+        period = data.get('0-period') or initial.get('period')
+        teacher = data.get('0-teacher') or initial.get('teacher')
+        subject = data.get('0-subject') or initial.get('subject')
+        course = data.get('0-course') or initial.get('course')
+
+        # 2. Logic: Period depends on Academic Year
+
+        # buat validasi
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear,
+                                                                           period_name__icontains='semester')
+            self.fields['level'].queryset = GradeLevel.objects.all()
+            if is_admin:
+                self.fields['period'].queryset = LearningPeriod.objects.all()
+                self.fields['level'].queryset = GradeLevel.objects.all()
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+            self.fields['level'].queryset = GradeLevel.objects.none()
+
+        # 3. Logic: Teacher depends on Period
+        # if period:
+        #     self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
+        #     if user.is_staff:
+        #         self.fields['teacher'].queryset = Teacher.objects.all()
+        # else:
+        #     self.fields['teacher'].queryset = Teacher.objects.none()
+        # 3. Logic: Teacher
+        # 3. Logic: Teacher — same pattern as CpmpCreateForm
+        if is_admin:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        elif logged_in_teacher:
+            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
+            if not self.is_bound:
+                self.initial['teacher'] = logged_in_teacher.id
+        else:
+            self.fields['teacher'].queryset = Teacher.objects.none()
+
+        # 4. Logic: Subject depends on Teacher
+        if teacher:
+            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher,
+                                                                     is_activity=False).distinct()
+            if is_admin:
+                self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
+        else:
+            self.fields['subject'].queryset = Subject.objects.none()
+
+        if subject and level:
+            # Using your existing filtering logic
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear,
+                                                                   subject_id=subject, level_id=level)
+            if is_admin:
+                self.fields['course'].queryset = Course.objects.all()
+        else:
+            self.fields['course'].queryset = Course.objects.none()
+
+        # if level:
+        #     self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher).distinct()
+        # else:
+        #     self.fields['course'].queryset = Course.objects.none()
+
+        # --- HTMX Attributes ---
+        # Update Academic Year to trigger Period update
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'acayear-select-ge',  # Vital for the listener
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#period-select-ge',  # Updates Period normally
+            'hx-swap': 'innerHTML',
+        })
+
+        # --- 2. PERIOD (Standard Chain) ---
+        self.fields['period'].widget.attrs.update({
+            'id': 'period-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-teachers-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#teacher-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#period-select-ge'  # Use ID selector for safety
+        })
+
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses-ge/',
+            'hx-trigger': 'change from:#level-select-ge',
+            'hx-target': '#course-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-levels-ge/',
+            'hx-trigger': 'change from:#acayear-select-ge',
+            'hx-include': '#acayear-select-ge',
+            'hx-target': '#level-select-ge',
+            'hx-swap': 'innerHTML',
+        })
+
+        # --- 4. COURSE (Triggers Assignment Type) ---
+        self.fields['course'].widget.attrs.update({
+            'id': 'course-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge',
+            # hx-include is not strictly needed if we just need the course ID
+            # (htmx sends the trigger element's value by default)
+        })
+
+        self.fields['teacher'].widget.attrs.update({
+            'id': 'teacher-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-target': '#subject-select-ge',
+            'hx-swap': 'innerHTML',
+        })
+
+
+        # Ensure Teacher/Subject IDs match your previous setup
+        self.fields['teacher'].widget.attrs['id'] = 'teacher-select-ge'
+        self.fields['subject'].widget.attrs['id'] = 'subject-select-ge'
+
+
+class RPCAcademicComments(forms.Form):  # plain Form, not ModelForm
+    student_id = forms.IntegerField(widget=forms.HiddenInput())
+    reportcard_grade_id = forms.IntegerField(widget=forms.HiddenInput())
+    student_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
+    )
+    final_score = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
+    )
+    final_grade = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
+    )
+    teacher_notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2})
+    )
+
+
+RPCAcademicCommentsFormset = formset_factory(RPCAcademicComments, extra=0)

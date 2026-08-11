@@ -141,7 +141,7 @@
                     <div class="divider text-base-content/40 menu-title divider-start">Gradebook</div>
 
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name in "grade-entry,student-attendance,report-card,rubric-entry,extra-report,personal-dev,cpmp-create" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name in "grade-entry,student-attendance,report-card,rubric-entry,rp-comment,extra-report,personal-dev,cpmp-create" %}open{% endif %}>
                             <summary><i class="fa-solid fa-keyboard"></i>Data Entry</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry' %}active{% endif %}" href="{% url 'grade-entry' %}">Student Grade</a></li>
@@ -156,6 +156,7 @@
                                 {% elif user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rubric-entry' %}active{% endif %}" href="{% url 'rubric-entry' %}">Student Behaviour</a></li>
                                 {% endif %}
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'rp-comment' %}active{% endif %}" href="{% url 'rp-comment' %}">Teacher's Comments</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'extra-report' %}active{% endif %}" href="{% url 'extra-report' %}">Extracurricular Grade</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'personal-dev' %}active{% endif %}" href="{% url 'personal-dev' %}">Personal Development Grade</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'cpmp-create' %}active{% endif %}" href="{% url 'cpmp-create' %}">Lesson Plan</a></li>
@@ -176,15 +177,16 @@
                     </li>
                     {% endif %}
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name in "grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name in "grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit" %}open{% endif %}>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry-table' or request.resolver_match.url_name == 'ge-edit' or request.resolver_match.url_name == 'ge-delete' %}active{% endif %}" href="{% url 'grade-entry-table' %}">Student Grade</a></li>
                                 {% if is_homeroom %}
-                                <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card-table' or request.resolver_match.url_name == 'tc-view' or request.resolver_match.url_name == 'tc-del' %}active{% endif %}" href="{% url 'report-card-table' %}">Teacher's Comments</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card-table' or request.resolver_match.url_name == 'tc-view' or request.resolver_match.url_name == 'tc-del' %}active{% endif %}" href="{% url 'report-card-table' %}">Hr Teacher's Comments</a></li>
                                 {% elif user.is_staff %}
-                                <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card-table' %}active{% endif %}" href="{% url 'report-card-table' %}">Teacher's Comments</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card-table' or request.resolver_match.url_name == 'teacher-notes-edit' or request.resolver_match.url_name == 'tc-del'%}active{% endif %}" href="{% url 'report-card-table' %}">Hr Teacher's Comments</a></li>
                                 {% endif %}
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'teacher-notes-table' %}active{% endif %}" href="{% url 'teacher-notes-table' %}">Teacher's Comments</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
 {#                                <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>#}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'pdev-table' or request.resolver_match.url_name == 'pdev-edit' or request.resolver_match.url_name == 'pdev-del' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>

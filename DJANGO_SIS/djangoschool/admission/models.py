@@ -128,7 +128,7 @@ class Student(models.Model):
 
 class AbstractClass(models.Model):
     name = models.CharField(max_length=50)
-    short_name = models.CharField(max_length=10)
+    short_name = models.CharField(max_length=15)
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
     teacher = models.ForeignKey(Teacher, on_delete = models.CASCADE)
     class Meta:

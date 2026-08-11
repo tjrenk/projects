@@ -29,7 +29,7 @@ urlpatterns = [
 path('get-assignment-category-ge/', views.get_assignment_category_ge, name='get_assignment_category_ge'),
     path('print-grade-list/<int:pk>', views.print_grade_list, name='print-grade-list'),
 
-    # TEACHER COMMENTS / REPORT CARD
+    # HOMEROOM TEACHER'S COMMENTS / REPORT CARD
     path("report-card", views.ReportCardForm.as_view(), name="report-card"),
     path('report-card-table', views.tc_table, name='report-card-table'),
     path('tc-view/<int:pk>', views.tc_view, name='tc-view'),
@@ -37,7 +37,11 @@ path('get-assignment-category-ge/', views.get_assignment_category_ge, name='get_
     path('get-level-reportcard/', views.get_level_reportcard, name='get_level_reportcard'),
     path('get-period-reportcard/', views.get_period_reportcard, name='get_period_reportcard'), 
 
-
+    # TEACHER'S COMMENTS PER SUBJECT
+    path("rp-comment", views.RPCCommentsForm.as_view(), name="rp-comment"),
+    path('teacher-notes-table', views.teacher_notes_table, name='teacher-notes-table'),
+    path('teacher-notes-edit/<int:pk>', views.teacher_notes_edit, name='teacher-notes-edit'),
+    path('teacher-notes-del/<int:pk>', views.teacher_notes_del, name='teacher-notes-del'),
 
 
     path('toggle-na-reason/', views.toggle_na_reason, name='toggle_na_reason'),

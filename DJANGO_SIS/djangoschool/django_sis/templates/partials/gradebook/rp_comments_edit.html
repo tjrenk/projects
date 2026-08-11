@@ -1,0 +1,46 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Edit Teacher Notes</div>
+
+    <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+        <div><strong>Student:</strong> {{ student }}</div>
+        <div><strong>Homeroom Class:</strong> {{ student_class.kelas }}</div>
+        <div><strong>Subject:</strong> {{ grade.subject }}</div>
+        <div><strong>Academic Year:</strong> {{ grade.reportcard.academic_year }}</div>
+        <div><strong>Period:</strong> {{ grade.reportcard.period }}</div>
+    </div>
+
+    <form method="post" id="teacher-notes-edit-form">
+        {% csrf_token %}
+
+        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+            <div class="mb-1 basis-full md:flex-1">
+                {{ form.final_score.label_tag }}
+                {{ form.final_score }}
+                <div class="error text-error text-sm">{{ form.final_score.errors }}</div>
+            </div>
+            <div class="mb-1 basis-full md:flex-1">
+                {{ form.final_grade.label_tag }}
+                {{ form.final_grade }}
+                <div class="error text-error text-sm">{{ form.final_grade.errors }}</div>
+            </div>
+        </div>
+
+        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+            <div class="mb-1 basis-full">
+                {{ form.teacher_notes.label_tag }}
+                {{ form.teacher_notes }}
+                <div class="error text-error text-sm">{{ form.teacher_notes.errors }}</div>
+            </div>
+        </div>
+    </form>
+</div>
+</div>
+
+<div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
+    <button type="submit" form="teacher-notes-edit-form" class="btn btn-primary">Save</button>
+    <a href="{% url 'teacher-notes-table' %}" class="btn btn-secondary">Cancel</a>
+</div>
+{% endblock %}

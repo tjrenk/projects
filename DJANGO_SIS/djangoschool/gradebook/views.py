@@ -4499,3 +4499,245 @@ def cpmp_create(request):
         form = CpmpCreateForm(user=request.user)
 
     return render(request, 'partials/gradebook/cpmp_create.html', {'form': form})
+
+
+class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
+    template_name = "partials/gradebook/rp_comments.html"
+
+    form_list = [
+        ("0", GetRPCAcademicComments),
+        ("1", RPCAcademicCommentsFormset),
+    ]
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '0':
+            kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+
+        if step == '1':
+            data0 = self.get_cleaned_data_for_step('0')
+            if not data0:
+                return initial
+
+            course = data0.get('course')
+            subject = data0.get('subject')
+            academic_year = data0.get('academic_year')
+            period = data0.get('period')
+            level = data0.get('level')
+            is_mid = data0.get('is_mid')
+
+            if not course or not subject:
+                return initial
+
+            # Only active members of the selected course
+            member_student_ids = CourseMember.objects.filter(
+                course=course, is_active=True
+            ).values_list('student_id', flat=True)
+
+            # Only students who already have a ReportcardGrade for this subject/period —
+            # ungraded students simply don't appear
+            grades = ReportcardGrade.objects.filter(
+                subject=subject,
+                reportcard__student_id__in=member_student_ids,
+                reportcard__academic_year=academic_year,
+                reportcard__period=period,
+                reportcard__is_mid=is_mid,
+                reportcard__level=level,
+            ).select_related('reportcard__student__registration_data')
+
+            initial_list = []
+            for grade in grades:
+                student = grade.reportcard.student
+                initial_list.append({
+                    'student_id': student.id,
+                    'reportcard_grade_id': grade.id,
+                    'student_name': f"{student.id_number} - {student.registration_data.first_name} {student.registration_data.last_name}",
+                    'final_score': grade.final_score,
+                    'final_grade': grade.final_grade,
+                    'teacher_notes': grade.teacher_notes or '',
+                })
+
+            return initial_list
+        return initial
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+
+        data0 = self.get_cleaned_data_for_step('0')
+        if data0:
+            context.update({
+                'selected_academic_year': data0.get('academic_year'),
+                'selected_period': data0.get('period'),
+                'selected_level': data0.get('level'),
+                'selected_teacher': data0.get('teacher'),
+                'selected_subject': data0.get('subject'),
+                'selected_course': data0.get('course'),
+                'selected_is_mid': data0.get('is_mid'),
+            })
+
+        return context
+
+    def done(self, form_list, **kwargs):
+        formset = form_list[1]
+
+        updated_count = 0
+        with transaction.atomic():
+            for form in formset:
+                if form.is_valid() and form.cleaned_data:
+                    data = form.cleaned_data
+                    reportcard_grade_id = data.get('reportcard_grade_id')
+                    if not reportcard_grade_id:
+                        continue
+
+                    ReportcardGrade.objects.filter(pk=reportcard_grade_id).update(
+                        teacher_notes=data.get('teacher_notes')
+                    )
+                    updated_count += 1
+
+        messages.success(self.request, f"Saved comments for {updated_count} student(s).")
+        return redirect('rp-comment')
+
+@login_required
+def teacher_notes_table(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'student':       'reportcard__student__registration_data__first_name',
+        'subject':       'subject__subject_name',
+        'academic_year': 'reportcard__academic_year__year',
+        'period':        'reportcard__period__period_name',
+        'final_grade':   'final_grade',
+        'final_score':   'final_score',
+    }, default_sort='student')
+
+    notes = ReportcardGrade.objects.exclude(
+        teacher_notes__isnull=True
+    ).exclude(
+        teacher_notes=""
+    ).filter(subject__is_activity=False).select_related(
+        'reportcard__student__registration_data',
+        'reportcard__academic_year',
+        'reportcard__period',
+        'subject',
+    )
+
+    # restrict to notes the logged-in subject teacher actually wrote,
+    # via their own Course -> Subject link, unless staff
+    if teacher and not user.is_staff:
+        notes = notes.filter(
+            subject__course__teacher=teacher
+        ).distinct()
+
+    notes = apply_filters(notes, request, {
+        'year':    'reportcard__academic_year_id',
+        'period':  'reportcard__period_id',
+        'subject': 'subject_id',
+        'final_grade': 'final_grade'
+    })
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        notes = notes.filter(
+            Q(reportcard__student__registration_data__first_name__icontains=search_query) |
+            Q(reportcard__student__registration_data__last_name__icontains=search_query) |
+            Q(reportcard__student__id_number__icontains=search_query)
+        )
+
+    notes = notes.order_by(order_field).distinct()
+
+    pnation = Paginator(notes, 15)
+    pnation_notes = pnation.get_page(request.GET.get('page'))
+
+
+
+    return render(request, 'partials/gradebook/rp_comments_table.html', {
+        'pnation_notes': pnation_notes,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+                'selected': request.GET.get('period', ''),
+            },
+            {
+                'label': 'Subject',
+                'param': 'subject',
+                'options': Subject.objects.filter(is_activity=False),
+                'selected': request.GET.get('subject', ''),
+            },
+            {
+                'label': 'Grade',
+                'param': 'final_grade',
+                'options': GRADE_CHOICES,
+                'selected': request.GET.get('final_grade', ''),
+                'is_choices': True,
+            },
+        ],
+    })
+
+@login_required
+def teacher_notes_edit(request, pk):
+    grade = get_object_or_404(
+        ReportcardGrade.objects.select_related(
+            'reportcard__student__registration_data',
+            'reportcard__academic_year',
+            'reportcard__period',
+            'subject',
+        ),
+        pk=pk
+    )
+
+    student = grade.reportcard.student
+    student_class = ClassMember.objects.filter(
+        student=student, is_active=True
+    ).select_related('kelas').first()
+
+    TeacherNotesForm = modelform_factory(
+        ReportcardGrade,
+        fields=('final_score', 'final_grade', 'teacher_notes'),
+    )
+
+    if request.method == 'POST':
+        form = TeacherNotesForm(request.POST, instance=grade)
+        if form.is_valid():
+            form.save()
+            log_activity(request.user, grade, 'change', "Updated subject teacher notes")
+            messages.success(request, "Teacher notes updated successfully!")
+            return redirect('teacher-notes-table')
+    else:
+        form = TeacherNotesForm(instance=grade)
+
+    return render(request, 'partials/gradebook/rp_comments_edit.html', {
+        'form': form,
+        'grade': grade,
+        'student': student,
+        'student_class': student_class,
+    })
+
+def teacher_notes_del(request, pk):
+    src = get_object_or_404(ReportcardGrade, pk=pk)
+    if request.method == 'POST':
+        src.teacher_notes = None
+        src.save()
+        return redirect('teacher-notes-table')
+
+    # For a GET request, show the empty form
+    # form = PelanggaranForm()
+    context = {
+        'src': src,
+    }
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', context)

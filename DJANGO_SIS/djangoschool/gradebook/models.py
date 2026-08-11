@@ -181,6 +181,9 @@ class StudentReportcard(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     ht_comment = models.TextField(null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.student} - {self.period} - Midsemester {self.is_mid} - {self.level}"
+
 class ReportcardGrade(models.Model):
     reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)

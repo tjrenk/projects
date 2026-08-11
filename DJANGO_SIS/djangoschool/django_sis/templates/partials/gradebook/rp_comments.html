@@ -1,0 +1,172 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+
+    <div class="collapse-title text-xl font-medium">Academic Comments</div>
+
+    <div class="w-full flex justify-center mb-8 mt-2">
+        <ul class="steps w-full max-w-2xl">
+            <li class="step {% if wizard.steps.step1 >= 1 %}step-primary{% endif %}">
+                <h1 class="{% if wizard.steps.step1 >= 1 %}bold{% endif %}">Select Course & Subject</h1>
+            </li>
+            <li class="step {% if wizard.steps.step1 >= 2 %}step-primary{% endif %}">
+                <h1 class="{% if wizard.steps.step1 >= 2 %}bold{% endif %}">Input Comments</h1>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card-body bg-base-100 border-base-200">
+        <fieldset class="module aligned mb-4 overflow-visible">
+
+            <form action="" method="post">
+                {% csrf_token %}
+                {{ wizard.management_form }}
+
+                {% if wizard.steps.current == '1' %}
+                    {{ wizard.form.management_form }}
+
+                    {% if wizard.form.forms %}
+                        <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
+                            <div>
+                                <p class="text-gray-600 text-sm"><strong>Academic Year:</strong></p>
+                                <p class="text-lg font-semibold">{{ selected_academic_year }}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 text-sm"><strong>Period:</strong></p>
+                                <p class="text-lg font-semibold">{{ selected_period }}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 text-sm"><strong>Course:</strong></p>
+                                <p class="text-lg font-semibold">{{ selected_course }}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 text-sm"><strong>Subject:</strong></p>
+                                <p class="text-lg font-semibold">{{ selected_subject }}</p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered align-middle">
+                                <thead class="bg-base-200 rounded-md">
+                                    <tr>
+                                        <th style="width: 25%;">Student</th>
+                                        <th style="width: 12%;">Score</th>
+                                        <th style="width: 12%;">Grade</th>
+                                        <th style="width: 51%;">Comment</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if wizard.form.non_form_errors %}
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="alert alert-error text-red-500">{{ wizard.form.non_form_errors }}</div>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+
+                                    {% for form in wizard.form.forms %}
+                                    <tr>
+                                        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                                        <td>{{ form.student_name }}</td>
+                                        <td>{{ form.final_score }}</td>
+                                        <td>{{ form.final_grade }}</td>
+                                        <td>
+                                            {{ form.teacher_notes }}
+                                            {% if form.errors %}
+                                            <div class="text-red-500 text-xs mt-1">{{ form.errors }}</div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            No graded students found for this subject and period yet.
+                        </div>
+                    {% endif %}
+
+                {% else %}
+                    {{ wizard.form.management_form }}
+                    <fieldset class="module aligned mb-4 overflow-visible">
+                        {% if wizard.steps.current == '0' %}
+
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                            <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.academic_year.label }}
+                                {{ wizard.form.academic_year }}
+                                <div class="error">{{ wizard.form.academic_year.errors }}</div>
+                            </div>
+                        </div>
+
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                            <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.period.label }}
+                                {{ wizard.form.period }}
+                                <div class="error">{{ wizard.form.period.errors }}</div>
+                            </div>
+                        </div>
+
+
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                            <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.teacher.label }}
+                                {{ wizard.form.teacher }}
+                                <div class="error">{{ wizard.form.teacher.errors }}</div>
+                            </div>
+                        </div>
+
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                            <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.subject.label }}
+                                {{ wizard.form.subject }}
+                                <div class="error">{{ wizard.form.subject.errors }}</div>
+                            </div>
+                        </div>
+
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                            <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.level.label }}
+                                {{ wizard.form.level }}
+                                <div class="error">{{ wizard.form.level.errors }}</div>
+                            </div>
+                        </div>
+
+                        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                            <div class="mb-1 basis-full md:flex-1">
+                                {{ wizard.form.course.label }}
+                                {{ wizard.form.course }}
+                                <div class="error">{{ wizard.form.course.errors }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 flex items-center gap-4">
+                            {{ wizard.form.is_mid.label }}
+                            {{ wizard.form.is_mid }}
+                            <div class="error">{{ wizard.form.is_mid.errors }}</div>
+                        </div>
+
+                        {% endif %}
+                    </fieldset>
+                {% endif %}
+
+                {% if wizard.steps.prev %}
+                <button name="wizard_goto_step" type="submit" value="{{ wizard.steps.prev }}"
+                        class="btn-sm btn-secondary btn rounded-md legitRipple">
+                    &laquo; Back
+                </button>
+                {% endif %}
+
+                <button type="submit" class="btn-sm {% if wizard.steps.current == '1' %}btn-success{% else %}btn-primary{% endif %} btn rounded-md legitRipple">
+                    {% if wizard.steps.current == '1' %}Save{% else %}Next{% endif %}
+                </button>
+
+            </form>
+        </fieldset>
+    </div>
+</div>
+
+{% endblock %}
