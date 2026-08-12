@@ -114,10 +114,12 @@ class CourseForm(forms.ModelForm):
         }
 
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name', 'count_students', 'level_to_grade']
+    list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name', 'count_students', 'level']
+    list_filter = ['academic_year', 'level', 'is_activity']
     inlines = [CourseMemberInLine, ]
     search_fields = ["name"]
-    form = CourseForm
+    # ganti nama 'level' ke 'grade', dicomment out untuk sekarang, bakal diaktifin lagi kalo mau diganti
+    # form = CourseForm
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # Target the specific ForeignKey field you want to filter
@@ -136,10 +138,11 @@ class CourseAdmin(admin.ModelAdmin):
 
     get_teacher_name.short_description = "Teacher"
 
-    def level_to_grade(self, obj):
-        return obj.level
-
-    level_to_grade.short_description = "Grade"
+    # ganti nama 'level' to 'grade' di tabel, dicomment out dulu, diaktifin lagi kalo mau diganti
+    # def level_to_grade(self, obj):
+    #     return obj.level
+    #
+    # level_to_grade.short_description = "Grade"
 
     def count_students(self, obj: Course):
         return CourseMember.objects.filter(course_id=obj.id).count()

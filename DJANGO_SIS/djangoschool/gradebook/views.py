@@ -1161,17 +1161,20 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
 
 # Grade Entry dynamic fields
 def get_levels_ge(request):
-    # Check for the variable name sent by the 'academic_year' field
-    # (Django form fields usually send '0-academic_year')
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    # Check for the variable name sent by the 'teacher' field
+    # (Django form fields usually send '0-teacher')
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    selected_level = request.GET.get('0-level') or request.GET.get('level')
 
-    if acayear_id:
-        # Load levels only if a year is selected
-        levels = GradeLevel.objects.select_related('school_level')
+    if teacher_id:
+        # Load only levels this teacher actually has courses in
+        levels = GradeLevel.objects.select_related('school_level').filter(
+            course__teacher_id=teacher_id
+        ).distinct()
     else:
         levels = GradeLevel.objects.none()
 
-    context = {'levels': levels}
+    context = {'levels': levels, 'selected_level': selected_level}
     # Use your existing folder structure
     return render(request, "partials/gradebook/gradeentry_partials/level.html", context)
 
@@ -1179,7 +1182,6 @@ def get_levels_ge(request):
 def get_teachers(request):
     period_id = request.GET.get('0-period') or request.GET.get('period')
     selected_teacher = request.GET.get('0-teacher') or request.GET.get('teacher')
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     user = request.user
 
     if period_id:
@@ -1196,24 +1198,7 @@ def get_teachers(request):
         'teachers': teachers, 'selected_teacher': selected_teacher
     })
 
-    # OOB: also refresh Course now that academic_year is known
-    teacher_id = selected_teacher
-    subject_id = request.GET.get('0-subject') or request.GET.get('subject')
-    selected_course = request.GET.get('0-course') or request.GET.get('course')
-
-    if teacher_id and acayear_id and subject_id:
-        courses = Course.objects.filter(teacher_id=teacher_id, academic_year_id=acayear_id, subject_id=subject_id)
-    else:
-        courses = Course.objects.none()
-
-    course_html = render_to_string("partials/gradebook/gradeentry_partials/course.html", {
-        'courses': courses, 'selected_course': selected_course
-    })
-
-    return HttpResponse(
-        teacher_html +
-        f'<div hx-swap-oob="innerHTML:#course-select-ge">{course_html}</div>'
-    )
+    return HttpResponse(teacher_html)
 
 def get_courses(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('1-academic_year')  or request.GET.get('subject')
@@ -1239,36 +1224,22 @@ def get_period_ge(request):
         periods = LearningPeriod.objects.filter(Q(academic_year_id=acayear_id) & Q(period_name__icontains='semester'))
     else:
         periods = LearningPeriod.objects.none()
-    # context = {
-    #     'periods': periods,
-    #     'selected_period': selected_period
-    # }
-    # return render(request, "partials/gradebook/gradeentry_partials/period.html", context)
 
-    # Render period HTML as before
-    html = render_to_string("partials/gradebook/gradeentry_partials/period.html", {
+    # Level now cascades off Teacher (not Academic Year), so no OOB update needed here.
+    return render(request, "partials/gradebook/gradeentry_partials/period.html", {
         'periods': periods,
         'selected_period': selected_period
     })
 
-    # Also render level HTML for OOB update (populated if academic_year is set)
-    level_queryset = GradeLevel.objects.select_related('school_level') if acayear_id else GradeLevel.objects.none()
-    selected_level = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
-    level_html = render_to_string("partials/gradebook/gradeentry_partials/level.html", {
-        'levels': level_queryset,
-        'selected_level': selected_level
-    })
-
-    # Return period HTML + OOB update for level
-    return HttpResponse(html + f'<div hx-swap-oob="#level-select-ge">{level_html}</div>')
-
 
 def get_subjects_ge(request):
     teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
+    level_id = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
     selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
-    if teacher_id:
-        # subjects = Subject.objects.filter(course__coursemember__student__coursemember__course__coursemember__course__teacher__id=teacher_id).distinct()
-        subjects = Subject.objects.filter(course__teacher__id=teacher_id, is_activity=False).distinct()
+    if teacher_id and level_id:
+        subjects = Subject.objects.filter(
+            course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
+        ).distinct()
     else:
         subjects = Subject.objects.none()
     context = {

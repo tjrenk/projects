@@ -36,3 +36,5 @@ gradebook/migrations/__pycache__/0008_gradeentry.cpython-313.pyc
 gradebook/migrations/__pycache__/0009_remove_passinggrade_unique_passing_grades_and_more.cpython-313.pyc
 gradebook/migrations/__pycache__/0010_gradeentry_school_level_assignmenthead_and_more.cpython-313.pyc
 gradebook/migrations/__pycache__/0011_alter_subject_short_name.cpython-313.pyc
+/gradebook/forms.pyori
+/gradebook/views.pyori

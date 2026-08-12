@@ -45,7 +45,7 @@ class GradeEntryForm(forms.ModelForm):
 
     class Meta:
         model = GradeEntry
-        fields = ["level", "academic_year", "period", "teacher", "subject", "course", "assignment_category", "assignment_type"]
+        fields = ["academic_year", "period", "teacher", "level", "subject", "course", "assignment_category", "assignment_type"]
         labels = {
             'course': "Course",
         }
@@ -109,33 +109,16 @@ class GradeEntryForm(forms.ModelForm):
         # self.fields['assignment_type'].queryset = AssignmentType.objects.none()
 
         self.fields['cpmp_target'].label_from_instance = lambda obj: obj.text
-        # buat validasi
+
+        # 1. Logic: Period depends on Academic Year
         if acayear:
-            self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.filter(
-                academic_year_id=acayear, subject_id=subject
-            )
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
-            self.fields['level'].queryset = GradeLevel.objects.all()
             if is_admin:
                 self.fields['period'].queryset = LearningPeriod.objects.all()
-                self.fields['level'].queryset = GradeLevel.objects.all()
-                self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
-            self.fields['level'].queryset = GradeLevel.objects.none()
-            self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.none()
 
-
-
-        # 3. Logic: Teacher depends on Period
-        # if period:
-        #     self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
-        #     if user.is_staff:
-        #         self.fields['teacher'].queryset = Teacher.objects.all()
-        # else:
-        #     self.fields['teacher'].queryset = Teacher.objects.none()
-        # 3. Logic: Teacher
-        # 3. Logic: Teacher — same pattern as CpmpCreateForm
+        # 2. Logic: Teacher — same pattern as CpmpCreateForm
         if is_admin:
             self.fields['teacher'].queryset = Teacher.objects.all()
         elif logged_in_teacher:
@@ -145,17 +128,38 @@ class GradeEntryForm(forms.ModelForm):
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
-        # 4. Logic: Subject depends on Teacher
+        # 3. Logic: Level depends on Teacher
         if teacher:
-            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher,
-                                                                     is_activity=False).distinct()
+            self.fields['level'].queryset = GradeLevel.objects.select_related('school_level').filter(
+                course__teacher__id=teacher
+            ).distinct()
+            if is_admin:
+                self.fields['level'].queryset = GradeLevel.objects.select_related('school_level').all()
+        else:
+            self.fields['level'].queryset = GradeLevel.objects.none()
+
+        # 4. Logic: Subject depends on Teacher + Level
+        if teacher and level:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                course__teacher__id=teacher, course__level_id=level, is_activity=False
+            ).distinct()
             if is_admin:
                 self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
+        # 5. Logic: Learning Targets (CPMP) depend on Academic Year + Subject
+        if acayear and subject:
+            self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.filter(
+                academic_year_id=acayear, subject_id=subject
+            )
+            if is_admin:
+                self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.all()
+        else:
+            self.fields['cpmp_target'].queryset = CapaianPemelajaranMataPelajaran.objects.none()
+
+        # 6. Logic: Course depends on Subject + Level
         if subject and level:
-            # Using your existing filtering logic
             self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject, level_id=level)
             if is_admin:
                 self.fields['course'].queryset = Course.objects.all()
@@ -209,7 +213,7 @@ class GradeEntryForm(forms.ModelForm):
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-courses-ge/',
-            'hx-trigger': 'change from:#level-select-ge',
+            'hx-trigger': 'change',
             'hx-target': '#course-select-ge',
             'hx-swap': 'innerHTML',
             'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge',
@@ -218,11 +222,11 @@ class GradeEntryForm(forms.ModelForm):
         self.fields['level'].widget.attrs.update({
             'id': 'level-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-levels-ge/',
-            'hx-trigger': 'change from:#acayear-select-ge',
-            'hx-include': '#acayear-select-ge',
-            'hx-target': '#level-select-ge',
+            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
+            'hx-include': '#teacher-select-ge, #level-select-ge',
         })
 
 
@@ -242,8 +246,9 @@ class GradeEntryForm(forms.ModelForm):
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-subjects-ge/',
-            'hx-target': '#subject-select-ge',
+            'hx-get': '/gradebook/get-levels-ge/',
+            'hx-trigger': 'load, change',
+            'hx-target': '#level-select-ge',
             'hx-swap': 'innerHTML',
         })
 
@@ -2525,7 +2530,7 @@ class GetRPCAcademicComments(forms.ModelForm):
 
     class Meta:
         model = GradeEntry
-        fields = ["level", "academic_year", "period", "teacher", "subject", "course"]
+        fields = ["academic_year", "period", "teacher", "level", "subject", "course"]
         labels = {
             'course': "Course",
         }
@@ -2577,26 +2582,16 @@ class GetRPCAcademicComments(forms.ModelForm):
         # 2. Logic: Period depends on Academic Year
 
         # buat validasi
+        # 1. Logic: Period depends on Academic Year
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear,
                                                                            period_name__icontains='semester')
-            self.fields['level'].queryset = GradeLevel.objects.all()
             if is_admin:
                 self.fields['period'].queryset = LearningPeriod.objects.all()
-                self.fields['level'].queryset = GradeLevel.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
-            self.fields['level'].queryset = GradeLevel.objects.none()
 
-        # 3. Logic: Teacher depends on Period
-        # if period:
-        #     self.fields['teacher'].queryset = Teacher.objects.filter(user=user).all()
-        #     if user.is_staff:
-        #         self.fields['teacher'].queryset = Teacher.objects.all()
-        # else:
-        #     self.fields['teacher'].queryset = Teacher.objects.none()
-        # 3. Logic: Teacher
-        # 3. Logic: Teacher — same pattern as CpmpCreateForm
+        # 2. Logic: Teacher — same pattern as CpmpCreateForm
         if is_admin:
             self.fields['teacher'].queryset = Teacher.objects.all()
         elif logged_in_teacher:
@@ -2606,17 +2601,28 @@ class GetRPCAcademicComments(forms.ModelForm):
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
-        # 4. Logic: Subject depends on Teacher
+        # 3. Logic: Level depends on Teacher
         if teacher:
-            self.fields['subject'].queryset = Subject.objects.filter(course__teacher__id=teacher,
-                                                                     is_activity=False).distinct()
+            self.fields['level'].queryset = GradeLevel.objects.select_related('school_level').filter(
+                course__teacher__id=teacher
+            ).distinct()
+            if is_admin:
+                self.fields['level'].queryset = GradeLevel.objects.select_related('school_level').all()
+        else:
+            self.fields['level'].queryset = GradeLevel.objects.none()
+
+        # 4. Logic: Subject depends on Teacher + Level
+        if teacher and level:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                course__teacher__id=teacher, course__level_id=level, is_activity=False
+            ).distinct()
             if is_admin:
                 self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
+        # 5. Logic: Course depends on Subject + Level
         if subject and level:
-            # Using your existing filtering logic
             self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear,
                                                                    subject_id=subject, level_id=level)
             if is_admin:
@@ -2655,7 +2661,7 @@ class GetRPCAcademicComments(forms.ModelForm):
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-courses-ge/',
-            'hx-trigger': 'change from:#level-select-ge',
+            'hx-trigger': 'change',
             'hx-target': '#course-select-ge',
             'hx-swap': 'innerHTML',
             'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge',
@@ -2664,11 +2670,11 @@ class GetRPCAcademicComments(forms.ModelForm):
         self.fields['level'].widget.attrs.update({
             'id': 'level-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-levels-ge/',
-            'hx-trigger': 'change from:#acayear-select-ge',
-            'hx-include': '#acayear-select-ge',
-            'hx-target': '#level-select-ge',
+            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
+            'hx-include': '#teacher-select-ge, #level-select-ge',
         })
 
         # --- 4. COURSE (Triggers Assignment Type) ---
@@ -2683,8 +2689,9 @@ class GetRPCAcademicComments(forms.ModelForm):
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-subjects-ge/',
-            'hx-target': '#subject-select-ge',
+            'hx-get': '/gradebook/get-levels-ge/',
+            'hx-trigger': 'load, change',
+            'hx-target': '#level-select-ge',
             'hx-swap': 'innerHTML',
         })
 

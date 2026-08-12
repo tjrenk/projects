@@ -83,7 +83,7 @@
         <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Addressed to:</h1>
             <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ src.reportcard.student }}</ul></strong></li>
                 <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Your comment:</h1>
-            <ul class="list-disc list-inside ml-4"><h1 class="text-lg"><q>{{ src.teacher_notes }}<q/></ul></strong></li>
+            <blockquote class="p-4 my-4 border-l-4 border-primary bg-base-200"><ul class="list-disc list-inside ml-4"><h1 class="text-lg"><q>{{ src.teacher_notes }}</q></h1></ul></strong></li></blockquote>
     </ul>
                         {% endif %}
 
