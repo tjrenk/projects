@@ -3005,6 +3005,130 @@ def student_act_other_grading(request, pk):
     return render(request, 'partials/gradebook/report_extra_other_grade.html', context)
 
 
+def report_extra_table(request):
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'student':       'reportcard__student__registration_data__first_name',
+        'academic_year': 'reportcard__academic_year__year',
+        'period':        'reportcard__period__period_name',
+        'level':         'reportcard__level_id',
+        'extra_type':    'extra_type',
+        'extra_score':   'extra_score',
+    }, default_sort='student')
+
+    extras = StudentReportExtra.objects.select_related(
+        'reportcard__student__registration_data',
+        'reportcard__academic_year',
+        'reportcard__period',
+        'reportcard__level',
+    )
+
+    extras = apply_filters(extras, request, {
+        'year':       'reportcard__academic_year_id',
+        'period':     'reportcard__period_id',
+        'level':      'reportcard__level_id',
+        'extra_type': 'extra_type',
+    })
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        extras = extras.filter(
+            Q(reportcard__student__registration_data__first_name__icontains=search_query) |
+            Q(reportcard__student__registration_data__last_name__icontains=search_query) |
+            Q(reportcard__student__id_number__icontains=search_query)
+        )
+
+    extras = extras.order_by(order_field).distinct()
+
+    pnation = Paginator(extras, 15)
+    pnation_extras = pnation.get_page(request.GET.get('page'))
+
+    return render(request, 'partials/gradebook/report_extra_table.html', {
+        'pnation_extras': pnation_extras,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+                'selected': request.GET.get('period', ''),
+            },
+            {
+                'label': 'Level',
+                'param': 'level',
+                'options': GradeLevel.objects.all(),
+                'selected': request.GET.get('level', ''),
+            },
+            {
+                'label': 'Type',
+                'param': 'extra_type',
+                'options': EXTRA_CHOICES,
+                'selected': request.GET.get('extra_type', ''),
+                'is_choices': True,
+            },
+        ],
+    })
+
+
+@login_required
+def report_extra_edit(request, pk):
+    extra = get_object_or_404(
+        StudentReportExtra.objects.select_related(
+            'reportcard__student__registration_data',
+            'reportcard__academic_year',
+            'reportcard__period',
+            'reportcard__level',
+        ),
+        pk=pk
+    )
+
+    ReportExtraForm = modelform_factory(
+        StudentReportExtra,
+        fields=('extra_type', 'extra_description', 'extra_score', 'extra_notes'),
+    )
+
+    if request.method == 'POST':
+        form = ReportExtraForm(request.POST, instance=extra)
+        if form.is_valid():
+            form.save()
+            log_activity(request.user, extra, 'change', "Updated extracurricular/achievement grade")
+            messages.success(request, "Record updated successfully!")
+            return redirect('report-extra-table')
+    else:
+        form = ReportExtraForm(instance=extra)
+
+    form.fields['extra_type'].widget.attrs.update({'class': 'select select-bordered w-full'})
+    form.fields['extra_description'].widget.attrs.update({'class': 'textarea textarea-bordered w-full', 'rows': 3})
+    form.fields['extra_score'].widget.attrs.update({'class': 'input input-bordered w-full'})
+    form.fields['extra_notes'].widget.attrs.update({'class': 'input input-bordered w-full'})
+
+    return render(request, 'partials/gradebook/report_extra_edit.html', {
+        'form': form,
+        'extra': extra,
+        'student': extra.reportcard.student,
+        'reportcard': extra.reportcard,
+    })
+
+
+def report_extra_del(request, pk):
+    extra = get_object_or_404(StudentReportExtra, pk=pk)
+    if request.method == 'POST':
+        log_activity(request.user, extra, 'delete', "Deleted via table view")
+        extra.delete()
+        return redirect('report-extra-table')
+
+    # For a GET request, show the empty form
+    context = {
+        'extra': extra,
+    }
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', context)
 
 
 

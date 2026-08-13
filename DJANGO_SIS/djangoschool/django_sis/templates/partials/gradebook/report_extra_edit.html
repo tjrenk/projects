@@ -1,0 +1,58 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+<form method="post" class="w-full h-full">
+    {% csrf_token %}
+    <table class="mb-4">
+        <tr>
+            <td><h1 class="text-3xl font-bold mb-4">Edit Extracurricular / Achievement Grade</h1></td>
+        </tr>
+    </table>
+    <table class="mb-6">
+        <tr>
+            <td style="width: 35%;"><h3 class="font-bold">Student</h3></td>
+            <td><h3 class="font-bold">: {{ student }}</h3></td>
+        </tr>
+        <tr>
+            <td><h3 class="font-bold">Academic Year</h3></td>
+            <td><h3 class="font-bold">: {{ reportcard.academic_year }}</h3></td>
+        </tr>
+        <tr>
+            <td><h3 class="font-bold">Period</h3></td>
+            <td><h3 class="font-bold">: {{ reportcard.period }}</h3></td>
+        </tr>
+        <tr>
+            <td><h3 class="font-bold">Level</h3></td>
+            <td><h3 class="font-bold">: {{ reportcard.level }}</h3></td>
+        </tr>
+    </table>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 20%;">Type</th>
+                    <th style="width: 15%;">Score</th>
+                    <th style="width: 30%;">Description</th>
+                    <th style="width: 35%;">Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ form.extra_type }}</td>
+                    <td>{{ form.extra_score }}</td>
+                    <td>{{ form.extra_description }}</td>
+                    <td>{{ form.extra_notes }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
+        <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple">Save</button>
+        <a href="{% url 'report-extra-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>
+    </div>
+</form>
+</div>
+{% endblock %}

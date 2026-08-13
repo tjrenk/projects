@@ -6,6 +6,14 @@ from admission.models import *
 
 register = template.Library()
 
+@register.filter
+def in_list(value, arg):
+    """
+    Exact-match membership check against a comma-separated string.
+    Usage: {% if some_value|in_list:"a,b,c" %}
+    """
+    return str(value) in [x.strip() for x in arg.split(',')]
+
 # We point this tag to the specific HTML template you want to insert
 @register.inclusion_tag('partials/gradebook/attendance_list_homepage.html', takes_context=True)
 def render_attendance_dashboard_widget(context):

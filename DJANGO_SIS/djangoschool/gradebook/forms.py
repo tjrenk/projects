@@ -40,7 +40,7 @@ class GradeEntryForm(forms.ModelForm):
         queryset=CapaianPemelajaranMataPelajaran.objects.all(),
         required=True,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'custom-checkbox-list'}),
-        label="Tujuan Pembelajaran"
+        label="Lesson Plans"
     )
 
     class Meta:

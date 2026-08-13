@@ -26,7 +26,7 @@ urlpatterns = [
     path('get-levels-ge/', views.get_levels_ge, name='get_levels_ge'),
     path('get-assignment-types-ge/', views.get_assignment_types_ge, name='get_assignment_types_ge'),
     path('get-cpmp-ge/', views.get_cpmp_target_ge, name='get-cpmp-ge'),
-path('get-assignment-category-ge/', views.get_assignment_category_ge, name='get_assignment_category_ge'),
+    path('get-assignment-category-ge/', views.get_assignment_category_ge, name='get_assignment_category_ge'),
     path('print-grade-list/<int:pk>', views.print_grade_list, name='print-grade-list'),
 
     # HOMEROOM TEACHER'S COMMENTS / REPORT CARD
@@ -64,6 +64,9 @@ path('get-assignment-category-ge/', views.get_assignment_category_ge, name='get_
     path('get-kelas-extra/', views.get_kelas_extra, name='get-kelas-extra'),
     # path('get-extra-type/', views.get_extra_type, name='get-extra-type'),
     path('get-teachers-extra/', views.get_teachers_extra, name='get-teachers-extra'),
+    path('report-extra-table', views.report_extra_table, name='report-extra-table'),
+    path('report-extra-edit/<int:pk>', views.report_extra_edit, name='report-extra-edit'),
+    path('report-extra-del/<int:pk>', views.report_extra_del, name='report-extra-del'),
 
     # EXTRA INFO
     # path('extra-info/', views.ExtraInfoWizard.as_view(), name='extra-info'),
