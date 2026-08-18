@@ -155,22 +155,22 @@
                     </fieldset>
                 {% endif %}
 
-            </form>
-        </fieldset>
-    </div>
-</div>
-
 <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
     {% if wizard.steps.prev %}
     <button name="wizard_goto_step" type="submit" form="rp-comments-form" value="{{ wizard.steps.prev }}"
             class="btn-sm btn-secondary btn rounded-md legitRipple">
-        &laquo; Back
-    </button>
-    {% endif %}
+                    &laquo; Back
+                </button>
+                {% endif %}
 
-    <button type="submit" form="rp-comments-form" class="btn-sm {% if wizard.steps.current == '1' %}btn-success{% else %}btn-primary{% endif %} btn rounded-md legitRipple">
-        {% if wizard.steps.current == '1' %}Save{% else %}Next{% endif %}
-    </button>
+                <button type="submit" class="btn-sm {% if wizard.steps.current == '1' %}btn-success{% else %}btn-primary{% endif %} btn rounded-md legitRipple">
+                    {% if wizard.steps.current == '1' %}Save{% else %}Next{% endif %}
+                </button>
+</div>
+
+            </form>
+        </fieldset>
+    </div>
 </div>
 
 {% endblock %}

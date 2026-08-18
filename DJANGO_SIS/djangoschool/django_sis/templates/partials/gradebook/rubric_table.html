@@ -29,7 +29,9 @@
         {% sortable_header 'period' 'Period' sort_by sort_dir %}
         {% sortable_header 'is_mid' 'Midterms?' sort_by sort_dir %}
         {% sortable_header 'level' 'Level' sort_by sort_dir %}
+        {% if user.is_staff %}
         <th>Action</th>
+        {% endif %}
     </tr>
 </thead>
 <tbody>

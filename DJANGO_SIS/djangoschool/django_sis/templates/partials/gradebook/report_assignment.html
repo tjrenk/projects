@@ -1,0 +1,68 @@
+{% extends 'base_gradebook.html' %}
+{% comment %} {% extends 'slick_reporting/base.html' %} {% endcomment %}
+{% load i18n slick_reporting_tags %}
+{% load django_htmx %}
+
+{% block title %}{{ report_title }}{% endblock %}
+
+{% block content %}
+
+
+    <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+        {% if form %}
+            <h1 class="collapse-title text-xl" style="font-weight:1000;">{{ report_title }}</h1>
+            <form id="reportForm" class="card">
+                <div class="card-header bg-base-100 border-base-200 border-e">
+                    <h3 class="collapse-title text-xl font-medium">{% trans "Filters" %}</h3>
+                </div>
+                <div class="card-body bg-base-100 border-base-200 border-e">
+                    {{ form.as_p }}
+                </div>
+                <div class="card-footer text-end">
+                    <input type="submit" value="{% trans "Filter" %}"
+                           class="btn btn-primary  refreshReport" data-get-results-button>
+
+
+                    {% for export_action in report.get_export_actions %}
+                        <button class="btn {{ export_action.css_class }}" data-export-btn
+                                data-export-parameter="{{ export_action.parameter }}" data-form-selector="#reportForm">
+                            {% if export_action.icon %}</i> {% endif %}
+                            {{ export_action.title }} </button>
+                            
+                    {% endfor %}
+                </div>
+            </form>
+        {% endif %}
+    </div>
+
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+        <div class="card" id="{{ report.report_slug }}">
+            <div class="card-header bg-base-100 border-base-200 border-e">
+                <h5 class="collapse-title text-xl font-medium">{% trans "Results" %}</h5>
+            </div>
+            <div class="card-body bg-base-100 border-base-200 border-e">
+                <div data-report-widget
+                     data-report-url="{{ request.path }}"
+                     data-extra-params=""
+                     data-form-selector="#reportForm"
+                        {% if not auto_load %} data-no-auto-load{% endif %}
+                     data-display-chart-selector="True">
+                    <div data-report-chart>
+                    </div>
+                    <div class="overflow-x-auto">
+    <div data-report-table>
+    </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<div class="d-flex justify-content-between">
+    <button onclick="history.back()" class="btn btn-primary">Back</button>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+    {% include "slick_reporting/js_resources.html" %}
+    {% get_charts_media report.get_chart_settings %}
+{% endblock %}

@@ -177,7 +177,7 @@
                     </li>
                     {% endif %}
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,report-extra-table,report-extra-edit,report-extra-del" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger" %}open{% endif %}>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry-table' or request.resolver_match.url_name == 'ge-edit' or request.resolver_match.url_name == 'ge-delete' %}active{% endif %}" href="{% url 'grade-entry-table' %}">Student Grade</a></li>
@@ -189,6 +189,7 @@
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'teacher-notes-table' or request.resolver_match.url_name == 'teacher-notes-edit' or request.resolver_match.url_name == 'teacher-notes-del' %}active{% endif %}" href="{% url 'teacher-notes-table' %}">Academic Comments</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'report-extra-table' or request.resolver_match.url_name == 'report-extra-edit' or request.resolver_match.url_name == 'report-extra-del' %}active{% endif %}" href="{% url 'report-extra-table' %}">Extracurricular Grades</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-ledger' %}active{% endif %}" href="{% url 'assignment-ledger' %}">Assignments Ledger</a></li>
 {#                                <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>#}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'pdev-table' or request.resolver_match.url_name == 'pdev-edit' or request.resolver_match.url_name == 'pdev-del' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>
 <!--                                {% if user.is_staff %}-->

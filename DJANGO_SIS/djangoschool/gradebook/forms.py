@@ -998,7 +998,112 @@ class RequestLogForm(BaseReportForm, forms.Form):
         return self.cleaned_data["end_date"]
     
 
+class AssignmentLedgerForm(BaseReportForm, forms.Form):
 
+    start_date = forms.DateField(
+        required=False,
+        label="Start Date",
+        widget=forms.DateInput(attrs={"type": "hidden"}),
+        initial=datetime.now
+    )
+    end_date = forms.DateField(required=False, label="End Date", widget=forms.DateInput({"type": "hidden"}), initial=datetime.now)
+
+    teacher = forms.ModelChoiceField(
+        queryset=Teacher.objects.all(),
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.none(),
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)  # pop FIRST
+        super().__init__(*args, **kwargs)  # THEN call super
+
+        self.fields["start_date"].initial = datetime.date
+        self.fields["end_date"].initial = datetime.date
+
+        data = self.data
+        initial = self.initial
+
+        is_admin = bool(user and user.is_staff)
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        if is_admin:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        elif logged_in_teacher:
+            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
+            if not self.is_bound:
+                self.initial['teacher'] = logged_in_teacher.id
+        else:
+            self.fields['teacher'].queryset = Teacher.objects.none()
+
+        teacher_id = data.get('teacher') or initial.get('teacher')
+
+        if teacher_id:
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher_id, is_activity=False)
+        else:
+            self.fields['course'].queryset = Course.objects.none()
+
+        self.fields['teacher'].widget.attrs.update({
+            'id': 'teacher-select-ledger',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-course-ledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select-ledger',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['course'].widget.attrs.update({
+            'id': 'course-select-ledger',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['teacher'].widget.attrs.update({
+            'id': 'teacher-select-ledger',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-course-ledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select-ledger',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['course'].widget.attrs.update({
+            'id': 'course-select-ledger',
+            'class': 'custom-select mb-4',
+        })
+
+    def get_filters(self):
+        teacher = self.cleaned_data.get("teacher")
+        course = self.cleaned_data.get("course")
+
+        filters = {}
+        q_filters = []
+
+        if not course:
+            filters['id'] = -1  # Impossible ID, results in empty table
+            return q_filters, filters
+
+        filters["assignment_head__course"] = course
+
+        if teacher:
+            filters["assignment_head__course__teacher"] = teacher
+
+        return q_filters, filters
+
+    def get_start_date(self):
+        return self.cleaned_data["start_date"]
+
+    def get_end_date(self):
+        return self.cleaned_data["end_date"]
 
 
 
@@ -1059,7 +1164,7 @@ class RubricEntryForm(forms.ModelForm):
             teacher_obj = Teacher.objects.filter(user=user).first()
             if teacher_obj:
                 self.initial['teacher'] = teacher_obj.id
-                
+
             # curr_ay = AcademicYear.objects.order_by('-id').first()
             # if curr_ay:
             #     self.initial['academic_year'] = curr_ay.id

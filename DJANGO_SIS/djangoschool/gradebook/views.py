@@ -1489,6 +1489,31 @@ class ScoreField(ComputationField):
         return subject.short_name
 
 
+class AssignmentScoreField(ComputationField):
+    name = "assignmentscorecolumn"
+    calculation_field = "score"
+    verbose_name = "Score"
+    is_summable = False
+
+    @classmethod
+    def get_crosstab_field_verbose_name(cls, model, id):
+        """
+        Labels each crosstab column as "Formative Assignment Date N", where N
+        is this assignment's 1-based position (by date) among its course's
+        other WR-category assignments — not the literal calendar date.
+        """
+        ah = AssignmentHead.objects.filter(pk=id).select_related('course').first()
+        if not ah:
+            return "N/A"
+
+        ordinal = AssignmentHead.objects.filter(
+            course_id=ah.course_id,
+            category='WR',
+            date__lte=ah.date,
+        ).order_by('date').count()
+
+        return f"Formative Assignment Date {ordinal}"
+
 class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/report.html"
 
@@ -3037,7 +3062,7 @@ def report_extra_table(request):
             Q(reportcard__student__id_number__icontains=search_query)
         )
 
-    extras = extras.order_by(order_field).distinct()
+    extras = extras.order_by(order_field)
 
     pnation = Paginator(extras, 15)
     pnation_extras = pnation.get_page(request.GET.get('page'))
@@ -4084,7 +4109,7 @@ def print_grade_list(request, pk):
         ['Tanggal',        ':', str(parent_head.date or '-')],
         ['Nilai Max',   ':', str(parent_head.max_score)],
         ['Tipe Tugas',  ':', str(parent_head.assignment.name)],
-        ['Tujuan Pembelajaran', ':', str(cpmp_trg or '-')],
+        ['Tujuan Pembelajaran', ':', Paragraph(str(cpmp_trg or '-'))],
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
@@ -4743,7 +4768,7 @@ def teacher_notes_table(request):
             Q(reportcard__student__id_number__icontains=search_query)
         )
 
-    notes = notes.order_by(order_field).distinct()
+    notes = notes.order_by(order_field)
 
     pnation = Paginator(notes, 15)
     pnation_notes = pnation.get_page(request.GET.get('page'))
@@ -4836,3 +4861,139 @@ def teacher_notes_del(request, pk):
         'src': src,
     }
     return render(request, 'partials/gradebook/grade_entry_delconf.html', context)
+
+def get_course_ledger(request):
+    """
+    Cascade endpoint for AssignmentLedgerForm: teacher -> course.
+    course is a RadioSelect field, so this builds raw radio-input HTML
+    (same approach as get_period_ledger) instead of reusing course.html,
+    which only outputs bare <option> tags -- invalid, and invisible,
+    outside a <select>.
+    """
+    teacher_id = request.GET.get('teacher')
+    selected_course = request.GET.get('course')
+    courses = Course.objects.filter(
+        teacher_id=teacher_id, is_activity=False
+    ).select_related('subject') if teacher_id else Course.objects.none()
+
+    html = ''
+    for c in courses:
+        checked = 'checked' if selected_course == str(c.id) else ''
+        html += f'''
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="course"
+                   id="id_course_{c.id}" value="{c.id}" {checked}>
+            <label class="form-check-label" for="id_course_{c.id}">
+                {c}
+            </label>
+        </div>'''
+
+    return HttpResponse(html)
+
+
+
+class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
+    template_name = "partials/gradebook/report_assignment.html"
+
+    report_title = "Assignment Ledger"
+
+    report_model = AssignmentDetail
+
+    form_class = AssignmentLedgerForm
+
+    group_by = "student"
+
+    columns = [
+        "id_number",
+        "registration_data__first_name",
+        "registration_data__last_name",
+        ComputationField.create(Avg, "score", verbose_name="Average", is_summable=False),
+    ]
+
+    crosstab_field = "assignment_head"
+    crosstab_columns = [AssignmentScoreField]
+    crosstab_compute_remainder = False
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_crosstab_ids(self):
+        course_id = self.request.GET.get('course')
+        teacher_id = self.request.GET.get('teacher')
+
+        if not course_id:
+            return [a.pk for a in AssignmentHead.objects.order_by('date')[:5]]
+
+        qs = AssignmentHead.objects.filter(course_id=course_id)
+
+        if teacher_id:
+            qs = qs.filter(course__teacher_id=teacher_id)
+
+        assignment_ids = qs.values_list('id', flat=True).distinct().order_by('date')
+
+        return list(assignment_ids)
+
+    def get_crosstab_compute_remainder(self):
+        return False
+
+    export_actions = ["export_pdf"]
+
+    def export_pdf(self, report_data):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="formative_grade_report.pdf"'
+
+        buffer = io.BytesIO()
+        HEADER_GAP = 0.5 * cm
+        page_width, page_height = GOV_LEGAL
+        header_height = get_pdf_header_height(page_width)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=GOV_LEGAL,
+            topMargin=header_height + HEADER_GAP,
+            bottomMargin=2 * cm,
+            leftMargin=2.3 * cm,
+            rightMargin=2.3 * cm,
+        )
+        elements = []
+
+        styles, table_style = get_pdf_styles()
+
+        columns = report_data['columns']
+        headers = [col['verbose_name'] for col in columns]
+        table_data = [headers]
+
+        for record in report_data['data']:
+            row = [str(record.get(col['name'], "-")) for col in columns]
+            table_data.append(row)
+
+        table = Table(table_data)
+        table.setStyle(table_style)
+
+        elements.append(Paragraph("Formative Assignment Grade Crosstab Report", styles['title']))
+        elements.append(Spacer(1, 0.3 * cm))
+        elements.append(table)
+
+        doc.build(elements, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+
+        pdf = buffer.getvalue()
+        buffer.close()
+        response.write(pdf)
+        return response
+
+    export_pdf.title = ("Export PDF")
+    export_pdf.icon = "fa fa-file-pdf-o"
+    export_pdf.css_class = "btn btn-primary"
+
+    def export_csv(self, report_data):
+        return super().export_csv(report_data)
+
+    export_csv.title = ("Export Formative Grades to CSV")
+    export_csv.css_class = "btn btn-success"
+
+    filters = [
+        "student__id_number",
+        "student__registration_data__first_name",
+        "student__registration_data__last_name",
+    ]
