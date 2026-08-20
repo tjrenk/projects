@@ -26,6 +26,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from slick_reporting.views import ReportView, SlickReportView
 from slick_reporting.fields import ComputationField
+from slick_reporting.generator import ReportGenerator
 import io
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -1497,22 +1498,10 @@ class AssignmentScoreField(ComputationField):
 
     @classmethod
     def get_crosstab_field_verbose_name(cls, model, id):
-        """
-        Labels each crosstab column as "Formative Assignment Date N", where N
-        is this assignment's 1-based position (by date) among its course's
-        other WR-category assignments — not the literal calendar date.
-        """
         ah = AssignmentHead.objects.filter(pk=id).select_related('course').first()
         if not ah:
             return "N/A"
-
-        ordinal = AssignmentHead.objects.filter(
-            course_id=ah.course_id,
-            category='WR',
-            date__lte=ah.date,
-        ).order_by('date').count()
-
-        return f"Formative Assignment Date {ordinal}"
+        return f"ASGN-{ah.date.strftime('%d/%m/%Y')}" if ah.date else "ASGN-N/A"
 
 class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/report.html"
@@ -1764,7 +1753,7 @@ def ge_table(request):
             {
                 'label': 'Course',
                 'param': 'course',
-                'options': Course.objects.filter(teacher=teacher, is_activity=False).select_related('subject'),
+                'options': Course.objects.filter(teacher=teacher, is_activity=False).select_related('subject') if teacher else Course.objects.all() if user.is_staff else Course.objects.none(),
                 'selected': request.GET.get('course', ''),
             },
             {
@@ -4890,25 +4879,31 @@ def get_course_ledger(request):
 
     return HttpResponse(html)
 
-
+class AssignmentLedgerGenerator(ReportGenerator):
+    def get_database_columns(self):
+        # pull these fields into the row even though they're not display columns
+        return super().get_database_columns() + [
+            "registration_data__first_name",
+            "registration_data__last_name",
+        ]
 
 class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/report_assignment.html"
-
     report_title = "Assignment Ledger"
-
     report_model = AssignmentDetail
-
+    report_generator_class = AssignmentLedgerGenerator   # <-- new
     form_class = AssignmentLedgerForm
-
     group_by = "student"
 
     columns = [
         "id_number",
-        "registration_data__first_name",
-        "registration_data__last_name",
+        "full_name",                                      # <-- replaces the two name fields
         ComputationField.create(Avg, "score", verbose_name="Average", is_summable=False),
     ]
+
+    def full_name(self, obj, data):
+        return f"{obj.get('registration_data__first_name', '')} {obj.get('registration_data__last_name', '')}".strip()
+    full_name.verbose_name = "Student Name"
 
     crosstab_field = "assignment_head"
     crosstab_columns = [AssignmentScoreField]
