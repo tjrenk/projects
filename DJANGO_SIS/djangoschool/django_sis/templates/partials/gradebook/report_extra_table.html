@@ -32,7 +32,7 @@
     <hr>
 </div>
 </div>
-<div class="flex" id="report-extra-table-container">
+<div class="flex" id="grade-table-container">
 <div class="card-body px-3 py-1 w-full">
     <div class="overflow-auto max-h-[60vh]">
         <table class="table table-sm table-hover table-pin-rows border border-base-200 table-auto">
@@ -45,7 +45,8 @@
         {% sortable_header 'period' 'Period' sort_by sort_dir %}
         {% sortable_header 'level' 'Level' sort_by sort_dir %}
         {% sortable_header 'extra_type' 'Type' sort_by sort_dir %}
-        <th>Description</th>
+<!--        <th>Grade</th>-->
+        {% sortable_header 'extra_description' 'Grade' sort_by sort_dir %}
         {% sortable_header 'extra_score' 'Score' sort_by sort_dir %}
         <th>Notes</th>
         {% if user.is_staff %}

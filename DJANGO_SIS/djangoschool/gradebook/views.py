@@ -1489,6 +1489,14 @@ class ScoreField(ComputationField):
         # Use short_name if available, else subject_name
         return subject.short_name
 
+class AssignmentLedgerGenerator(ReportGenerator):
+    def get_database_columns(self):
+        # pull these fields into the row even though they're not display columns
+        return super().get_database_columns() + [
+            "registration_data__first_name",
+            "registration_data__last_name",
+        ]
+
 
 class AssignmentScoreField(ComputationField):
     name = "assignmentscorecolumn"
@@ -1501,7 +1509,8 @@ class AssignmentScoreField(ComputationField):
         ah = AssignmentHead.objects.filter(pk=id).select_related('course').first()
         if not ah:
             return "N/A"
-        return f"ASGN-{ah.date.strftime('%d/%m/%Y')}" if ah.date else "ASGN-N/A"
+
+        return f"F-{ah.date.strftime('%d/%m/%Y')}" if ah.assignment_id == 3 else f"S-{ah.date.strftime('%d/%m/%Y')}" if ah.assignment_id == 2 else "ASGN-N/A"
 
 class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/report.html"
@@ -1516,15 +1525,28 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
     # date_field = "reportcard__period__date_end"
 
+    report_generator_class = AssignmentLedgerGenerator
+
     # di grup dari apa
     # NOTE: hanya value dari ini saja yg akan keliatan di kolom, gtau knp
     group_by = "reportcard__student"
 
+
+    def full_name(self, obj, data):
+        return f"{obj.get('registration_data__first_name', '')} {obj.get('registration_data__last_name', '')}".strip()
+    full_name.verbose_name = "Peserta Didik"
+
+    def nis(self, obj, data):
+        return obj.get('id_number')
+    nis.verbose_name = "NIS"
+
     # sediain header yg mau ditampilin apa aja
     columns = [
-        "registration_data__first_name",
-        "registration_data__last_name",
+        "nis",
+        "full_name",
     ]
+
+
 
     # 2. Crosstab
     # filtering berdasarkan field apa
@@ -2632,7 +2654,7 @@ def rb_pdf(request, pk):
         table = Table(table_data, colWidths=[7.5*cm, 1.2*cm, 1.2*cm, 6.6*cm])
         table.setStyle(table_style)
         flowables.append(table)
-        flowables.append(Spacer(1, 0.3*cm))
+        # flowables.append(Spacer(1, 0.3*cm))
 
     # flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
@@ -3085,6 +3107,13 @@ def report_extra_table(request):
                 'param': 'extra_type',
                 'options': EXTRA_CHOICES,
                 'selected': request.GET.get('extra_type', ''),
+                'is_choices': True,
+            },
+            {
+                'label': 'Grade',
+                'param': 'extra_description',
+                'options': [("A", "A"), ("B", "B"), ("C", "C"), ("D", "D"), ("E", "E")],
+                'selected': request.GET.get('extra_description', ''),
                 'is_choices': True,
             },
         ],
@@ -4046,7 +4075,8 @@ def get_courses_assignment_avg(request):
 def print_grade_list(request, pk):
     parent_head = get_object_or_404(AssignmentHead, pk=pk)
     current_course = parent_head.course
-    cpmp_trg = "\n".join(target.text for target in parent_head.cpmp_target.all())
+    cpmp_lines = [target.text for target in parent_head.cpmp_target.all()]
+    cpmp_trg = "<br/>".join(f"{line}" for line in cpmp_lines) if cpmp_lines else "-"
 
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
@@ -4098,7 +4128,7 @@ def print_grade_list(request, pk):
         ['Tanggal',        ':', str(parent_head.date or '-')],
         ['Nilai Max',   ':', str(parent_head.max_score)],
         ['Tipe Tugas',  ':', str(parent_head.assignment.name)],
-        ['Tujuan Pembelajaran', ':', Paragraph(str(cpmp_trg or '-'))],
+        ['Tujuan Pembelajaran', ':', Paragraph(cpmp_trg)],
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
@@ -4138,10 +4168,10 @@ def print_grade_list(request, pk):
     ]))
 
     flowables.append(grade_table)
-    flowables.append(Spacer(1, 15.0 * cm))
-    flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
+    # flowables.append(Spacer(1, 15.0 * cm))
 
-    doc.build(flowables, onFirstPage=get_pdf_page_decorations, onLaterPages=get_pdf_page_decorations)
+    page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
     buf.seek(0)
 
     filename = f"grade_entry_{current_course.short_name}_{parent_head.date}.pdf"
@@ -4498,11 +4528,11 @@ def print_pdev_pdf(request, pk):
             ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
         ]))
         flowables.append(table)
-        flowables.append(Spacer(1, 0.3 * cm))
+        # flowables.append(Spacer(1, 0.3 * cm))
 
-    flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
-    doc.build(flowables, onFirstPage=get_pdf_page_decorations, onLaterPages=get_pdf_page_decorations)
+    page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
     buf.seek(0)
 
     filename = f"pd_{reg.first_name}_{reg.last_name}_{reportcard.period.period_name}.pdf"
@@ -4879,13 +4909,17 @@ def get_course_ledger(request):
 
     return HttpResponse(html)
 
-class AssignmentLedgerGenerator(ReportGenerator):
-    def get_database_columns(self):
-        # pull these fields into the row even though they're not display columns
-        return super().get_database_columns() + [
-            "registration_data__first_name",
-            "registration_data__last_name",
-        ]
+
+class RoundedAverageField(ComputationField):
+    name = "avg__score"
+    verbose_name = "Average"
+    calculation_field = "score"
+    calculation_method = Avg          # plain, unmodified Avg — no SQL touched
+    is_summable = False
+
+    def resolve(self, prepared_results, required_computation_results, current_pk, current_row=None):
+        value = super().resolve(prepared_results, required_computation_results, current_pk, current_row)
+        return round(value, 2) if value else value
 
 class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/report_assignment.html"
@@ -4895,15 +4929,29 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
     form_class = AssignmentLedgerForm
     group_by = "student"
 
-    columns = [
-        "id_number",
-        "full_name",                                      # <-- replaces the two name fields
-        ComputationField.create(Avg, "score", verbose_name="Average", is_summable=False),
-    ]
-
     def full_name(self, obj, data):
         return f"{obj.get('registration_data__first_name', '')} {obj.get('registration_data__last_name', '')}".strip()
-    full_name.verbose_name = "Student Name"
+    full_name.verbose_name = "Peserta Didik"
+
+    def nis(self, obj, data):
+        return obj.get('id_number')
+    nis.verbose_name = "NIS"
+
+    def resolve(self, prepared_results, required_computation_results, current_pk, current_row=None):
+        value = super().resolve(prepared_results, required_computation_results, current_pk, current_row)
+        return round(value, 2) if value else value
+
+    # sediain header yg mau ditampilin apa aja
+    columns = [
+        "nis",
+        "full_name",                                    # <-- replaces the two name fields
+        # ComputationField.create(Avg, "score", verbose_name="Average", is_summable=False),
+        RoundedAverageField
+    ]
+
+    # def full_name(self, obj, data):
+    #     return f"{obj.get('registration_data__first_name', '')} {obj.get('registration_data__last_name', '')}".strip()
+    # full_name.verbose_name = "Student Name"
 
     crosstab_field = "assignment_head"
     crosstab_columns = [AssignmentScoreField]
