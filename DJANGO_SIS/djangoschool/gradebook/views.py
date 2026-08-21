@@ -4020,7 +4020,7 @@ def get_period_assignment_avg(request):
     selected_period = request.GET.get('0-period') or request.GET.get('period')
     if acayear_id:
         # periods = LearningPeriod.objects.filter(academic_year_id=acayear_id)
-        periods = LearningPeriod.objects.filter(academic_year=acayear_id, period_name__contains='semester').select_related('academic_year')
+        periods = LearningPeriod.objects.filter(academic_year=acayear_id, period_name__icontains='semester').select_related('academic_year')
     else:
         periods = LearningPeriod.objects.none()
     html = render_to_string("partials/gradebook/assignment_avg_partials/period.html", {
@@ -5040,3 +5040,108 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         "student__registration_data__first_name",
         "student__registration_data__last_name",
     ]
+
+def midterm_reportcard_pdf(request, pk):
+    parent_head = get_object_or_404(StudentReportcard, pk=pk)
+    current_course = parent_head.course
+    cpmp_lines = [target.text for target in parent_head.cpmp_target.all()]
+    cpmp_trg = "<br/>".join(f"{line}" for line in cpmp_lines) if cpmp_lines else "-"
+
+    user = request.user
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
+
+    active_members = CourseMember.objects.filter(course=current_course, is_active=True)
+    for member in active_members:
+        AssignmentDetail.objects.get_or_create(
+            assignment_head=parent_head,
+            student=member.student,
+            defaults={'score': 0, 'is_active': True}
+        )
+
+    queryset = AssignmentDetail.objects.filter(
+        assignment_head=parent_head
+    ).order_by('student__id').select_related('student__registration_data')
+
+    buf = io.BytesIO()
+    page_width, page_height = GOV_LEGAL
+    header_height = get_pdf_header_height(page_width)
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=GOV_LEGAL,
+        topMargin=header_height + 0.5*cm,
+        bottomMargin=2*cm,
+        leftMargin=2.3*cm,
+        rightMargin=2.3*cm,
+    )
+
+    styles, table_style = get_pdf_styles()
+
+    cell_style = ParagraphStyle(
+        'CellText', parent=styles['label'],
+        fontSize=8, fontName='Helvetica', leading=10,
+    )
+
+    flowables = []
+    flowables.append(Paragraph("Laporan Penilaian Ujian Siswa", styles['title']))
+    # flowables.append(Paragraph(
+    #     f"{reportcard.academic_year} / {reportcard.period.period_name}",
+    #     styles['subtitle']
+    # ))
+    flowables.append(Spacer(1, 1*cm))
+
+    meta_data = [
+        ['Mata Pelajaran', ':', str(parent_head.course.subject or '-')],
+        ['Nama Guru', ':', str(parent_head.course.teacher or '-')],
+        ['Kelas', ':', str(parent_head.course or '-')],
+        ['Topik',       ':', str(parent_head.topic or '-')],
+        ['Tanggal',        ':', str(parent_head.date or '-')],
+        ['Nilai Max',   ':', str(parent_head.max_score)],
+        ['Tipe Tugas',  ':', str(parent_head.assignment.name)],
+        ['Tujuan Pembelajaran', ':', Paragraph(cpmp_trg)],
+    ]
+    meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    flowables.append(meta_table)
+    flowables.append(Spacer(1, 0.5*cm))
+
+    table_data = [['No', 'NIS', 'Peserta Didik', 'Nilai', 'Status', 'Keterangan']]
+    for i, detail in enumerate(queryset, start=1):
+        student = detail.student
+        reg = student.registration_data
+        full_name = f"{reg.first_name or ''} {reg.last_name or ''}".strip()
+        table_data.append([
+            str(i), student.id_number, full_name, str(detail.score),
+            'Active' if detail.is_active else 'Inactive',
+            Paragraph(detail.na_reason or '-', cell_style)
+        ])
+
+    grade_table = Table(table_data, colWidths=[1*cm, 3*cm, 5*cm, 2*cm, 2*cm, 4*cm])
+    grade_table.setStyle(TableStyle([
+        *table_style.getCommands(),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (3, 1), (4, -1), 'CENTER'),
+        *[
+            ('BACKGROUND', (0, i+1), (-1, i+1), colors.transparent) # <---- keep this just incase they want this to be differentiated
+            for i, detail in enumerate(queryset)
+            if not detail.is_active
+        ],
+    ]))
+
+    flowables.append(grade_table)
+    # flowables.append(Spacer(1, 15.0 * cm))
+
+    page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
+    buf.seek(0)
+
+    filename = f"grade_entry_{current_course.short_name}_{parent_head.date}.pdf"
+    return FileResponse(buf, as_attachment=False, filename=filename)
