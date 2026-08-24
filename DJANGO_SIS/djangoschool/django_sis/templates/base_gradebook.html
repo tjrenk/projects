@@ -206,6 +206,11 @@
                                     {% if user.is_staff %}
 
                 {% endif %}
+                    <li class="mb-2">
+                        <a href="{% url 'midterm-report-select' %}">
+                            <i class="fa fa-th"></i>(BETA) Print Report Card
+                        </a>
+                    </li>
                 </ul>
             </div>
             {% endif %}

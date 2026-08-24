@@ -48,8 +48,15 @@ from functools import partial
 
 
 
+INDONESIAN_MONTHS = {
+    1: "Januari", 2: "Februari", 3: "Maret", 4: "April",
+    5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus",
+    9: "September", 10: "Oktober", 11: "November", 12: "Desember",
+}
 
 register = template.Library()
+now = datetime.now()
+signing_date = f"{now.day} {INDONESIAN_MONTHS[now.month]} {now.year}"
 
 
 ####### REUSABLES #######
@@ -109,6 +116,11 @@ def get_pdf_styles():
             fontSize=14, fontName='Times-Bold',
             alignment=TA_CENTER, spaceAfter=4,
         ),
+        'title2': ParagraphStyle(
+            'Title', parent=base_styles['Normal'],
+            fontSize=12, fontName='Times-Italic',
+            alignment=TA_CENTER, spaceAfter=4,
+        ),
         'subtitle': ParagraphStyle(
             'Subtitle', parent=base_styles['Normal'],
             fontSize=10, fontName='Times-Roman',
@@ -156,7 +168,21 @@ def get_pdf_styles():
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
     ])
 
-    return styles, table_style
+    reportc_table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+    ])
+
+    return styles, table_style, reportc_table_style
 
 
 def build_pdf_header_table():
@@ -5145,3 +5171,341 @@ def midterm_reportcard_pdf(request, pk):
 
     filename = f"grade_entry_{current_course.short_name}_{parent_head.date}.pdf"
     return FileResponse(buf, as_attachment=False, filename=filename)
+
+
+@login_required
+def print_midterm_report(request, pk):
+    reportcard = get_object_or_404(
+        StudentReportcard.objects.select_related(
+            'student__registration_data', 'academic_year', 'period', 'level'
+        ),
+        pk=pk
+    )
+    student = reportcard.student
+    reg = student.registration_data
+
+    student_class = ClassMember.objects.filter(
+        student=student, is_active=True
+    ).select_related('kelas').first()
+
+    # A. SIKAP — same pattern as rb_pdf
+    behaviour_session = ReportcardBehaviour.objects.filter(
+        academic_year=reportcard.academic_year,
+        period=reportcard.period,
+        is_mid=reportcard.is_mid,
+        level=reportcard.level,
+    ).first()
+
+    behaviour_reports = StudentBehaviourReport.objects.filter(
+        student=student,
+        behaviour=behaviour_session,
+    ).select_related('rubric') if behaviour_session else StudentBehaviourReport.objects.none()
+
+    spiritual = behaviour_reports.filter(rubric__type='Spiritual').first()
+    social = behaviour_reports.filter(rubric__type='Social').first()
+
+    # B. PENGETAHUAN DAN KETERAMPILAN — reiterate from ReportcardGrade (child of StudentReportcard)
+    grades = ReportcardGrade.objects.filter(
+        reportcard=reportcard
+    ).exclude(
+        subject__is_activity=True
+    ).select_related('subject').order_by('subject__subject_name')
+
+    # C. EXTRAKURIKULER — via StudentReportExtra, reversed through reportcard
+    activity_courses = CourseMember.objects.filter(
+        student=student, is_active=True, course__subject__is_activity=True
+    ).select_related('course', 'course__subject')
+
+    extra_scores = list(StudentReportExtra.objects.filter(
+        reportcard=reportcard, extra_type='EK'
+    ))
+
+    extracurricular_rows = []
+    for i, member in enumerate(activity_courses):
+        matching_extra = extra_scores[i] if i < len(extra_scores) else None
+        extracurricular_rows.append({
+            'course_name': member.course.name,
+            'score': matching_extra.extra_score if matching_extra else '-',
+            'grade': matching_extra.extra_description if matching_extra else '-',
+        })
+
+    # D. PENGEMBANGAN DIRI — leave commented for now
+    # personal_dev = StudentReportExtra.objects.filter(reportcard=reportcard, extra_type='PD')
+
+    # E. PRESTASI — leave commented for now
+    # prestasi = StudentReportExtra.objects.filter(reportcard=reportcard, extra_type='P')
+
+    # F. KETIDAKHADIRAN — StudentAttendance, filtered by student + period date range
+    attendance = StudentAttendance.objects.filter(
+        student=student,
+        attendance_date__gte=reportcard.period.date_start,
+        attendance_date__lte=reportcard.period.date_end,
+    )
+    attendance_summary = {
+        'S': attendance.filter(attendance_type='S').count(),
+        'P': attendance.filter(attendance_type='P').count(),
+        'A': attendance.filter(attendance_type='A').count(),
+    }
+
+    # G. CATATAN WALI KELAS
+    ht_comment = reportcard.ht_comment
+
+    # Signatures — HeadMaster, take the first
+    headmaster = HeadMaster.objects.first()
+    homeroom_teacher = student_class.kelas.teacher if student_class else None
+
+    # ─── PDF SETUP ──────────────────────────────────────────
+    HEADER_GAP = 0.5 * cm
+    page_width, page_height = A4
+    header_height = get_pdf_header_height(page_width)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        topMargin=header_height + HEADER_GAP,
+        bottomMargin=2*cm,
+        leftMargin=2*cm,
+        rightMargin=2*cm,
+    )
+
+    styles, table_style, reportc_table_style = get_pdf_styles()
+    flowables = [Spacer(1, 0.5*cm)]
+
+    title_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
+    sub_title_text = "1ST MID-TERM REPORT CARD" if reportcard.is_mid else "LAST TERM REPORT CARD"
+    flowables.append(Paragraph(title_text, styles['title']))
+    flowables.append(Paragraph(sub_title_text, styles['title2']))
+    flowables.append(Spacer(1, 0.3*cm))
+
+    meta_data = [
+        ['Name', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
+         'Kelas', ':', str(student_class.kelas) if student_class else '-'],
+        ['NIS', ':', student.id_number or '-',
+         'Semester', ':', reportcard.period.period_name],
+        ['NISN', ':', student.nisn or '-',
+         'Tahun Ajaran', ':', str(reportcard.academic_year)],
+    ]
+    meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    flowables.append(meta_table)
+    flowables.append(Spacer(1, 0.1 * cm))
+
+    # A. SIKAP
+    # flowables.append(Paragraph("A. SIKAP SPIRITUAL DAN SOSIAL", styles['group']))
+    # sikap_data = [['No', 'Sikap', 'Predikat', 'Keterangan']]
+    # sikap_data.append(['1', 'Sikap Spiritual', spiritual.grade if spiritual else '-', Paragraph(spiritual.description or '-') if spiritual else '-'])
+    # sikap_data.append(['2', 'Sosial', social.grade if social else '-', Paragraph(social.description or '-') if social else '-'])
+    # sikap_table = Table(sikap_data, colWidths=[1*cm, 4*cm, 2*cm, 9*cm])
+    # sikap_table.setStyle(table_style)
+    # flowables.append(sikap_table)
+    # flowables.append(Spacer(1, 0.4*cm))
+
+    # B. PENGETAHUAN DAN KETERAMPILAN
+    flowables.append(Paragraph("A. PENGETAHUAN DAN KETERAMPILAN", styles['group']))
+    grade_data = [['No', 'Mata Pelajaran', 'MMK', 'Nilai', 'Predikat']]
+    for i, g in enumerate(grades, start=1):
+        grade_data.append([str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade])
+    grade_table = Table(grade_data, colWidths=[1*cm, 9*cm, 2*cm, 3*cm, 2*cm])
+    grade_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+        ('ALIGN', (3, 0), (3, -1), 'CENTER'),
+        ('ALIGN', (4, 0), (4, -1), 'CENTER')
+    ]))
+    flowables.append(grade_table)
+    flowables.append(Spacer(1, 0.4*cm))
+
+    # C. EXTRAKURIKULER
+    flowables.append(Paragraph("B. EKSTRAKURIKULER", styles['group']))
+    extra_data = [['No', 'Mata Pelajaran', 'Nilai', 'Predikat']]
+    for i, row in enumerate(extracurricular_rows, start=1):
+        extra_data.append([str(i), row['course_name'], str(row['score']), row['grade']])
+    extra_table = Table(extra_data, colWidths=[1 * cm, 9 * cm, 2 * cm, 5 * cm])
+    extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+        ('ALIGN', (3, 0), (3, -1), 'CENTER')
+    ]))
+    flowables.append(extra_table)
+    flowables.append(Spacer(1, 0.4 * cm))
+
+    # D. PENGEMBANGAN DIRI — commented out, no data source wired yet
+    # flowables.append(Paragraph("D. PENGEMBANGAN DIRI", styles['group']))
+    # pd_data = [['No', 'Mata Pelajaran', 'Predikat']]
+    # for i, pd in enumerate(personal_dev, start=1):
+    #     pd_data.append([str(i), pd.extra_notes or '-', pd.extra_description or '-'])
+    # pd_table = Table(pd_data, colWidths=[1*cm, 11*cm, 4*cm])
+    # pd_table.setStyle(table_style)
+    # flowables.append(pd_table)
+    # flowables.append(Spacer(1, 0.4*cm))
+
+    # E. PRESTASI — commented out, no data source wired yet
+    # flowables.append(Paragraph("E. PRESTASI", styles['group']))
+    # prestasi_data = [['No', 'Jenis Kegiatan', 'Predikat']]
+    # for i, p in enumerate(prestasi, start=1):
+    #     prestasi_data.append([str(i), p.extra_notes or '-', p.extra_description or '-'])
+    # prestasi_table = Table(prestasi_data, colWidths=[1*cm, 11*cm, 4*cm])
+    # prestasi_table.setStyle(table_style)
+    # flowables.append(prestasi_table)
+    # flowables.append(Spacer(1, 0.4*cm))
+
+    # F. KETIDAKHADIRAN
+    flowables.append(Paragraph("C. KETIDAKHADIRAN", styles['group']))
+    attd_data = [
+        ['No', 'Keterangan', 'Jumlah'],
+        ['1', 'Sakit', str(attendance_summary['S']) if attendance_summary['S'] else '-'],
+        ['2', 'Izin', str(attendance_summary['P']) if attendance_summary['P'] else '-'],
+        ['3', 'Tanpa Keterangan', str(attendance_summary['A']) if attendance_summary['A'] else '-'],
+    ]
+    attd_table = Table(attd_data, colWidths=[1 * cm, 8 * cm, 8 * cm])
+    # attd_table = Table(attd_data, colWidths=[1 * cm, 9 * cm, 3 * cm])
+    # attd_table.hAlign = 'LEFT'
+    attd_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+    ]))
+    flowables.append(attd_table)
+    flowables.append(Spacer(1, 0.4 * cm))
+
+    # G. CATATAN WALI KELAS
+    flowables.append(Paragraph("D. CATATAN WALI KELAS", styles['group']))
+
+    catatan_table = Table(
+        [[Paragraph(ht_comment or '-', styles['label'])]],
+        colWidths=[17 * cm],
+    )
+    catatan_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    flowables.append(catatan_table)
+    flowables.append(Spacer(1, 0.4 * cm))
+
+    # Signatures
+    sig_data = [
+        ['',f"Jakarta, {signing_date}"],
+        ['Orang Tua/Wali,', 'Wali Kelas,'],
+        ['Peserta Didik,', ''],
+        ['', ''],
+        ['', ''],
+        ['_________________________', f"{homeroom_teacher.first_name if homeroom_teacher else '-'} {homeroom_teacher.last_name if homeroom_teacher else ''}"],
+    ]
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+    ]))
+    flowables.append(sig_table)
+    flowables.append(Spacer(1, 0.3*cm))
+    center_style = ParagraphStyle(
+        'CenterText', parent=styles['label'],
+        alignment=TA_CENTER,
+    )
+    flowables.append(Paragraph("Mengetahui,", center_style))
+    flowables.append(Spacer(1, 0.3 * cm))
+    headmaster_sig_data = [
+        ['Kepala Sekolah'],
+        ['', ''],
+        ['', ''],
+        # ['_________________________'],
+        [f"{headmaster.full_name if headmaster else '-'}"]
+    ]
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm, 9*cm])
+    headmaster_sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+    ]))
+    flowables.append(headmaster_sig_table)
+    # flowables.append(Paragraph(f"Kepala Sekolah — {headmaster.full_name if headmaster else '-'}", styles['label']))
+
+    doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+    buf.seek(0)
+
+    filename = f"midterm_{student.id_number}_{reportcard.period.period_name}.pdf"
+    return FileResponse(buf, as_attachment=False, filename=filename)
+
+
+@login_required
+def midterm_report_select(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+    homeroom_class = Class.objects.filter(teacher=teacher).first() if teacher else None
+
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'student':       'student__registration_data__first_name',
+        'academic_year': 'academic_year__year',
+        'period':        'period__period_name',
+        'is_mid':        'is_mid',
+        'level':         'level__grade_name',
+    }, default_sort='student')
+
+    reportcards = StudentReportcard.objects.select_related(
+        'student__registration_data', 'academic_year', 'period', 'level'
+    )
+
+    if homeroom_class and not user.is_staff:
+        reportcards = reportcards.filter(
+            student__classmember__kelas=homeroom_class,
+            student__classmember__is_active=True,
+        ).distinct()
+
+    reportcards = apply_filters(reportcards, request, {
+        'year':   'academic_year_id',
+        'period': 'period_id',
+        'level':  'level_id',
+    })
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        reportcards = reportcards.filter(
+            Q(student__registration_data__first_name__icontains=search_query) |
+            Q(student__registration_data__last_name__icontains=search_query) |
+            Q(student__id_number__icontains=search_query)
+        )
+
+    reportcards = reportcards.order_by(order_field)
+
+    pnation = Paginator(reportcards, 15)
+    pnation_reportcards = pnation.get_page(request.GET.get('page'))
+
+    return render(request, 'partials/gradebook/midterm_report_select.html', {
+        'pnation_reportcards': pnation_reportcards,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+                'selected': request.GET.get('period', ''),
+            },
+            {
+                'label': 'Level',
+                'param': 'level',
+                'options': GradeLevel.objects.all(),
+                'selected': request.GET.get('level', ''),
+            },
+        ],
+    })
