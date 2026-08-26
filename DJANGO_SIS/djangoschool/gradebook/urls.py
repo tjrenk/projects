@@ -123,3 +123,4 @@ urlpatterns = [
     path('cpmp-create/', views.cpmp_create, name='cpmp-create'),
 ]
 
+
