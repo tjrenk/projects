@@ -24,6 +24,7 @@ from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing, Line
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
+from reportlab.platypus import KeepTogether
 from slick_reporting.views import ReportView, SlickReportView
 from slick_reporting.fields import ComputationField
 from slick_reporting.generator import ReportGenerator
@@ -367,7 +368,7 @@ def get_pdf_header(canvas, doc):
     canvas.restoreState()
 
 def get_pdf_footer(canvas, doc, user=None, date=None):
-    styles, _ = get_pdf_styles()
+    styles, _, _ = get_pdf_styles()
     footer_style = styles['footer']
 
     canvas.saveState()
@@ -1649,7 +1650,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         )
         elements = []
 
-        styles, table_style = get_pdf_styles()
+        styles, table_style, reportc_table_style = get_pdf_styles()
 
         columns = report_data['columns']
         headers = [col['verbose_name'] for col in columns]
@@ -2616,7 +2617,7 @@ def rb_pdf(request, pk):
         rightMargin=2.3*cm,
     )
 
-    styles, table_style = get_pdf_styles()
+    styles, table_style, reportc_table_style = get_pdf_styles()
 
     flowables = [Spacer(1, 0.5*cm)]
 
@@ -4131,7 +4132,7 @@ def print_grade_list(request, pk):
         rightMargin=2.3*cm,
     )
 
-    styles, table_style = get_pdf_styles()
+    styles, table_style, reportc_table_style = get_pdf_styles()
 
     cell_style = ParagraphStyle(
         'CellText', parent=styles['label'],
@@ -4484,6 +4485,14 @@ def print_pdev_pdf(request, pk):
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
+
+    student_class = ClassMember.objects.filter(
+        student=student, is_active=True
+    ).select_related('kelas').first()
+
+    headmaster = HeadMaster.objects.first()
+    homeroom_teacher = student_class.kelas.teacher if student_class else None
+
     buf = io.BytesIO()
     page_width, page_height = GOV_LEGAL
     header_height = get_pdf_header_height(page_width)
@@ -4496,7 +4505,7 @@ def print_pdev_pdf(request, pk):
         rightMargin=2.3*cm,
     )
 
-    styles, table_style = get_pdf_styles()
+    styles, table_style, reportc_table_style = get_pdf_styles()
 
     flowables = []
     flowables.append(Paragraph("Laporan Konseling Peserta Didik", styles['title']))
@@ -4558,6 +4567,58 @@ def print_pdev_pdf(request, pk):
 
 
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
+
+    # Signatures
+    sig_data = [
+        ['',f"Jakarta, {signing_date}"],
+        ['Orang Tua/Wali,', 'Wali Kelas,'],
+        ['Peserta Didik,', ''],
+        ['', ''],
+        ['', ''],
+        ['', ''],
+        ['_________________________', f"{homeroom_teacher.first_name if homeroom_teacher else '-'} {homeroom_teacher.last_name if homeroom_teacher else ''}"],
+    ]
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+    ]))
+    # flowables.append(sig_table)
+    flowables.append(Spacer(1, 0.3*cm))
+    center_style = ParagraphStyle(
+        'CenterText', parent=styles['label'],
+        alignment=TA_CENTER,
+    )
+    # flowables.append(Paragraph("Mengetahui,", center_style))
+    flowables.append(Spacer(1, 0.3 * cm))
+    headmaster_sig_data = [
+        ['Kepala Sekolah'],
+        [''],
+        [''],
+        [''],
+        # ['_________________________'],
+        [f"{headmaster.full_name if headmaster else '-'}"]
+    ]
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm])
+    headmaster_sig_table.hAlign = 'CENTER'
+    headmaster_sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+    ]))
+
+    signature_block = [
+        sig_table,
+        Spacer(1, 0.1 * cm),
+        Paragraph("Mengetahui,", center_style),
+        Spacer(1, 0.6 * cm),
+        headmaster_sig_table,
+    ]
+    flowables.append(KeepTogether(signature_block))
+    # flowables.append(Paragraph(f"Kepala Sekolah — {headmaster.full_name if headmaster else '-'}", styles['label']))
     doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
     buf.seek(0)
 
@@ -5027,7 +5088,7 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         )
         elements = []
 
-        styles, table_style = get_pdf_styles()
+        styles, table_style, reportc_table_style = get_pdf_styles()
 
         columns = report_data['columns']
         headers = [col['verbose_name'] for col in columns]
@@ -5100,7 +5161,7 @@ def midterm_reportcard_pdf(request, pk):
         rightMargin=2.3*cm,
     )
 
-    styles, table_style = get_pdf_styles()
+    styles, table_style, reportc_table_style = get_pdf_styles()
 
     cell_style = ParagraphStyle(
         'CellText', parent=styles['label'],
@@ -5279,7 +5340,7 @@ def print_midterm_report(request, pk):
     flowables.append(Spacer(1, 0.3*cm))
 
     meta_data = [
-        ['Name', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
+        ['Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas) if student_class else '-'],
         ['NIS', ':', student.id_number or '-',
          'Semester', ':', reportcard.period.period_name],
@@ -5408,29 +5469,38 @@ def print_midterm_report(request, pk):
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
-    flowables.append(sig_table)
+    # flowables.append(sig_table)
     flowables.append(Spacer(1, 0.3*cm))
     center_style = ParagraphStyle(
         'CenterText', parent=styles['label'],
         alignment=TA_CENTER,
     )
-    flowables.append(Paragraph("Mengetahui,", center_style))
+    # flowables.append(Paragraph("Mengetahui,", center_style))
     flowables.append(Spacer(1, 0.3 * cm))
     headmaster_sig_data = [
         ['Kepala Sekolah'],
-        ['', ''],
-        ['', ''],
+        [''],
+        [''],
         # ['_________________________'],
         [f"{headmaster.full_name if headmaster else '-'}"]
     ]
-    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm, 9*cm])
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm])
+    headmaster_sig_table.hAlign = 'CENTER'
     headmaster_sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
-    flowables.append(headmaster_sig_table)
+
+    signature_block = [
+        sig_table,
+        Spacer(1, 0.3 * cm),
+        Paragraph("Mengetahui,", center_style),
+        Spacer(1, 0.6 * cm),
+        headmaster_sig_table,
+    ]
+    flowables.append(KeepTogether(signature_block))
     # flowables.append(Paragraph(f"Kepala Sekolah — {headmaster.full_name if headmaster else '-'}", styles['label']))
 
     doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
