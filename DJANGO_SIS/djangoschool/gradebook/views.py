@@ -5331,7 +5331,7 @@ def print_midterm_report(request, pk):
     )
 
     styles, table_style, reportc_table_style = get_pdf_styles()
-    flowables = [Spacer(1, 0.5*cm)]
+    flowables = [Spacer(1, 0.1*cm)]
 
     title_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
     sub_title_text = "1ST MID-TERM REPORT CARD" if reportcard.is_mid else "LAST TERM REPORT CARD"
@@ -5349,6 +5349,7 @@ def print_midterm_report(request, pk):
     ]
     meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
     meta_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -5357,7 +5358,7 @@ def print_midterm_report(request, pk):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
     flowables.append(meta_table)
-    flowables.append(Spacer(1, 0.1 * cm))
+    flowables.append(Spacer(0, 0.0 * cm))
 
     # A. SIKAP
     # flowables.append(Paragraph("A. SIKAP SPIRITUAL DAN SOSIAL", styles['group']))
@@ -5382,7 +5383,7 @@ def print_midterm_report(request, pk):
         ('ALIGN', (4, 0), (4, -1), 'CENTER')
     ]))
     flowables.append(grade_table)
-    flowables.append(Spacer(1, 0.4*cm))
+    # flowables.append(Spacer(1, 0.4*cm))
 
     # C. EXTRAKURIKULER
     flowables.append(Paragraph("B. EKSTRAKURIKULER", styles['group']))
@@ -5396,7 +5397,7 @@ def print_midterm_report(request, pk):
         ('ALIGN', (3, 0), (3, -1), 'CENTER')
     ]))
     flowables.append(extra_table)
-    flowables.append(Spacer(1, 0.4 * cm))
+    # flowables.append(Spacer(1, 0.4 * cm))
 
     # D. PENGEMBANGAN DIRI — commented out, no data source wired yet
     # flowables.append(Paragraph("D. PENGEMBANGAN DIRI", styles['group']))
@@ -5434,7 +5435,7 @@ def print_midterm_report(request, pk):
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
     ]))
     flowables.append(attd_table)
-    flowables.append(Spacer(1, 0.4 * cm))
+    # flowables.append(Spacer(1, 0.4 * cm))
 
     # G. CATATAN WALI KELAS
     flowables.append(Paragraph("D. CATATAN WALI KELAS", styles['group']))
@@ -5460,6 +5461,7 @@ def print_midterm_report(request, pk):
         ['Peserta Didik,', ''],
         ['', ''],
         ['', ''],
+        ['', ''],
         ['_________________________', f"{homeroom_teacher.first_name if homeroom_teacher else '-'} {homeroom_teacher.last_name if homeroom_teacher else ''}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
@@ -5481,6 +5483,7 @@ def print_midterm_report(request, pk):
         ['Kepala Sekolah'],
         [''],
         [''],
+        [''],
         # ['_________________________'],
         [f"{headmaster.full_name if headmaster else '-'}"]
     ]
@@ -5493,9 +5496,10 @@ def print_midterm_report(request, pk):
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
 
+    # semua dikumpulin jadi 1 block
     signature_block = [
         sig_table,
-        Spacer(1, 0.3 * cm),
+        Spacer(1, 0.6 * cm),
         Paragraph("Mengetahui,", center_style),
         Spacer(1, 0.6 * cm),
         headmaster_sig_table,

@@ -1,4 +1,5 @@
 {% load django_htmx %}
+{% load gradebook_tags %}
 <!DOCTYPE html>
 <html data-use-i18n="1" data-theme="" class="custom-scrollbars"
       lang="en-us"
@@ -294,7 +295,15 @@
         </div>
         </div>
             <div class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
-                <div class="breadcrumbs">
+                {% get_breadcrumb as crumb %}
+                <div class="breadcrumbs text-sm px-1">
+                    <ul>
+                        <li><a href="{% url 'gb-index' %}">Gradebook</a></li>
+                        {% if crumb.0 %}<li>{{ crumb.0 }}</li>{% endif %}
+                        {% if crumb.1 %}<li>{{ crumb.1 }}</li>{% endif %}
+                    </ul>
+                </div>
+                <div>
                     {% block content %}
 
                     {% endblock %}
@@ -302,7 +311,7 @@
             </div>
             <div id="dyn-display-area" class="flex items-center max-md:p-3 p-5 pb-0 flex-wrap justify-between">
                 {% block dynamic_content %}
-                    
+
                 {% endblock %}
             </div>
 
