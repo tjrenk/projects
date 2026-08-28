@@ -206,11 +206,13 @@
                                     {% if user.is_staff %}
 
                 {% endif %}
+                    {% if user.is_superuser %}
                     <li class="mb-2">
                         <a href="{% url 'midterm-report-select' %}">
                             <i class="fa fa-th"></i>(BETA) Print Report Card
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </div>
             {% endif %}
@@ -234,15 +236,19 @@
             {% endfor %}
         </div>
     {% endif %}
-                    {% get_breadcrumb as crumb %}
-                    <div class="breadcrumbs text-sm px-1">
-    <ul>
-        <li><a href="{% url 'gb-index' %}">Gradebook</a></li>
-        {% if crumb.0 %}<li>{{ crumb.0 }}</li>{% endif %}
-        {% if crumb.1 %}<li>{{ crumb.1 }}</li>{% endif %}
-    </ul>
+{% get_breadcrumb as crumb %}
+<div class="breadcrumbs text-sm px-1">
+<ul>
+    <li><a href="{% url 'gb-index' %}">Gradebook</a></li>
+    {% for label, url_name in crumb %}
+        {% if url_name %}
+            <li><a href="{% url url_name %}">{{ label }}</a></li>
+        {% else %}
+            <li>{{ label }}</li>
+        {% endif %}
+    {% endfor %}
+</ul>
 </div>
-                    <div>
                         {% block content %}{% endblock %}
                     </div>
                 </div>

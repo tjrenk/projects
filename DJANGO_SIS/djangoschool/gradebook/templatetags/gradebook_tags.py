@@ -8,44 +8,80 @@ register = template.Library()
 
 
 # maps url_name -> (Section, Page Label)
+# BREADCRUMB_MAP = {
+#     'gb-index': ('Dashboard',),
+#     'grade-entry': ('Data Entry', 'Student Grade'),
+#     'student-attendance': ('Data Entry', 'Student Attendance'),
+#     'report-card': ('Data Entry', "Hr Teacher's Comments"),
+#     'rubric-entry': ('Data Entry', 'Student Behaviour'),
+#     'rp-comment': ('Data Entry', "Teacher's Comments"),
+#     'extra-report': ('Data Entry', 'Extracurricular Grade'),
+#     'personal-dev': ('Data Entry', 'Personal Development Grade'),
+#     'cpmp-create': ('Data Entry', 'Lesson Plan'),
+#     'assignment-avg-wizard': ('Processes', 'Final Grade Avg'),
+#     'grade-entry-table': ('Reporting', 'Student Grade'),
+#     'ge-edit': ('Reporting', 'Student Grade Edit'),
+#     'ge-delete': ('Reporting', 'Student Grade Delete'),
+#     'report-card-table': ('Reporting', "Hr Teacher's Comments"),
+#     'tc-view': ('Reporting', "View Hr Teacher's Comments"),
+#     'tc-del': ('Reporting', "Hr Teacher's Delete"),
+#     'teacher-notes-table': ('Reporting', "Academic Comments"),
+#     'teacher-notes-edit': ('Reporting', "Academic Comment Edit"),
+#     'teacher-notes-del': ('Reporting', "Academic Comment Delete"),
+#     'report-extra-table': ('Reporting', "Extracurricular Table"),
+#     'report-extra-edit': ('Reporting', "Extracurricular Grade Edit"),
+#     'report-extra-del': ('Reporting', "Extracurricular Grade Delete"),
+#     'rcard-ledger': ('Reporting', 'Report Card Ledger'),
+#     'assignment-ledger': ('Reporting', 'Assignment Ledger'),
+#     'pdev-table': ('Reporting', 'Personal Development Table'),
+#     'pdev-edit': ('Reporting', "Personal Development Grade Edit"),
+#     'pdev-del': ('Reporting', "Personal Development Grade Delete"),
+#     'rubric-table': ('Reporting', 'Student Behavior Grades Table'),
+#     'rubric-edit': ('Reporting', 'Student Behavior Grade Edit'),
+#     'rubric-delete': ('Reporting', 'Student Behavior Grade Delete'),
+# }
 BREADCRUMB_MAP = {
-    'gb-index': ('Gradebook', 'Dashboard'),
-    'grade-entry': ('Data Entry', 'Student Grade'),
-    'student-attendance': ('Data Entry', 'Student Attendance'),
-    'report-card': ('Data Entry', "Hr Teacher's Comments"),
-    'rubric-entry': ('Data Entry', 'Student Behaviour'),
-    'rp-comment': ('Data Entry', "Teacher's Comments"),
-    'extra-report': ('Data Entry', 'Extracurricular Grade'),
-    'personal-dev': ('Data Entry', 'Personal Development Grade'),
-    'cpmp-create': ('Data Entry', 'Lesson Plan'),
-    'assignment-avg-wizard': ('Processes', 'Final Grade Avg'),
-    'grade-entry-table': ('Reporting', 'Student Grade'),
-    'ge-edit': ('Reporting', 'Student Grade Edit'),
-    'ge-delete': ('Reporting', 'Student Grade Delete'),
-    'report-card-table': ('Reporting', "Hr Teacher's Comments"),
-    'tc-view': ('Reporting', "View Hr Teacher's Comments"),
-    'tc-del': ('Reporting', "Hr Teacher's Delete"),
-    'teacher-notes-table': ('Reporting', "Academic Comments"),
-    'teacher-notes-edit': ('Reporting', "Academic Comment Edit"),
-    'teacher-notes-del': ('Reporting', "Academic Comment Delete"),
-    'report-extra-table': ('Reporting', "Extracurricular Table"),
-    'report-extra-edit': ('Reporting', "Extracurricular Grade Edit"),
-    'report-extra-del': ('Reporting', "Extracurricular Grade Delete"),
-    'rcard-ledger': ('Reporting', 'Report Card Ledger'),
-    'assignment-ledger': ('Reporting', 'Assignment Ledger'),
-    'pdev-table': ('Reporting', 'Personal Development Table'),
-    'pdev-edit': ('Reporting', "Personal Development Grade Edit"),
-    'pdev-del': ('Reporting', "Personal Development Grade Delete"),
-    'rubric-table': ('Reporting', 'Student Behavior Grades Table'),
-    'rubric-edit': ('Reporting', 'Student Behavior Grade Edit'),
-    'rubric-delete': ('Reporting', 'Student Behavior Grade Delete'),
+    'gb-index': (('Dashboard', None),),
+    'grade-entry': (('Data Entry', None), ('Student Grade', 'grade-entry')),
+    'student-attendance': (('Data Entry', None), ('Student Attendance', 'student-attendance')),
+    'report-card': (('Data Entry', None), ("Hr Teacher's Comments", 'report-card')),
+    'rubric-entry': (('Data Entry', None), ('Student Behaviour', 'rubric-entry')),
+    'rp-comment': (('Data Entry', None), ("Teacher's Comments", 'rp-comment')),
+    'extra-report': (('Data Entry', None), ('Extracurricular Grade', 'extra-report')),
+    'personal-dev': (('Data Entry', None), ('Personal Development Grade', 'personal-dev')),
+    'cpmp-create': (('Data Entry', None), ('Lesson Plan', 'cpmp-create')),
+    'assignment-avg-wizard': (('Processes', None), ('Final Grade Avg', 'assignment-avg-wizard')),
+    'grade-entry-table': (('Reporting', None), ('Student Grade', 'grade-entry-table')),
+    'ge-edit': (('Reporting', None), ('Student Grade', 'grade-entry-table')),
+    'ge-delete': (('Reporting', None), ('Student Grade Delete', None)),
+    'report-card-table': (('Reporting', None), ("Hr Teacher's Comments", 'report-card-table')),
+    'tc-view': (('Reporting', None), ("Hr Teacher's Comments", 'report-card-table')),
+    'tc-del': (('Reporting', None), ("Hr Teacher's Delete", None)),
+    'teacher-notes-table': (('Reporting', None), ("Academic Comments", 'teacher-notes-table')),
+    'teacher-notes-edit': (('Reporting', None), ("Academic Comments", 'teacher-notes-table')),
+    'teacher-notes-del': (('Reporting', None), ("Academic Comment Delete", None)),
+    'report-extra-table': (('Reporting', None), ("Extracurricular Table", 'report-extra-table')),
+    'report-extra-edit': (('Reporting', None), ("Extracurricular Table", 'report-extra-table')),
+    'report-extra-del': (('Reporting', None), ("Extracurricular Grade Delete", None)),
+    'rcard-ledger': (('Reporting', None), ('Report Card Ledger', 'rcard-ledger')),
+    'assignment-ledger': (('Reporting', None), ('Assignment Ledger', 'assignment-ledger')),
+    'pdev-table': (('Reporting', None), ('Personal Development Table', 'pdev-table')),
+    'pdev-edit': (('Reporting', None), ('Personal Development Table', 'pdev-table')),
+    'pdev-del': (('Reporting', None), ("Personal Development Grade Delete", None)),
+    'rubric-table': (('Reporting', None), ('Student Behavior Grades Table', 'rubric-table')),
+    'rubric-edit': (('Reporting', None), ('Student Behavior Grades Table', 'rubric-table')),
+    'rubric-delete': (('Reporting', None), ('Student Behavior Grade Delete', None)),
 }
 
 @register.simple_tag(takes_context=True)
 def get_breadcrumb(context):
     request = context['request']
     url_name = request.resolver_match.url_name if request.resolver_match else None
-    return BREADCRUMB_MAP.get(url_name, (None, None, None)) # tadi cuma return 2 value doang, tambahin 1 lg buat jaga2 sp tau mau ditambahin
+    crumb = BREADCRUMB_MAP.get(url_name, ())
+    extra = context.get('breadcrumb_extra')
+    if extra:
+        crumb = crumb + ((extra, None),)
+    return crumb # tadi cuma return 2 value doang, tambahin 1 lg buat jaga2 sp tau mau ditambahin
 
 @register.filter
 def in_list(value, arg):
