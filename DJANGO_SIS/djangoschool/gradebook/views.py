@@ -46,6 +46,7 @@ import os
 from django.conf import settings
 from reportlab.pdfgen import canvas as pdfcanvas
 from functools import partial
+from collections import defaultdict
 
 
 
@@ -3335,159 +3336,159 @@ def get_act_subj(request):
     return render(request, "partials/gradebook/reportextra_partials/act_subj.html", context)
 
 
-class TotalGrading(LoginRequiredMixin, SessionWizardView):
-    template_name = "partials/gradebook/total_grade.html"
-
-    form_list = [
-        ("0", TotalGradesForm),
-        ("1", TotalGradesFormSet)
-    ]
-
-    def get_form_initial(self, step):
-        initial = super().get_form_initial(step)
-
-        if step == '1':
-            step0_data = self.get_cleaned_data_for_step('0')
-            if step0_data:
-                period = step0_data.get('period')
-                
-                # Query StudentReportcard filtered by the selected period
-                student_rc = StudentReportcard.objects.filter(
-                    period=period
-                ).select_related('student', 'student__registration_data')
-
-                initial_list = []
-                for rc in student_rc:
-                    initial_list.append({
-                        'student': rc.student.id,
-                        # The student_name and student_nisn fields in TotalGradesTestList
-                        # will be populated by the form's __init__ logic using this ID
-                    })
-                
-                # Ensure we return the list for the formset
-                return initial_list
-
-        return initial
-
-    def get_form_kwargs(self, step=None):
-        kwargs = super().get_form_kwargs(step)
-        if step == '1':
-            # Pass form_kwargs_list for each form in the formset
-            initial = self.get_form_initial(step)
-            kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
-            # Pass the current user to each individual form in the formset
-            kwargs['form_kwargs'] = {'user': self.request.user}
-        
-        if step == '0':
-            kwargs['user'] = self.request.user
-        return kwargs
-
-    def get_context_data(self, form, **kwargs):
-        context = super().get_context_data(form=form, **kwargs)
-
-        if self.steps.current == '1':
-            data_step0 = self.get_cleaned_data_for_step('0')
-            if data_step0:
-                context['selected_period'] = data_step0.get('period')
-
-        if self.steps.current == '0':
-            acayear = AcademicYear.objects.all()
-            period = LearningPeriod.objects.all().select_related('academic_year')
-            subject = Subject.objects.all()
-            context['selected_acayear'] = acayear
-            context['selected_period'] = period
-            context['selected_subject'] = subject
-
-        return context
-
-
-
-    def done(self, form_list, **kwargs):
-        form_data = form_list[0].cleaned_data
-
-        academic_year = form_data.get('academic_year')
-        level = form_data.get('level')
-        kelas = form_data.get('kelas')
-        subject = form_data.get('subject')
-        is_mid = form_data.get('is_mid')  # Boolean
-
-        # 1. Grab weightings filtered by is_mid — this is the key isolation
-        weightings = Weighting.objects.filter(
-            academic_year=academic_year,
-            level=level,
-            subject=subject,
-            is_mid=is_mid,  # <-- only mid OR final weights, never both
-        ).select_related('assignment')
-
-        # 2. Determine date boundary so mid scores don't bleed into final and vice versa
-        period = LearningPeriod.objects.filter(academic_year=academic_year).first()
-        if is_mid:
-            date_filter = {'assignment_head__date__lte': period.midterm_end_date}
-        else:
-            date_filter = {'assignment_head__date__gt': period.midterm_end_date}
-
-        # 3. Students scoped to the selected kelas AND subject
-        students = Student.objects.filter(
-            coursemember__course__subject=subject,
-            coursemember__course__academic_year=academic_year,
-            coursemember__course__level=level,
-            coursemember__course=kelas,  # ties to the specific class instance
-            coursemember__is_active=True,
-        ).distinct()
-
-        student_results = []
-
-        for student in students:
-            total_weighted_avg = 0.0
-            per_type_breakdown = []  # optional: useful for debugging in template
-
-            for weighting in weightings:
-                avg_result = AssignmentDetail.objects.filter(
-                    student=student,
-                    assignment_head__course__subject=subject,
-                    assignment_head__course__level=level,
-                    assignment_head__assignment=weighting.assignment,
-                    is_active=True,
-                    **date_filter,  # mid or final boundary applied here
-                ).aggregate(avg=Avg('score'))['avg']
-
-                avg_score = float(avg_result) if avg_result is not None else 0.0
-
-                # weight is stored as 0.70 (not 70), so multiply directly
-                contribution = avg_score * float(weighting.weight)
-                total_weighted_avg += contribution
-
-                per_type_breakdown.append({
-                    'assignment_type': weighting.assignment,
-                    'weight': weighting.weight,
-                    'avg_score': round(avg_score, 2),
-                    'contribution': round(contribution, 2),
-                })
-
-            student_results.append({
-                'nisn': getattr(student, 'nisn', '-'),
-                'student_name': str(student),
-                'kelas': kelas,
-                'subject': subject,
-                'weighted_avg': round(total_weighted_avg, 2),
-                'final_score': round(total_weighted_avg),  # int, ready for ReportcardGrade
-                'breakdown': per_type_breakdown,
-            })
-
-        context = {
-            'student_results': student_results,
-            'selected_academic_year': academic_year,
-            'selected_subject': subject,
-            'selected_kelas': kelas,
-            'selected_level': level,
-            'is_mid': is_mid,
-            'weightings': weightings,  # handy for rendering table headers
-            'period': period,
-        }
-
-
-
-        return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
+# class TotalGrading(LoginRequiredMixin, SessionWizardView):
+#     template_name = "partials/gradebook/total_grade.html"
+#
+#     form_list = [
+#         ("0", TotalGradesForm),
+#         ("1", TotalGradesFormSet)
+#     ]
+#
+#     def get_form_initial(self, step):
+#         initial = super().get_form_initial(step)
+#
+#         if step == '1':
+#             step0_data = self.get_cleaned_data_for_step('0')
+#             if step0_data:
+#                 period = step0_data.get('period')
+#
+#                 # Query StudentReportcard filtered by the selected period
+#                 student_rc = StudentReportcard.objects.filter(
+#                     period=period
+#                 ).select_related('student', 'student__registration_data')
+#
+#                 initial_list = []
+#                 for rc in student_rc:
+#                     initial_list.append({
+#                         'student': rc.student.id,
+#                         # The student_name and student_nisn fields in TotalGradesTestList
+#                         # will be populated by the form's __init__ logic using this ID
+#                     })
+#
+#                 # Ensure we return the list for the formset
+#                 return initial_list
+#
+#         return initial
+#
+#     def get_form_kwargs(self, step=None):
+#         kwargs = super().get_form_kwargs(step)
+#         if step == '1':
+#             # Pass form_kwargs_list for each form in the formset
+#             initial = self.get_form_initial(step)
+#             kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
+#             # Pass the current user to each individual form in the formset
+#             kwargs['form_kwargs'] = {'user': self.request.user}
+#
+#         if step == '0':
+#             kwargs['user'] = self.request.user
+#         return kwargs
+#
+#     def get_context_data(self, form, **kwargs):
+#         context = super().get_context_data(form=form, **kwargs)
+#
+#         if self.steps.current == '1':
+#             data_step0 = self.get_cleaned_data_for_step('0')
+#             if data_step0:
+#                 context['selected_period'] = data_step0.get('period')
+#
+#         if self.steps.current == '0':
+#             acayear = AcademicYear.objects.all()
+#             period = LearningPeriod.objects.all().select_related('academic_year')
+#             subject = Subject.objects.all()
+#             context['selected_acayear'] = acayear
+#             context['selected_period'] = period
+#             context['selected_subject'] = subject
+#
+#         return context
+#
+#
+#
+#     def done(self, form_list, **kwargs):
+#         form_data = form_list[0].cleaned_data
+#
+#         academic_year = form_data.get('academic_year')
+#         level = form_data.get('level')
+#         kelas = form_data.get('kelas')
+#         subject = form_data.get('subject')
+#         is_mid = form_data.get('is_mid')  # Boolean
+#
+#         # 1. Grab weightings filtered by is_mid — this is the key isolation
+#         weightings = Weighting.objects.filter(
+#             academic_year=academic_year,
+#             level=level,
+#             subject=subject,
+#             is_mid=is_mid,  # <-- only mid OR final weights, never both
+#         ).select_related('assignment')
+#
+#         # 2. Determine date boundary so mid scores don't bleed into final and vice versa
+#         period = LearningPeriod.objects.filter(academic_year=academic_year).first()
+#         if is_mid:
+#             date_filter = {'assignment_head__date__lte': period.midterm_end_date}
+#         else:
+#             date_filter = {'assignment_head__date__gt': period.midterm_end_date}
+#
+#         # 3. Students scoped to the selected kelas AND subject
+#         students = Student.objects.filter(
+#             coursemember__course__subject=subject,
+#             coursemember__course__academic_year=academic_year,
+#             coursemember__course__level=level,
+#             coursemember__course=kelas,  # ties to the specific class instance
+#             coursemember__is_active=True,
+#         ).distinct()
+#
+#         student_results = []
+#
+#         for student in students:
+#             total_weighted_avg = 0.0
+#             per_type_breakdown = []  # optional: useful for debugging in template
+#
+#             for weighting in weightings:
+#                 avg_result = AssignmentDetail.objects.filter(
+#                     student=student,
+#                     assignment_head__course__subject=subject,
+#                     assignment_head__course__level=level,
+#                     assignment_head__assignment=weighting.assignment,
+#                     is_active=True,
+#                     **date_filter,  # mid or final boundary applied here
+#                 ).aggregate(avg=Avg('score'))['avg']
+#
+#                 avg_score = float(avg_result) if avg_result is not None else 0.0
+#
+#                 # weight is stored as 0.70 (not 70), so multiply directly
+#                 contribution = avg_score * float(weighting.weight)
+#                 total_weighted_avg += contribution
+#
+#                 per_type_breakdown.append({
+#                     'assignment_type': weighting.assignment,
+#                     'weight': weighting.weight,
+#                     'avg_score': round(avg_score, 2),
+#                     'contribution': round(contribution, 2),
+#                 })
+#
+#             student_results.append({
+#                 'nisn': getattr(student, 'nisn', '-'),
+#                 'student_name': str(student),
+#                 'kelas': kelas,
+#                 'subject': subject,
+#                 'weighted_avg': round(total_weighted_avg, 2),
+#                 'final_score': round(total_weighted_avg),  # int, ready for ReportcardGrade
+#                 'breakdown': per_type_breakdown,
+#             })
+#
+#         context = {
+#             'student_results': student_results,
+#             'selected_academic_year': academic_year,
+#             'selected_subject': subject,
+#             'selected_kelas': kelas,
+#             'selected_level': level,
+#             'is_mid': is_mid,
+#             'weightings': weightings,  # handy for rendering table headers
+#             'period': period,
+#         }
+#
+#
+#
+#         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
 
 
 def get_subject_totalg(request):
@@ -3533,10 +3534,33 @@ import json
 from django.core.serializers.json import DjangoJSONEncoder
 
 # KALKULASI NILAI AKHIR (UTS & UAS)
+def get_effective_weightings(academic_year, level, period, is_mid, subject):
+    """
+    Returns the Weighting queryset that should apply for this subject.
+    Prefers subject-specific rows; falls back to subject=None (global) rows
+    if none exist for this specific academic_year/level/period/is_mid/subject.
+    """
+    subject_specific = Weighting.objects.filter(
+        academic_year=academic_year, level=level, period=period,
+        is_mid=is_mid, subject=subject,
+    ).select_related('assignment')
+
+    if subject_specific.exists():
+        return subject_specific
+
+    return Weighting.objects.filter(
+        academic_year=academic_year, level=level, period=period,
+        is_mid=is_mid, subject__isnull=True,
+    ).select_related('assignment')
+
+
+def weighting_exists_for(academic_year, level, period, is_mid, subject):
+    """Existence check respecting the same fallback rule."""
+    return get_effective_weightings(academic_year, level, period, is_mid, subject).exists()
+
+
 def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period, course=None):
-    # 1. AMBIL BOBOT NILAI YANG AKTIF
-    weightings = Weighting.objects.filter(academic_year=academic_year, level=level, subject=subject, period=period,
-                                          is_mid=is_mid)
+    weightings = get_effective_weightings(academic_year, level, period, is_mid, subject)
     weight_map = {w.assignment_id: float(w.weight) for w in weightings}
 
     assign_type_map = {
@@ -3547,23 +3571,15 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     if not weight_map:
         return [], None
 
-    # 2. TENTUKAN RENTANG TANGGAL PERIODE (TERM / SEMESTER)
-    terms = LearningPeriod.objects.filter(academic_year=academic_year, date_start__lte=period.date_end,
-                                          date_end__gte=period.date_start, period_name__icontains='term').order_by('date_start')
-
-    # print("============= DEBUG TANGGAL =============")
-    # print(f"Periode yang dicek: {period.period_name}")
-    # print(f"Academic Year: {academic_year}")
-    # print(f"Start: {period.date_start}, End: {period.date_end}")
-    # print(f"Hasil Query 'terms': {terms}")
-    # print("=========================================")
+    terms = LearningPeriod.objects.filter(
+        academic_year=academic_year, date_start__lte=period.date_end,
+        date_end__gte=period.date_start, period_name__icontains='term'
+    ).order_by('date_start')
 
     term_period = terms.first() if is_mid else terms.last()
     term_period = term_period or period
-
     all_terms = list(terms)
 
-    # 3. AMBIL RATA-RATA NILAI TUGAS MURID LANGSUNG DARI DB
     grades_data = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
         assignment_head__course__academic_year=academic_year,
@@ -3587,8 +3603,6 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     ).values('student_id', 'score', 'assignment_head__topic', 'assignment_head__date',
               'assignment_head__assignment__short_name', 'assignment_head__assignment__name')
 
-    # group by student_id in Python — O(n) dict lookup, zero extra queries
-    from collections import defaultdict
     scores_by_student = defaultdict(list)
     for row in all_individual_scores:
         scores_by_student[row['student_id']].append({
@@ -3599,23 +3613,21 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'score': float(row['score']),
         })
 
-    # 4. KHUSUS AKHIR SEMESTER (UAS): TARIK NILAI UTS (30%) DARI DB
     uts_scores = {}
     uts_weight = 0.0
 
     if not is_mid:
-        # Ambil bobot UTS-nya
-        uts_w_obj = Weighting.objects.filter(academic_year=academic_year, level=level, subject=subject, period=period,
-                                             is_mid=True, assignment__short_name='SUMM').first()
+        uts_weightings = get_effective_weightings(academic_year, level, period, True, subject)
+        uts_w_obj = uts_weightings.filter(assignment__short_name='SUMM').first()
         if uts_w_obj:
             uts_weight = float(uts_w_obj.weight) / 100.0 if float(uts_w_obj.weight) > 1 else float(uts_w_obj.weight)
 
-        # Ambil semua nilai rapot UTS yang dulu pernah di-save
-        uts_grades = ReportcardGrade.objects.filter(reportcard__academic_year=academic_year, reportcard__period=period,
-                                                    reportcard__is_mid=True, subject=subject)
+        uts_grades = ReportcardGrade.objects.filter(
+            reportcard__academic_year=academic_year, reportcard__period=period,
+            reportcard__is_mid=True, subject=subject
+        )
         uts_scores = {g.reportcard.student_id: float(g.final_score) for g in uts_grades}
 
-    # 5. HITUNG TOTAL NILAI AKHIR PER MURID
     student_records = {}
     for row in grades_data:
         s_id = row['student_id']
@@ -3629,22 +3641,20 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         student_records[s_id]['count'] += 1
         student_records[s_id]['weighted_sum'] += (score * weight)
 
-    # 6. BUNGKUS HASIL AKHIR UNTUK DITAMPILKAN KE LAYAR
     results = []
     students = {s.id: s for s in Student.objects.filter(id__in=student_records.keys())}
 
     for s_id, record in student_records.items():
         student_obj = students.get(s_id)
-        if not student_obj: continue
+        if not student_obj:
+            continue
 
         raw_avg = record['raw_sum'] / record['count'] if record['count'] > 0 else 0
         final_score = record['weighted_sum']
 
-        # JIKA UAS: Tambahkan nilai UTS (Hasil kali Nilai UTS * 30%)
         if not is_mid:
             final_score += (uts_scores.get(s_id, 0.0) * uts_weight)
 
-        # build breakdown list for display
         breakdown = []
         for assign_id, weight in weight_map.items():
             assign_type = assign_type_map.get(assign_id)
@@ -3661,7 +3671,6 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
                 'weighted': round(type_avg * weight, 2),
             })
 
-        # per-term breakdown — one entry per term
         term_breakdown = []
         for term in all_terms:
             term_grades = AssignmentDetail.objects.filter(
@@ -3688,7 +3697,6 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
                 'rows': term_rows,
             })
 
-        # UTS entry for UAS breakdown
         uts_breakdown = None
         if not is_mid and uts_scores.get(s_id):
             uts_breakdown = {
@@ -3878,14 +3886,14 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
 
 
         # pengecekan jika ada data Weighting
-        if not weighting_exists:
-            messages.error(
-                self.request,
-                f"No grading weights have been set up for {subject} "
-                f"({level}, {period}, {'Mid Term' if is_mid else 'Final Term'}). "
-                f"Please add a Weighting entry in the admin panel before calculating."
-            )
-            return redirect('assignment-avg-wizard')
+        # if not weighting_exists:
+        #     messages.error(
+        #         self.request,
+        #         f"No grading weights have been set up for {subject} "
+        #         f"({level}, {period}, {'Mid Term' if is_mid else 'Final Term'}). "
+        #         f"Please add a Weighting entry in the admin panel before calculating."
+        #     )
+        #     return redirect('assignment-avg-wizard')
 
         student_results, decided_period = calculate_student_averages_optimized(
             academic_year=academic_year, subject=subject, level=level,
@@ -5262,6 +5270,17 @@ def print_midterm_report(request, pk):
     )
     student = reportcard.student
     reg = student.registration_data
+    show_notes = not reportcard.is_mid
+
+    terms = LearningPeriod.objects.filter(
+        academic_year=reportcard.academic_year,
+        date_start__lte=reportcard.period.date_end,
+        date_end__gte=reportcard.period.date_start,
+        period_name__icontains='term'
+    ).order_by('date_start')
+
+    term_period = terms.first() if reportcard.is_mid else terms.last()
+    term_period = term_period or reportcard.period
 
     student_class = ClassMember.objects.filter(
         student=student, is_active=True
@@ -5295,6 +5314,11 @@ def print_midterm_report(request, pk):
         student=student, is_active=True, course__subject__is_activity=True
     ).select_related('course', 'course__subject')
 
+    # PROPER QUERY
+#     activity_courses = StudentReportExtra.objects.filter(
+#     reportcard=reportcard, extra_type='EK'
+# ).select_related('reportcard')
+
     extra_scores = list(StudentReportExtra.objects.filter(
         reportcard=reportcard, extra_type='EK'
     ))
@@ -5319,6 +5343,8 @@ def print_midterm_report(request, pk):
         student=student,
         attendance_date__gte=reportcard.period.date_start,
         attendance_date__lte=reportcard.period.date_end,
+        # attendance_date__gte=term_period.date_start,
+        # attendance_date__lte=term_period.date_end,
     )
     attendance_summary = {
         'S': attendance.filter(attendance_type='S').count(),
@@ -5401,10 +5427,17 @@ def print_midterm_report(request, pk):
     else:
         grade_data = [['No', 'Mata Pelajaran', 'MMK', 'Nilai', 'Predikat']]
 
+    # for i, g in enumerate(grades, start=1):
+    #     row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
+    #     if show_notes:
+    #         row.append(Paragraph(g.teacher_notes or '-', styles['label']))
+    #     grade_data.append(row)
     for i, g in enumerate(grades, start=1):
-        row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
         if show_notes:
+            row = [str(i), g.subject.subject_name, '82', str(g.final_score)]
             row.append(Paragraph(g.teacher_notes or '-', styles['label']))
+        else:
+            row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
         grade_data.append(row)
 
     if show_notes:

@@ -52,7 +52,7 @@ class Weighting(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
     period = models.ForeignKey(LearningPeriod, on_delete=models.CASCADE)
     level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE)
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, blank=True, null=True, on_delete=models.CASCADE)
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)
     is_mid = models.BooleanField(default=False)
     weight = models.DecimalField(max_digits=2, decimal_places=2, default=0.0)
