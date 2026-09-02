@@ -121,6 +121,9 @@ urlpatterns = [
     path('midterm-report-select/', views.midterm_report_select, name='midterm-report-select'),
 
     path('cpmp-create/', views.cpmp_create, name='cpmp-create'),
+    path('cpmp-edit/', views.get_cpmp_edit, name='cpmp-edit'),
+    path('cpmp-delete/<int:pk>/', views.delete_cpmp_single, name='delete_cpmp_single'),
+    path('cpmp-save/', views.save_cpmp_list, name='save_cpmp_list'),
 ]
 
 

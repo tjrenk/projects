@@ -1355,11 +1355,12 @@ def get_assignment_category_ge(request):
     # OOB: refresh CPMP target too, same filter logic as get_cpmp_target_ge
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     subject_id = request.GET.get('0-subject') or request.GET.get('subject')
+    level_id = request.GET.get('0-level') or request.GET.get('level')
     selected_cpmp_target = request.GET.getlist('0-cpmp_target') or request.GET.getlist('cpmp_target')
 
-    if acayear_id and subject_id:
+    if acayear_id and subject_id and level_id:
         cpmp_ids = CapaianPemelajaranMataPelajaran.objects.filter(
-            academic_year_id=acayear_id, subject_id=subject_id
+            academic_year_id=acayear_id, subject_id=subject_id, level_id=level_id
         ).values_list('id', flat=True).distinct()
         cpmp_trg = CapaianPemelajaranMataPelajaran.objects.filter(id__in=cpmp_ids)
     else:
@@ -1423,11 +1424,14 @@ def get_cpmp_target_ge(request):
     subject_id = (request.GET.get('0-subject')
                   or request.GET.get('1-subject')
                   or request.GET.get('subject'))
+    level_id = (request.GET.get('0-level')
+                  or request.GET.get('1-level')
+                  or request.GET.get('level'))
 
     if course_id:
         # filter by course directly — most precise
         cpmp_ids = CapaianPemelajaranMataPelajaran.objects.filter(
-    academic_year_id=acayear_id, subject_id=subject_id
+    academic_year_id=acayear_id, subject_id=subject_id, level_id=level_id
 )
         cpmp_trg = CapaianPemelajaranMataPelajaran.objects.filter(id__in=cpmp_ids)
     elif acayear_id:
@@ -5655,3 +5659,88 @@ def midterm_report_select(request):
     })
 
 
+def get_cpmp_edit(request):
+    form = GetCpmpListForEdit(user=request.user)
+    acayear_id = request.GET.get('academic_year')
+    level_id = request.GET.get('level')
+    subject_id = request.GET.get('subject')
+
+    selected_cpmp = CapaianPemelajaranMataPelajaran.objects.none()
+    if acayear_id and level_id and subject_id:
+        selected_cpmp = CapaianPemelajaranMataPelajaran.objects.filter(
+            academic_year_id=acayear_id,
+            level_id=level_id,
+            subject_id=subject_id,
+        ).select_related('academic_year', 'level', 'subject')
+
+    return render(request, 'partials/gradebook/cpmp_edit.html', {
+        'form': form,
+        'selected_cpmp': selected_cpmp,
+    })
+
+from django.views.decorators.http import require_POST
+@require_POST
+def delete_cpmp_single(request, pk):
+    CapaianPemelajaranMataPelajaran.objects.filter(pk=pk).delete()
+    return HttpResponse(status=204)
+
+def get_cpmp_edit(request):
+    form = GetCpmpListForEdit(user=request.user)
+    acayear_id = request.GET.get('academic_year')
+    level_id = request.GET.get('level')
+    subject_id = request.GET.get('subject')
+
+    queryset = CapaianPemelajaranMataPelajaran.objects.none()
+    if acayear_id and level_id and subject_id:
+        queryset = CapaianPemelajaranMataPelajaran.objects.filter(
+            academic_year_id=acayear_id,
+            level_id=level_id,
+            subject_id=subject_id,
+        ).select_related('academic_year', 'level', 'subject')
+
+    formset = CpmpFormSet(queryset=queryset, prefix='cpmp')
+
+    return render(request, 'partials/gradebook/cpmp_edit.html', {
+        'form': form,
+        'formset': formset,
+        'filter_academic_year': acayear_id,
+        'filter_level': level_id,
+        'filter_subject': subject_id,
+    })
+
+
+@require_POST
+def save_cpmp_list(request):
+    formset = CpmpFormSet(request.POST, prefix='cpmp')
+    if formset.is_valid():
+        formset.save()
+        log_activity(request.user, formset.forms[0].instance, 'change', "Updated CPMP targets via inline edit") if formset.forms else None
+    else:
+        logger.warning("CPMP formset errors: %s", formset.errors) if 'logger' in dir() else None
+
+    return _rerender_cpmp_edit(request)
+
+
+def _rerender_cpmp_edit(request):
+    form = GetCpmpListForEdit(user=request.user)
+    acayear_id = request.POST.get('academic_year')
+    level_id = request.POST.get('level')
+    subject_id = request.POST.get('subject')
+
+    queryset = CapaianPemelajaranMataPelajaran.objects.none()
+    if acayear_id and level_id and subject_id:
+        queryset = CapaianPemelajaranMataPelajaran.objects.filter(
+            academic_year_id=acayear_id,
+            level_id=level_id,
+            subject_id=subject_id,
+        ).select_related('academic_year', 'level', 'subject')
+
+    formset = CpmpFormSet(queryset=queryset, prefix='cpmp')
+
+    return render(request, 'partials/gradebook/cpmp_edit.html', {
+        'form': form,
+        'formset': formset,
+        'filter_academic_year': acayear_id,
+        'filter_level': level_id,
+        'filter_subject': subject_id,
+    })

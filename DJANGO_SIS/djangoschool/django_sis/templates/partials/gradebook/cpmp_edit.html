@@ -1,0 +1,113 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<style>
+.sticky { position: sticky; }
+</style>
+
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Edit Lesson Plan</div>
+
+    <div class="card-body bg-base-100 border-base-200">
+        <fieldset class="module aligned mb-4 overflow-visible">
+
+            <form id="lesson-plan-form" method="post" class="mt-4">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                <div class="alert alert-error mb-4">
+                    <strong>Errors:</strong> {{ form.errors }}
+                </div>
+                {% endif %}
+
+                <div class="row">
+                    <div class="col-md-8 offset-md-2">
+                        <fieldset class="module aligned mb-4 overflow-visible">
+
+                            {% for field in form %}
+                            <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                <div class="mb-1 basis-full md:flex-1">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    <div class="error">{{ field.errors }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+<button type="button"
+        class="btn-sm btn-primary btn rounded-md legitRipple"
+        hx-get="{% url 'cpmp-edit' %}"
+        hx-include="closest form"
+        hx-select="#cpmp-table-container"
+        hx-target="#cpmp-table-container"
+        hx-swap="outerHTML">
+    Show CPMP List
+</button>
+                        </fieldset>
+                    </div>
+                </div>
+
+            </form>
+
+        </fieldset>
+    </div>
+
+    <div class="card-body bg-base-100 border-base-200">
+        <form id="cpmp-formset-form" method="post">
+            {% csrf_token %}
+            {{ formset.management_form }}
+            <input type="hidden" name="academic_year" value="{{ filter_academic_year }}">
+            <input type="hidden" name="level" value="{{ filter_level }}">
+            <input type="hidden" name="subject" value="{{ filter_subject }}">
+
+            <div id="cpmp-table-container" class="mt-6 overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th>Academic Year</th>
+                            <th>Level</th>
+                            <th>Subject</th>
+                            <th>CPMP Text</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in formset %}
+                        <tr id="cpmp-row-{{ f.instance.pk }}">
+                            <td>{{ f.id }}{{ f.academic_year }}</td>
+                            <td>{{ f.level }}</td>
+                            <td>{{ f.subject }}</td>
+                            <td>{{ f.text }}</td>
+                            <td>
+                                <button type="button"
+                                        hx-post="{% url 'delete_cpmp_single' f.instance.pk %}"
+                                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                        hx-confirm="Delete this CPMP target?"
+                                        hx-target="#cpmp-row-{{ f.instance.pk }}"
+                                        hx-swap="delete"
+                                        class="btn-sm btn-error btn rounded-md legitRipple">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-base-content/60">No CPMP targets found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex gap-2 mt-4">
+                <button type="button"
+                        hx-post="{% url 'save_cpmp_list' %}"
+                        hx-include="closest form"
+                        hx-select="#cpmp-table-container"
+                        hx-target="#cpmp-table-container"
+                        hx-swap="outerHTML"
+                        class="btn-sm btn-success btn rounded-md legitRipple">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
