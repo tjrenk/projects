@@ -150,6 +150,14 @@ input[name$="-student_name"] {
                                     </div>
                                 </div>
 
+                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
+                                    <div class="mb-1 basis-full md:flex-1">
+                                        {{ wizard.form.is_mid.label }}
+                                        {{ wizard.form.is_mid }}
+                                        <div class="error">{{ wizard.form.is_mid.errors }}</div>
+                                    </div>
+                                </div>
+
                             </fieldset>
                         </div>
                     </div>

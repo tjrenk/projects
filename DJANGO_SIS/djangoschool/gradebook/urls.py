@@ -124,6 +124,11 @@ urlpatterns = [
     path('cpmp-edit/', views.get_cpmp_edit, name='cpmp-edit'),
     path('cpmp-delete/<int:pk>/', views.delete_cpmp_single, name='delete_cpmp_single'),
     path('cpmp-save/', views.save_cpmp_list, name='save_cpmp_list'),
+
+    # EXPERIMENTAL: EDIT LESSON PLAN DIRECTLY IN GRADE ENTRY
+    path('cpmp-row-ge/<int:pk>', views.cpmp_row_ge, name='cpmp-row-ge'),
+    path('cpmp-edit-ge/<int:pk>', views.cpmp_edit_ge, name='cpmp-edit-ge'),
+    path('cpmp-delete-ge/<int:pk>', views.cpmp_delete_ge, name='cpmp-delete-ge'),
 ]
 
 

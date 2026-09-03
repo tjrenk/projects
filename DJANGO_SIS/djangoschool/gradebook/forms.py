@@ -1140,14 +1140,19 @@ class RubricEntryForm(forms.ModelForm):
     )
 
 
+
+
         
     class Meta:
         model = ReportcardBehaviour
-        fields = ['academic_year', 'period', 'level']
+        fields = ['academic_year', 'period', 'level', 'is_mid']
         # labels = {
         #     'academic_year': 'Tahun Ajaran',
         #     'period': 'Periode Pembelajaran / Semester',
         #     'level': 'Level Pembelajaran'
+        # }
+        # widget = {
+        #     'is_mid': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         # }
     
     def __init__(self, *args, **kwargs):
@@ -2903,9 +2908,9 @@ CpmpFormSet = modelformset_factory(
     fields=['academic_year', 'level', 'subject', 'text'],
     extra=0,
     widgets={
-        'academic_year': forms.Select(attrs={'class': 'select select-bordered select-sm'}),
-        'level': forms.Select(attrs={'class': 'select select-bordered select-sm'}),
-        'subject': forms.Select(attrs={'class': 'select select-bordered select-sm'}),
+        'academic_year': forms.HiddenInput(),
+        'level': forms.HiddenInput(),
+        'subject': forms.HiddenInput(),
         'text': forms.TextInput(attrs={'class': 'input input-bordered input-sm w-full'}),
     },
 )

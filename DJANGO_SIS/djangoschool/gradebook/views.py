@@ -2280,7 +2280,7 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
             academic_year=form_data_0['academic_year'],
             period=form_data_0['period'],
             level=form_data_0['level'],
-            is_mid=False
+            is_mid=form_data_0['is_mid']
         )
 
         # 2. DO NOT create score=0 entries here if the individual
@@ -5659,30 +5659,30 @@ def midterm_report_select(request):
     })
 
 
-def get_cpmp_edit(request):
-    form = GetCpmpListForEdit(user=request.user)
-    acayear_id = request.GET.get('academic_year')
-    level_id = request.GET.get('level')
-    subject_id = request.GET.get('subject')
-
-    selected_cpmp = CapaianPemelajaranMataPelajaran.objects.none()
-    if acayear_id and level_id and subject_id:
-        selected_cpmp = CapaianPemelajaranMataPelajaran.objects.filter(
-            academic_year_id=acayear_id,
-            level_id=level_id,
-            subject_id=subject_id,
-        ).select_related('academic_year', 'level', 'subject')
-
-    return render(request, 'partials/gradebook/cpmp_edit.html', {
-        'form': form,
-        'selected_cpmp': selected_cpmp,
-    })
+# def get_cpmp_edit(request):
+#     form = GetCpmpListForEdit(user=request.user)
+#     acayear_id = request.GET.get('academic_year')
+#     level_id = request.GET.get('level')
+#     subject_id = request.GET.get('subject')
+#
+#     selected_cpmp = CapaianPemelajaranMataPelajaran.objects.none()
+#     if acayear_id and level_id and subject_id:
+#         selected_cpmp = CapaianPemelajaranMataPelajaran.objects.filter(
+#             academic_year_id=acayear_id,
+#             level_id=level_id,
+#             subject_id=subject_id,
+#         ).select_related('academic_year', 'level', 'subject')
+#
+#     return render(request, 'partials/gradebook/cpmp_edit.html', {
+#         'form': form,
+#         'selected_cpmp': selected_cpmp,
+#     })
 
 from django.views.decorators.http import require_POST
 @require_POST
 def delete_cpmp_single(request, pk):
     CapaianPemelajaranMataPelajaran.objects.filter(pk=pk).delete()
-    return HttpResponse(status=204)
+    return HttpResponse(status=200)
 
 def get_cpmp_edit(request):
     form = GetCpmpListForEdit(user=request.user)
@@ -5706,19 +5706,10 @@ def get_cpmp_edit(request):
         'filter_academic_year': acayear_id,
         'filter_level': level_id,
         'filter_subject': subject_id,
+        'academic_year': CapaianPemelajaranMataPelajaran.objects.values_list('academic_year', flat=True),
+        'level': CapaianPemelajaranMataPelajaran.objects.values_list('level', flat=True),
+        'subject': CapaianPemelajaranMataPelajaran.objects.values_list('subject', flat=True)
     })
-
-
-@require_POST
-def save_cpmp_list(request):
-    formset = CpmpFormSet(request.POST, prefix='cpmp')
-    if formset.is_valid():
-        formset.save()
-        log_activity(request.user, formset.forms[0].instance, 'change', "Updated CPMP targets via inline edit") if formset.forms else None
-    else:
-        logger.warning("CPMP formset errors: %s", formset.errors) if 'logger' in dir() else None
-
-    return _rerender_cpmp_edit(request)
 
 
 def _rerender_cpmp_edit(request):
@@ -5728,7 +5719,7 @@ def _rerender_cpmp_edit(request):
     subject_id = request.POST.get('subject')
 
     queryset = CapaianPemelajaranMataPelajaran.objects.none()
-    if acayear_id and level_id and subject_id:
+    if acayear_id and level_id and subject_id and acayear_id.isdigit() and level_id.isdigit() and subject_id.isdigit():
         queryset = CapaianPemelajaranMataPelajaran.objects.filter(
             academic_year_id=acayear_id,
             level_id=level_id,
@@ -5743,4 +5734,82 @@ def _rerender_cpmp_edit(request):
         'filter_academic_year': acayear_id,
         'filter_level': level_id,
         'filter_subject': subject_id,
+    })
+
+from django.contrib import messages
+
+@require_POST
+def save_cpmp_list(request):
+    formset = CpmpFormSet(request.POST, prefix='cpmp')
+    cpmp = CapaianPemelajaranMataPelajaran.objects.all()
+    if formset.is_valid():
+        saved_instances = formset.save()
+        for cpmp in saved_instances:
+            log_activity(request.user, cpmp, 'change', f"NV: {cpmp.text}")
+        messages.success(request, "Lesson Plan data successfully updated!")
+    else:
+        print(formset.errors)
+        logging.warning("CPMP formset errors: %s", formset.errors)
+        messages.error(request, "Failed to update Lesson Plan data. Please check the errors and try again.")
+
+    return _rerender_cpmp_edit(request)
+
+
+
+
+
+
+# EDIT LANGSUNG DI GRADE ENTRY
+def _render_cpmp_row(request, cpmp):
+    selected_cpmp_target = (request.POST.getlist('0-cpmp_target')
+                             or request.GET.getlist('0-cpmp_target')
+                             or request.GET.getlist('cpmp_target'))
+    return render(request, "partials/gradebook/gradeentry_partials/cpmp_row.html", {
+        'target': cpmp,
+        'selected_cpmp_target': selected_cpmp_target,
+    })
+
+
+@login_required
+def cpmp_row_ge(request, pk):
+    # Plain re-render, used to "cancel" out of edit/delete mode back to display mode
+    cpmp = get_object_or_404(CapaianPemelajaranMataPelajaran, pk=pk)
+    return _render_cpmp_row(request, cpmp)
+
+
+@login_required
+def cpmp_edit_ge(request, pk):
+    cpmp = get_object_or_404(CapaianPemelajaranMataPelajaran, pk=pk)
+
+    if request.method == 'POST':
+        new_text = request.POST.get('text', '').strip()
+        if new_text:
+            cpmp.text = new_text
+            cpmp.save(update_fields=['text'])
+            log_activity(request.user, cpmp, 'change', f"NV via GE: {cpmp.text}")
+        return _render_cpmp_row(request, cpmp)
+
+    return render(request, "partials/gradebook/gradeentry_partials/cpmp_row_edit.html", {
+        'target': cpmp,
+    })
+
+
+@login_required
+def cpmp_delete_ge(request, pk):
+    cpmp = get_object_or_404(CapaianPemelajaranMataPelajaran, pk=pk)
+    in_use = AssignmentHead.objects.filter(cpmp_target=cpmp).exists()
+
+    if request.method == 'POST':
+        if in_use:
+            return render(request, "partials/gradebook/gradeentry_partials/cpmp_row_confirm_delete.html", {
+                'target': cpmp,
+                'in_use': in_use,
+            })
+        cpmp.delete()
+        log_activity(request.user, cpmp, 'delete', "Deleted CPMP entry via Grade Entry")
+        return HttpResponse('')  # row is gone, nothing to swap back in
+
+    return render(request, "partials/gradebook/gradeentry_partials/cpmp_row_confirm_delete.html", {
+        'target': cpmp,
+        'in_use': in_use,
     })

@@ -1,0 +1,22 @@
+<div id="cpmp-row-{{ target.id }}" style="display:flex;align-items:center;gap:6px;">
+    <span class="text-sm flex-1">
+        {% if in_use %}
+            Can't delete — already used in existing grade entries.
+        {% else %}
+            Delete "{{ target.text|truncatechars:40 }}"?
+        {% endif %}
+    </span>
+
+    {% if not in_use %}
+    <button type="button" class="btn-xs btn-error btn rounded-md legitRipple"
+            hx-post="{% url 'cpmp-delete-ge' target.id %}"
+            hx-target="#cpmp-row-{{ target.id }}" hx-swap="outerHTML">
+        Confirm
+    </button>
+    {% endif %}
+    <button type="button" class="btn-xs btn-ghost btn rounded-md legitRipple"
+            hx-get="{% url 'cpmp-row-ge' target.id %}"
+            hx-target="#cpmp-row-{{ target.id }}" hx-swap="outerHTML">
+        Cancel
+    </button>
+</div>

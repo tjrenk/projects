@@ -1,0 +1,15 @@
+<div id="cpmp-row-{{ target.id }}" style="display:flex;align-items:center;gap:6px;">
+    <input type="text" id="cpmp-edit-input-{{ target.id }}" name="text" value="{{ target.text }}"
+           class="input input-sm input-bordered flex-1">
+    <button type="button" class="btn-xs btn-success btn rounded-md legitRipple"
+            hx-post="{% url 'cpmp-edit-ge' target.id %}"
+            hx-include="#cpmp-edit-input-{{ target.id }}"
+            hx-target="#cpmp-row-{{ target.id }}" hx-swap="outerHTML">
+        Save
+    </button>
+    <button type="button" class="btn-xs btn-ghost btn rounded-md legitRipple"
+            hx-get="{% url 'cpmp-row-ge' target.id %}"
+            hx-target="#cpmp-row-{{ target.id }}" hx-swap="outerHTML">
+        Cancel
+    </button>
+</div>

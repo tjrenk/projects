@@ -40,7 +40,7 @@
         hx-select="#cpmp-table-container"
         hx-target="#cpmp-table-container"
         hx-swap="outerHTML">
-    Show CPMP List
+    Show Lesson Plans
 </button>
                         </fieldset>
                     </div>
@@ -50,16 +50,22 @@
 
         </fieldset>
     </div>
-
+<div id="cpmp-notification" class="mb-4" hx-swap-oob="true">
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+        <span>{{ message }}</span>
+    </div>
+    {% endfor %}
+</div>
     <div class="card-body bg-base-100 border-base-200">
         <form id="cpmp-formset-form" method="post">
             {% csrf_token %}
-            {{ formset.management_form }}
-            <input type="hidden" name="academic_year" value="{{ filter_academic_year }}">
-            <input type="hidden" name="level" value="{{ filter_level }}">
-            <input type="hidden" name="subject" value="{{ filter_subject }}">
 
             <div id="cpmp-table-container" class="mt-6 overflow-x-auto">
+                    {{ formset.management_form }}
+                    <input type="hidden" name="academic_year" value="{{ filter_academic_year|default_if_none:'' }}">
+                    <input type="hidden" name="level" value="{{ filter_level|default_if_none:'' }}">
+                    <input type="hidden" name="subject" value="{{ filter_subject|default_if_none:'' }}">
                 <table class="table table-zebra w-full">
                     <thead>
                         <tr>
@@ -73,9 +79,9 @@
                     <tbody>
                         {% for f in formset %}
                         <tr id="cpmp-row-{{ f.instance.pk }}">
-                            <td>{{ f.id }}{{ f.academic_year }}</td>
-                            <td>{{ f.level }}</td>
-                            <td>{{ f.subject }}</td>
+                            <td>{{ f.id }}{{ f.academic_year }} <span class="text-sm">{{ f.instance.academic_year }}</span></td>
+                            <td>{{ f.level }} <span class="text-sm">{{ f.instance.level }}</span></td>
+                            <td>{{ f.subject }} <span class="text-sm">{{ f.instance.subject }}</span></td>
                             <td>{{ f.text }}</td>
                             <td>
                                 <button type="button"
@@ -90,7 +96,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="5" class="text-center text-base-content/60">No CPMP targets found.</td></tr>
+                        <tr><td colspan="5" class="text-center text-base-content/60">No Lesson Plan data found.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
