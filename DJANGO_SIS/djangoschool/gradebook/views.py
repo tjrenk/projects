@@ -1874,6 +1874,8 @@ def ge_edit(request, pk):
         formset = AssignmentFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
+            if request.GET.get('next') == 'print':
+                return redirect('print-grade-list', pk=parent_head.pk)
             log_activity(request.user, parent_head, 'change', "Updated via Grade Entry form")
             return redirect('grade-entry-table')
     else:
@@ -2100,6 +2102,7 @@ def tc_del(request, pk):
     if request.method == 'POST':
         src.ht_comment = None
         src.save()
+        # log_activity(self.request.user, src, 'delete', "Deleted a comment")
         return redirect('report-card-table')
 
     # For a GET request, show the empty form
@@ -2190,7 +2193,7 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
                 behaviour__academic_year=data0['academic_year'],
                 behaviour__period=data0['period'],
                 behaviour__level=data0['level'],
-                behaviour__is_mid=False
+                behaviour__is_mid=data0['is_mid']
             ).values_list('student_id', flat=True).distinct()
 
             # filter by coursemember (child of Course)
@@ -2289,6 +2292,7 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         # if you have a status field on ReportcardBehaviour.
 
         # 3. Add a success message
+
         messages.success(self.request, "Class behavior grading has been finalized!")
 
         # 4. Redirect to wherever you want them to go next
@@ -2380,6 +2384,8 @@ def student_behavior_grading(request, pk):
     ay_id = get_id('academic_year')
     p_id = get_id('period')
     l_id = get_id('level')
+    is_mid_raw = get_id('is_mid')
+    is_mid = str(is_mid_raw).lower() in ('true', 'on', '1')
 
     # Ambil object untuk context template
     academic_year = AcademicYear.objects.filter(pk=ay_id).first()
@@ -2397,7 +2403,7 @@ def student_behavior_grading(request, pk):
         academic_year=academic_year,
         period=period,
         level=level,
-        is_mid=False
+        is_mid=is_mid
     )
 
     # LOGIC SIMPAN (POST) - Ini yang tadi kamu belum ada:
@@ -2551,10 +2557,14 @@ def rb_edit(request, pk):
         formset = BehaviourFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
-            log_activity(request.user, behaviour, 'change', "Updated student behaviour grades")
             messages.success(request, "Behaviour grades updated successfully!")
-            redirect_url = reverse('rubric-table')
-            return redirect(redirect_url)
+            # redirect_url = reverse('rubric-table')
+            # return redirect(redirect_url)
+            if request.GET.get('next') == 'print' and student:
+                pdf_url = reverse('rubric-pdf', kwargs={'pk': pk})
+                return redirect(f"{pdf_url}?student={student.pk}")
+            log_activity(request.user, formset, 'change', "Updated student behaviour grades")
+            return redirect('rubric-table')
     else:
         formset = BehaviourFormSet(queryset=queryset)
 
@@ -2648,30 +2658,30 @@ def rb_pdf(request, pk):
     flowables.append(Spacer(1, 1*cm))
 
     meta_data = [
-        ['Peserta Didik', ':', f"{student.registration_data.first_name} {student.registration_data.last_name}"],
-        ['Tahun Ajaran', ':', str(behaviour.academic_year)],
-        ['Semester', ':', behaviour.period.period_name],
-        ['Kelas', ':', str(student_class.kelas) if student_class else '-'],
-        ['Mid Semester', ':', 'Ya' if behaviour.is_mid else 'Tidak'],
+        ['Nama', ':', f"{student.registration_data.first_name} {student.registration_data.last_name}", 'Kelas', ':', str(student_class.kelas) if student_class else '-'],
+        ['NIS', ':', student.id_number, 'Semester', ':', behaviour.period.period_name],
+        ['NISN', ':', student.registration_data.nisn, 'Tahun Ajaran', ':', str(behaviour.academic_year)],
+        # ['Kelas', ':', str(student_class.kelas) if student_class else '-'],
+        # ['Mid Semester', ':', 'Ya' if behaviour.is_mid else 'Tidak'],
     ]
 
 
-    meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
+    meta_table = Table(meta_data, colWidths=[1.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.5 * cm])
     meta_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
     flowables.append(meta_table)
-    flowables.append(Spacer(1, 0.5*cm))
+    flowables.append(Spacer(0, 0.0 * cm))
 
     RUBRIC_TYPE_PDF_LABELS = {
-        "Spiritual": "Sikap Spiritual",
-        "Social": "Sikap Sosial",
+        "Spiritual": "A. SIKAP SPIRITUAL DAN KARAKTER",
+        "Social": "B. SIKAP SOSIAL",
     }
 
     RUBRIC_TYPE_ORDER = ["Spiritual", "Social"]

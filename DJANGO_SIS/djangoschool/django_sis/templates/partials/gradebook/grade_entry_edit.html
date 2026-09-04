@@ -119,7 +119,10 @@
 
     <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
         <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple">Save Grades</button>
-        <a href="{% url 'print-grade-list' pk=parent_head.pk %}" class="btn-sm btn-secondary btn rounded-md legitRipple"><i class="fa-solid fa-file-pdf"></i>Print PDF</a>
+<!--        <a href="{% url 'print-grade-list' pk=parent_head.pk %}" class="btn-sm btn-secondary btn rounded-md legitRipple"><i class="fa-solid fa-file-pdf"></i>Print PDF</a>-->
+        <button type="submit" formaction="?next=print" class="btn-sm btn-secondary btn rounded-md legitRipple">
+    <i class="fa-solid fa-file-pdf"></i> Print PDF
+</button>
         <a href="{% url 'grade-entry-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>
     </div>
     </div>

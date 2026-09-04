@@ -1182,6 +1182,7 @@ class RubricEntryForm(forms.ModelForm):
         period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
         kelas = data.get('0-kelas') or initial.get('kelas')
+        is_mid = data.get('0-is_mid') or initial.get('is_mid')
         
         # Period depends on Academic Year
         if acayear:

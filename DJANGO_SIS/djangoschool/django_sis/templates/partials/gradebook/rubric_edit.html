@@ -45,8 +45,13 @@
 <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
     <button type="submit" form="rubric-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">Save</button>
     <a href="{% url 'rubric-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>
-    <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
-        <i class="fa fa-file-pdf"></i> Print PDF
-    </a>
+<!--    <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple">-->
+<!--        <i class="fa fa-file-pdf"></i> Print PDF-->
+<!--    </a>-->
+    {% if student %}
+<button type="submit" form="rubric-edit-form" formaction="?next=print&student={{ student.pk }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
+    Print PDF
+</button>
+{% endif %}
 </div>
 {% endblock %}
