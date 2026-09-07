@@ -150,8 +150,8 @@ def get_pdf_styles():
         ),
         'footer': ParagraphStyle(
             'Footer', parent=base_styles['Normal'],
-            fontSize=6, fontName='Times-Italic',
-            alignment=TA_LEFT, textColor=colors.HexColor('#cfcfcf'),
+            fontSize=7, fontName='Times-Italic',
+            alignment=TA_LEFT, textColor=colors.HexColor('#e0e0e0'),
         ),
 
     }
@@ -600,7 +600,7 @@ def attendance(request):  # musti di cek ini kefilter berdasarkan guru apa kgk l
 def attendance_list_admin(request):
     attendance = StudentAttendance.objects.select_related('student')
 
-    pnation = Paginator(attendance, 15)  # Show 10 aktivitas per page
+    pnation = Paginator(attendance, 9)  # Show 10 aktivitas per page
     page = request.GET.get('page')
     pnation_attend = pnation.get_page(page)
 
@@ -1781,7 +1781,7 @@ def ge_table(request):
     ah = ah.order_by(order_field)
 
     # pagination — LAST
-    pnation = Paginator(ah, 15)
+    pnation = Paginator(ah, 9)
     pnation_ah = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/grade_entry_table.html', {
@@ -1987,7 +1987,7 @@ def tc_table(request):
 
     src = src.order_by(order_field)
 
-    pnation = Paginator(src, 15)
+    pnation = Paginator(src, 9)
     pnation_src = pnation.get_page(request.GET.get('page'))
 
     if homeroom_class:
@@ -2496,7 +2496,7 @@ def rb_table(request):
         'behaviour__level__grade_name',
     ).distinct().order_by(order_field)
 
-    pnation = Paginator(sessions, 15)
+    pnation = Paginator(sessions, 9)
     pnation_sessions = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/rubric_table.html', {
@@ -3182,7 +3182,7 @@ def report_extra_table(request):
 
     extras = extras.order_by(order_field)
 
-    pnation = Paginator(extras, 15)
+    pnation = Paginator(extras, 9)
     pnation_extras = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/report_extra_table.html', {
@@ -4468,7 +4468,7 @@ def get_student_pd(request):
 def pdev_table(request):
     srpc = ReportcardPersonalDev.objects.select_related('reporcard')
 
-    pnation = Paginator(srpc, 15)
+    pnation = Paginator(srpc, 9)
     pnation_srpc = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/personal_dev_table.html', {
@@ -4915,7 +4915,7 @@ def teacher_notes_table(request):
 
     notes = notes.order_by(order_field)
 
-    pnation = Paginator(notes, 15)
+    pnation = Paginator(notes, 9)
     pnation_notes = pnation.get_page(request.GET.get('page'))
 
 
@@ -5282,6 +5282,7 @@ def print_midterm_report(request, pk):
         ),
         pk=pk
     )
+    user = request.user
     student = reportcard.student
     reg = student.registration_data
     show_notes = not reportcard.is_mid
@@ -5591,7 +5592,8 @@ def print_midterm_report(request, pk):
     flowables.append(KeepTogether(signature_block))
     # flowables.append(Paragraph(f"Kepala Sekolah — {headmaster.full_name if headmaster else '-'}", styles['label']))
 
-    doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+    page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
     buf.seek(0)
 
     filename = f"midterm_{student.id_number}_{reportcard.period.period_name}.pdf"
@@ -5638,7 +5640,7 @@ def midterm_report_select(request):
 
     reportcards = reportcards.order_by(order_field)
 
-    pnation = Paginator(reportcards, 15)
+    pnation = Paginator(reportcards, 9)
     pnation_reportcards = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/midterm_report_select.html', {

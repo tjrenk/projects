@@ -103,7 +103,7 @@ def render_attendance_dashboard_widget(context):
     # 2. Handle Pagination
     # Note: Pagination on a dashboard can be tricky if multiple widgets use it.
     # If you just want the "Latest 10", you could skip Paginator and use [:10]
-    pnation = Paginator(attendance_qs, 15)
+    pnation = Paginator(attendance_qs, 9)
     page = request.GET.get('page')
     pnation_attend = pnation.get_page(page)
 

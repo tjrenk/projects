@@ -26,13 +26,7 @@
 
         <fieldset class="module aligned mb-4 overflow-visible">
 
-            {% if is_homeroom %}
-            <div class="flex gap-10 mb-6 text-sm">
-                <div style="font-size:20px;">
-                    <strong>Homeroom Class - {{ homeroom_class }}</strong>
-                </div>
-            </div>
-            {% endif %}
+
 
             {% if selected_student %}
             <div class="alert alert-info d-flex justify-content-between align-items-center mb-4">
@@ -53,6 +47,14 @@
                     {{ wizard.form.management_form }}
 
                     {% if wizard.form.forms %}
+
+                            {% if is_homeroom %}
+            <div class="flex gap-10 mb-6 text-sm">
+                <div style="font-size:20px;">
+                    <strong>Homeroom Class - {{ homeroom_class }}</strong>
+                </div>
+            </div>
+            {% endif %}
 
                         <div class="grid grid-cols-3 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
                             <div>
