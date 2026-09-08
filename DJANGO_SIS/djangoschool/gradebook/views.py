@@ -2653,7 +2653,7 @@ def rb_pdf(request, pk):
     #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
     #     styles['subtitle']
     # ))
-    sub_title_text = "1ST MID-TERM REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
+    sub_title_text = "1ST MID-SEMESTER REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
     flowables.append(Paragraph(sub_title_text, styles['title2']))
     flowables.append(Spacer(1, 1*cm))
 
@@ -5393,7 +5393,7 @@ def print_midterm_report(request, pk):
     flowables = [Spacer(1, 0.1*cm)]
 
     title_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
-    sub_title_text = "1ST MID-TERM REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
+    sub_title_text = "1ST MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
     flowables.append(Paragraph(title_text, styles['title']))
     flowables.append(Paragraph(sub_title_text, styles['title2']))
     flowables.append(Spacer(1, 0.3*cm))
@@ -5825,3 +5825,90 @@ def cpmp_delete_ge(request, pk):
         'target': cpmp,
         'in_use': in_use,
     })
+
+
+@login_required
+def cpmp_table(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'student':       'student__registration_data__first_name',
+        'academic_year': 'behaviour__academic_year__year',
+        'period':        'behaviour__period__period_name',
+        'is_mid':        'behaviour__is_mid',
+        'level':         'behaviour__level__grade_name',
+    }, default_sort='student')
+
+    reports = StudentBehaviourReport.objects.select_related(
+        'student__registration_data',
+        'behaviour__academic_year',
+        'behaviour__period',
+        'behaviour__level',
+    )
+
+    if teacher and not user.is_staff:
+        reports = reports.filter(
+            student__classmember__kelas__teacher=teacher,
+            student__classmember__is_active=True,
+        )
+
+    reports = apply_filters(reports, request, {
+        'year':   'behaviour__academic_year_id',
+        'period': 'behaviour__period_id',
+        'level':  'behaviour__level_id',
+    })
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        reports = reports.filter(
+            Q(student__registration_data__first_name__icontains=search_query) |
+            Q(student__registration_data__last_name__icontains=search_query) |
+            Q(student__id_number__icontains=search_query)
+        )
+
+    # Collapse to ONE row per student per behaviour session, instead of
+    # one row per individual rubric score
+    sessions = reports.values(
+        'student_id',
+        'student__id_number',
+        'student__registration_data__first_name',
+        'student__registration_data__last_name',
+        'behaviour_id',
+        'behaviour__academic_year__year',
+        'behaviour__period__period_name',
+        'behaviour__is_mid',
+        'behaviour__level__grade_name',
+    ).distinct().order_by(order_field)
+
+    pnation = Paginator(sessions, 9)
+    pnation_sessions = pnation.get_page(request.GET.get('page'))
+
+    # return render(request, 'partials/gradebook/rubric_table.html', {
+    #     'pnation_sessions': pnation_sessions,
+    #     'sort_by': sort_by,
+    #     'sort_dir': sort_dir,
+    #     'search_query': search_query,
+    #     'extra_filters': [
+    #         {
+    #             'label': 'Academic Year',
+    #             'param': 'year',
+    #             'options': AcademicYear.objects.all(),
+    #             'selected': request.GET.get('year', ''),
+    #         },
+    #         {
+    #             'label': 'Period',
+    #             'param': 'period',
+    #             'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+    #             'selected': request.GET.get('period', ''),
+    #         },
+    #         {
+    #             'label': 'Level',
+    #             'param': 'level',
+    #             'options': GradeLevel.objects.all(),
+    #             'selected': request.GET.get('level', ''),
+    #         },
+    #     ],
+    # })
+
+    return HttpResponse(status=204)

@@ -15,7 +15,9 @@
                 <div class="card-header bg-base-100 border-base-200 border-e">
                     <h3 class="collapse-title text-xl font-medium">{% trans "Filters" %}</h3>
                 </div>
-                <div class="card-body bg-base-100 border-base-200 border-e">
+                <div style="min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;" class="card-body bg-base-100 border-base-200 border-e">
                     {{ form.as_p }}
                 </div>
                 <div class="card-footer text-end">

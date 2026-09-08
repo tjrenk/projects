@@ -127,8 +127,8 @@ class CapaianPemelajaranMataPelajaran(models.Model):
     text = models.TextField(null=True, blank=True)
 
     class Meta:
-        verbose_name_plural = "Lesson Plans"
-        verbose_name = "Lesson Plan"
+        verbose_name_plural = "Learning Outcomes"
+        verbose_name = "Learning Outcome"
 
 class AssignmentHead(models.Model):
     assignment = models.ForeignKey(AssignmentType, on_delete=models.CASCADE)

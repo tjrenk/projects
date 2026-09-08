@@ -159,7 +159,7 @@ def get_student_counts(request):
     year = request.GET.get('year')
     queryset = ClassMember.objects.filter(is_active=True).select_related('student')
     if year:
-        queryset = queryset.filter(kelas__academic_year__year=year, kelas__is_home_class=True)
+        queryset = queryset.filter(kelas__academic_year__year=year)
     counts = queryset.values('kelas__name').annotate(count=Count('student')).order_by('kelas__name')
     
     labels = [item['kelas__name'] for item in counts]
