@@ -200,6 +200,7 @@
                                 {% elif user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rubric-table' or request.resolver_match.url_name == 'rubric-edit' or request.resolver_match.url_name == 'rubric-delete' %}active{% endif %}" href="{% url 'rubric-table' %}">Student Behavior Grades Table</a></li>
                                 {% endif %}
+
                             </ul>
                         </details>
                     </li>
@@ -213,6 +214,11 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if is_homeroom %}
+                            <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>
+                                {% elif user.is_staff %}
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>
+                                {% endif %}
                 </ul>
             </div>
             {% endif %}

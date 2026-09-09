@@ -129,6 +129,8 @@ urlpatterns = [
     path('cpmp-row-ge/<int:pk>', views.cpmp_row_ge, name='cpmp-row-ge'),
     path('cpmp-edit-ge/<int:pk>', views.cpmp_edit_ge, name='cpmp-edit-ge'),
     path('cpmp-delete-ge/<int:pk>', views.cpmp_delete_ge, name='cpmp-delete-ge'),
+
+    path('assignment-monitor/', views.HomeroomAssignmentMonitor.as_view(), name='assignment_monitor'),
 ]
 
 

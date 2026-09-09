@@ -45,7 +45,7 @@
         {% sortable_header 'assignment' 'Type' sort_by sort_dir %}
         {% sortable_header 'topic' 'Topic' sort_by sort_dir %}
         {% sortable_header 'max_score' 'Max Score' sort_by sort_dir %}
-        {% if user.is_staff %}
+        {% if not user.is_staff %}
         <th>Action</th>
         {% else %}
         <th></th>
@@ -60,7 +60,7 @@
                     <td class="flex-1"><strong>{{ ahead.assignment.name }}</strong></td>
                     <td class="flex-1"><strong>{{ ahead.topic }}</strong></td>
                     <td class="flex-1">{{ ahead.max_score }}</td>
-                    {% if user.is_staff %}
+                    {% if not user.is_staff %}
 <td class="flex-1">
     <a href="{% url 'ge-delete' ahead.id %}"
        title="Delete"

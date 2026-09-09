@@ -5168,6 +5168,156 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         "student__registration_data__last_name",
     ]
 
+class CourseGroupByGenerator(ReportGenerator):
+    def get_database_columns(self):
+        # pull course-relative fields into the row alongside Course's own concrete fields
+        return super().get_database_columns() + [
+            "subject__short_name",
+            "teacher__first_name",
+            "teacher__last_name",
+        ]
+
+
+class AssignmentCategoryCountField(ComputationField):
+    name = "gradedcount"
+    calculation_field = "id"
+    calculation_method = Count
+    verbose_name = "Graded"
+    is_summable = True  # lets the "Total" column add up counts across categories
+
+    @classmethod
+    def get_crosstab_field_verbose_name(cls, model, id):
+        assignment_type = AssignmentType.objects.filter(pk=id).first()
+        return assignment_type.short_name if assignment_type else "N/A"
+
+
+class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
+    template_name = "partials/gradebook/report.html"
+    report_title = "Assignment Grading Monitor"
+    report_model = AssignmentHead
+    report_generator_class = CourseGroupByGenerator
+    form_class = HomeroomAssignmentMonitorForm
+    group_by = "course"
+
+    def subject_name(self, obj, data):
+        return obj.get('subject__short_name')
+    subject_name.verbose_name = "Subject"
+
+    def course_name(self, obj, data):
+        return obj.get('short_name') or obj.get('name')
+    course_name.verbose_name = "Course"
+
+    def teacher_name(self, obj, data):
+        return f"{obj.get('teacher__first_name', '')} {obj.get('teacher__last_name', '')}".strip()
+    teacher_name.verbose_name = "Teacher"
+
+    columns = [
+        "subject_name",
+        "course_name",
+        "teacher_name",
+    ]
+
+    crosstab_field = "assignment"
+    crosstab_columns = [AssignmentCategoryCountField]
+    crosstab_compute_remainder = False
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        # if user.is_staff:
+        return qs
+
+        # teacher = Teacher.objects.filter(user=user).first()
+        # homeroom_class = Class.objects.filter(teacher=teacher).first() if teacher else None
+        # if not homeroom_class:
+        #     return qs.none()
+        #
+        # return qs.filter(
+        #     course__coursemember__student__classmember__kelas=homeroom_class,
+        #     course__coursemember__student__classmember__is_active=True,
+        #     course__coursemember__is_active=True,
+        # ).distinct()
+
+    def get_crosstab_ids(self):
+        # always show all 4 categories as columns, even at 0 — the gaps are the point
+        academic_year_id = self.request.GET.get('academic_year')
+        level_id = self.request.GET.get('level')
+        period_id = self.request.GET.get('period')
+
+        if not academic_year_id:
+            return [a.pk for a in AssignmentType.objects.order_by('id')[:5]]
+
+        qs = AssignmentHead.objects.filter(
+            course__academic_year_id=academic_year_id,
+            course__is_activity=False,
+        )
+        if level_id:
+            qs = qs.filter(course__level_id=level_id)
+        if period_id:
+            period = LearningPeriod.objects.filter(pk=period_id).first()
+            if period:
+                qs = qs.filter(date__range=(period.date_start, period.date_end))
+
+        assignment_ids = qs.values_list('assignment_id', flat=True).distinct().order_by('assignment_id')
+        return list(assignment_ids)
+
+    def get_crosstab_compute_remainder(self):
+        return False
+
+    export_actions = ["export_pdf"]
+
+    def export_pdf(self, report_data):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="assignment_monitor.pdf"'
+
+        buffer = io.BytesIO()
+        HEADER_GAP = 0.5 * cm
+        page_width, page_height = GOV_LEGAL
+        header_height = get_pdf_header_height(page_width)
+        doc = SimpleDocTemplate(
+            buffer, pagesize=GOV_LEGAL,
+            topMargin=header_height + HEADER_GAP, bottomMargin=2 * cm,
+            leftMargin=2.3 * cm, rightMargin=2.3 * cm,
+        )
+        styles, table_style, _ = get_pdf_styles()
+
+        columns = report_data['columns']
+        table_data = [[col['verbose_name'] for col in columns]]
+        for record in report_data['data']:
+            table_data.append([str(record.get(col['name'], "-")) for col in columns])
+
+        table = Table(table_data)
+        table.setStyle(table_style)
+
+        elements = [
+            Paragraph("Assignment Grading Monitor", styles['title']),
+            Spacer(1, 0.3 * cm),
+            table,
+        ]
+        doc.build(elements, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+
+        pdf = buffer.getvalue()
+        buffer.close()
+        response.write(pdf)
+        return response
+
+    export_pdf.title = "Export PDF"
+    export_pdf.icon = "fa fa-file-pdf-o"
+    export_pdf.css_class = "btn btn-primary"
+
+    def export_csv(self, report_data):
+        return super().export_csv(report_data)
+
+    export_csv.title = "Export to CSV"
+    export_csv.css_class = "btn btn-success"
+
+    filters = [
+        "course__short_name",
+        "course__name",
+        "course__subject__subject_name",
+    ]
+
+
 def midterm_reportcard_pdf(request, pk):
     parent_head = get_object_or_404(StudentReportcard, pk=pk)
     current_course = parent_head.course
@@ -5429,18 +5579,20 @@ def print_midterm_report(request, pk):
     # flowables.append(sikap_table)
     # flowables.append(Spacer(1, 0.4*cm))
 
-    # B. PENGETAHUAN DAN KETERAMPILAN
-    show_notes = not reportcard.is_mid
-    if show_notes:
-        flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
-    else:
-        flowables.append(Paragraph("A. PENGETAHUAN DAN KETERAMPILAN", styles['group']))
+    # # B. PENGETAHUAN DAN KETERAMPILAN
+    # show_notes = not reportcard.is_mid
+    # if show_notes:
+    #     flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
+    # else:
+    #     flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
+
+    flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
 
 
     if show_notes:
-        grade_data = [['No', 'Mata Pelajaran', 'MMK', 'Nilai Akhir', 'Catatan']]
+        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai Akhir', 'Catatan']]
     else:
-        grade_data = [['No', 'Mata Pelajaran', 'MMK', 'Nilai', 'Predikat']]
+        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Predikat']]
 
     # for i, g in enumerate(grades, start=1):
     #     row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]

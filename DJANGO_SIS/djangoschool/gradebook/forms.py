@@ -1009,7 +1009,7 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
     end_date = forms.DateField(required=False, label="End Date", widget=forms.DateInput({"type": "hidden"}), initial=datetime.now)
 
     teacher = forms.ModelChoiceField(
-        queryset=Teacher.objects.all(),
+        queryset=Teacher.objects.none(),
         required=False,
         widget=forms.RadioSelect(attrs={
             'class': 'form-control'
@@ -1052,6 +1052,8 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
             self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher_id, is_activity=False)
         else:
             self.fields['course'].queryset = Course.objects.none()
+
+        self.fields['teacher'].label_from_instance = lambda obj: obj.first_name
 
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ledger',
@@ -1104,6 +1106,88 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
 
     def get_end_date(self):
         return self.cleaned_data["end_date"]
+
+
+class HomeroomAssignmentMonitorForm(BaseReportForm, forms.Form):
+
+    start_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "hidden"}),
+        initial=datetime.now
+    )
+    end_date = forms.DateField(required=False, widget=forms.DateInput({"type": "hidden"}), initial=datetime.now)
+
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        required=False,
+        widget=forms.RadioSelect(attrs={'class': 'form-control'})
+    )
+
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.all(),
+        required=False,
+        widget=forms.RadioSelect(attrs={'class': 'form-control'})
+    )
+
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.all(),
+        required=False,
+        widget=forms.RadioSelect(attrs={'class': 'form-control'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["start_date"].initial = datetime.date
+        self.fields["end_date"].initial = datetime.date
+
+        acayear = self.data.get('academic_year') or self.initial.get('academic_year')
+
+        self.fields['period'].queryset = LearningPeriod.objects.filter(
+            academic_year_id=acayear,
+            period_name__icontains='semester'
+        ) if acayear else LearningPeriod.objects.none()
+
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'acayear-select-homeroom-monitor',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_period_ledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#period-select-homeroom-monitor',
+            'hx-swap': 'innerHTML',
+        })
+        self.fields['period'].widget.attrs.update({
+            'id': 'period-select-homeroom-monitor',
+            'class': 'form-check-input mb-2',
+        })
+
+    def get_filters(self):
+        academic_year = self.cleaned_data.get("academic_year")
+        level = self.cleaned_data.get("level")
+        period = self.cleaned_data.get("period")
+
+        filters = {}
+        q_filters = []
+
+        if not academic_year:
+            filters['id'] = -1  # impossible ID, empty table until a year is picked
+            return q_filters, filters
+
+        filters["course__academic_year"] = academic_year
+        filters["course__is_activity"] = False
+
+        if level:
+            filters["course__level"] = level
+        if period:
+            filters["date__range"] = (period.date_start, period.date_end)
+
+        return q_filters, filters
+
+    def get_start_date(self):
+        return self.cleaned_data["start_date"]
+
+    def get_end_date(self):
+        return self.cleaned_data["end_date"]
+
 
 
 
