@@ -214,7 +214,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if is_homeroom %}
+                    {% if is_superuser %}
                             <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>
                                 {% elif user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>

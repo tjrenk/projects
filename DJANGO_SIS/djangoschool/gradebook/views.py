@@ -115,42 +115,45 @@ def get_pdf_styles():
     styles = {
         'title': ParagraphStyle(
             'Title', parent=base_styles['Normal'],
-            fontSize=14, fontName='Times-Bold',
-            alignment=TA_CENTER, spaceAfter=4,
+            fontSize=13, fontName='Times-Bold',
+            # alignment=TA_CENTER, spaceAfter=4,
+            alignment=TA_CENTER, spaceAfter=1.5,
         ),
         'title2': ParagraphStyle(
             'Title', parent=base_styles['Normal'],
-            fontSize=12, fontName='Times-Italic',
+            fontSize=11, fontName='Times-Italic',
             alignment=TA_CENTER, spaceAfter=4,
         ),
         'subtitle': ParagraphStyle(
             'Subtitle', parent=base_styles['Normal'],
-            fontSize=10, fontName='Times-Roman',
+            fontSize=9, fontName='Times-Roman',
             alignment=TA_CENTER, spaceAfter=4,
         ),
         'group': ParagraphStyle(
             'Group', parent=base_styles['Normal'],
-            fontSize=11, fontName='Helvetica-Bold',
-            spaceAfter=4, spaceBefore=10,
+            fontSize=10, fontName='Helvetica-Bold',
+            spaceAfter=2, spaceBefore=2,
         ),
         'label': ParagraphStyle(
             'Label', parent=base_styles['Normal'],
-            fontSize=9, fontName='Times-Roman',
+            fontSize=8, fontName='Times-Roman',
             alignment=TA_LEFT, spaceAfter=2,
         ),
         'content': ParagraphStyle(
             'Content', parent=base_styles['Normal'],
-            fontSize=9,
-            alignment=TA_LEFT, spaceAfter=2, leading=10
+            fontSize=8,
+            alignment=TA_LEFT,
+            # spaceAfter=2, leading=10
         ),
         'grading': ParagraphStyle(
             'Grading', parent=base_styles['Normal'],
-            fontSize=10,
-            alignment=TA_CENTER, spaceAfter=2, leading=10
+            fontSize=9,
+            alignment=TA_CENTER,
+            # spaceAfter=2, leading=10
         ),
         'footer': ParagraphStyle(
             'Footer', parent=base_styles['Normal'],
-            fontSize=7, fontName='Times-Italic',
+            fontSize=6, fontName='Times-Italic',
             alignment=TA_LEFT, textColor=colors.HexColor('#e0e0e0'),
         ),
 
@@ -1871,14 +1874,18 @@ def ge_edit(request, pk):
     )
 
     if request.method == 'POST':
+        head_form = AssignmentHeadEditForm(request.POST, instance=parent_head)
         formset = AssignmentFormSet(request.POST, queryset=queryset)
-        if formset.is_valid():
+        if head_form.is_valid() and formset.is_valid():
+            head_form.save()
             formset.save()
             if request.GET.get('next') == 'print':
                 return redirect('print-grade-list', pk=parent_head.pk)
             log_activity(request.user, parent_head, 'change', "Updated via Grade Entry form")
+            messages.success(request, "Grade record edited!")
             return redirect('grade-entry-table')
     else:
+        head_form = AssignmentHeadEditForm(instance=parent_head)
         formset = AssignmentFormSet(queryset=queryset)
 
     for i, form in enumerate(formset):
@@ -1898,6 +1905,7 @@ def ge_edit(request, pk):
     return render(request, 'partials/gradebook/grade_entry_edit.html', {
         'formset': formset,
         'parent_head': parent_head,
+        'head_form': head_form,
         'title': parent_head.topic,
         'date': parent_head.date,
         'max_score': parent_head.max_score,
@@ -1908,6 +1916,20 @@ def ge_edit(request, pk):
         'teacher': parent_head.course.teacher,
         'course': parent_head.course,
         'breadcrumb_extra': str(parent_head.topic)
+    })
+
+def get_cpmp_target_for_head(request):
+    course = Course.objects.filter(pk=request.GET.get('course')).first()
+    cpmp_trg = (
+        CapaianPemelajaranMataPelajaran.objects.filter(
+            subject_id=course.subject_id,
+            academic_year_id=course.academic_year_id,
+            level_id=course.level_id,
+        )
+        if course else CapaianPemelajaranMataPelajaran.objects.none()
+    )
+    return render(request, "partials/gradebook/gradeentry_partials/cpmp_target_edit.html", {
+        'cpmp_trg': cpmp_trg,
     })
 
 
@@ -2657,16 +2679,16 @@ def rb_pdf(request, pk):
     flowables.append(Paragraph(sub_title_text, styles['title2']))
     flowables.append(Spacer(1, 1*cm))
 
+    acayear = int(behaviour.academic_year.year)
     meta_data = [
-        ['Nama', ':', f"{student.registration_data.first_name} {student.registration_data.last_name}", 'Kelas', ':', str(student_class.kelas) if student_class else '-'],
-        ['NIS', ':', student.id_number, 'Semester', ':', behaviour.period.period_name],
-        ['NISN', ':', student.registration_data.nisn, 'Tahun Ajaran', ':', str(behaviour.academic_year)],
-        # ['Kelas', ':', str(student_class.kelas) if student_class else '-'],
-        # ['Mid Semester', ':', 'Ya' if behaviour.is_mid else 'Tidak'],
+        ['Nama', ':', f"{student.registration_data.first_name or ''} {student.registration_data.middle_name or ''} {student.registration_data.last_name or ''}".strip(),
+         'Kelas', ':', str(student_class.kelas) if student_class else '-'],
+        ['NIS', ':', student.id_number or '-',
+         'Semester', ':', behaviour.period.period_name],
+        ['NISN', ':', student.nisn or '-',
+         'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
-
-
-    meta_table = Table(meta_data, colWidths=[1.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.5 * cm])
+    meta_table = Table(meta_data, colWidths=[1.6 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.6 * cm])
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -2697,17 +2719,18 @@ def rb_pdf(request, pk):
         pdf_label = RUBRIC_TYPE_PDF_LABELS.get(rubric_key, rubric_key)
         flowables.append(Paragraph(pdf_label, styles['group']))
 
-        table_data = [['Indikator', 'Nilai', 'Grade', 'Deskripsi']]
+        table_data = [['Indikator', 'Grade', 'Deskripsi']]
         for r in rows:
             table_data.append([
                 Paragraph(r.rubric.description or '-', styles['content']),
-                Paragraph(str(r.score) or '-', styles['grading']),
+                # Paragraph(str(r.score) or '-', styles['grading']),
                 Paragraph(r.grade or '-', styles['grading']),
                 Paragraph(r.description or '-', styles['content']),
             ])
 
         # col_widths = [9 * cm] + [2.5 * cm] * len(RUBRIC_TYPE_PDF_LABELS)
-        table = Table(table_data, colWidths=[7.5*cm, 1.2*cm, 1.2*cm, 6.6*cm])
+        # table = Table(table_data, colWidths=[7.5*cm, 1.2*cm, 1.2*cm, 6.6*cm])
+        table = Table(table_data, colWidths=[8.1 * cm, 1.4 * cm, 7.2 * cm])
         table.setStyle(table_style)
         flowables.append(table)
         # flowables.append(Spacer(1, 0.3*cm))
@@ -4459,7 +4482,7 @@ def get_student_pd(request):
     period_id = request.GET.get('0-period') or request.GET.get('period')
 
     student = StudentReportcard.objects.select_related('student').filter(
-        is_mid=is_mid, period_id=period_id
+        is_mid=is_mid, period_id=period_id, level_id=level_id
     )
     context = {'students': student}
     return render(request, "partials/gradebook/pdevelopment_partials/student.html", context)
@@ -4601,26 +4624,52 @@ def print_pdev_pdf(request, pk):
     #     f"{reportcard.academic_year} / {reportcard.period.period_name}",
     #     styles['subtitle']
     # ))
-    flowables.append(Spacer(1, 1*cm))
+    sub_title_text = "1ST MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
+    flowables.append(Paragraph(sub_title_text, styles['title2']))
+    # flowables.append(Spacer(1, 1*cm))
 
+    # acayear = int(reportcard.academic_year.year)
+    #
+    # meta_data = [
+    #     ['Peserta Didik', ':', f"{reg.first_name} {reg.last_name}"],
+    #     ['NIS', ':', student.id_number],
+    #     ['Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
+    #     ['Semester', ':', reportcard.period.period_name],
+    #     ['Kelas', ':', str(reportcard.level)],
+    #     # ['Mid Semester', ':', 'Yes' if reportcard.is_mid else 'No'], <-- NGGAK DIPAKE LAGI
+    # ]
+    # meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
+    # meta_table.setStyle(TableStyle([
+    #     ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+    #     ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+    #     ('FONTSIZE', (0, 0), (-1, -1), 9),
+    #     ('TOPPADDING', (0, 0), (-1, -1), 2),
+    #     ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    # ]))
+    # flowables.append(meta_table)
+    # flowables.append(Spacer(1, 0.5*cm))
+
+    acayear = int(reportcard.academic_year.year)
     meta_data = [
-        ['Peserta Didik', ':', f"{reg.first_name} {reg.last_name}"],
-        ['NIS', ':', student.id_number],
-        ['Tahun Ajaran', ':', str(reportcard.academic_year)],
-        ['Semester', ':', reportcard.period.period_name],
-        ['Kelas', ':', str(reportcard.level)],
-        ['Mid Semester', ':', 'Yes' if reportcard.is_mid else 'No'],
+        ['Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
+         'Kelas', ':', str(student_class.kelas) if student_class else '-'],
+        ['NIS', ':', student.id_number or '-',
+         'Semester', ':', reportcard.period.period_name],
+        ['NISN', ':', student.nisn or '-',
+         'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
-    meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
+    meta_table = Table(meta_data, colWidths=[1.6 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.6 * cm])
     meta_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
     flowables.append(meta_table)
-    flowables.append(Spacer(1, 0.5*cm))
+    flowables.append(Spacer(0, 0.0 * cm))
 
     choice_labels = [label for val, label in PDRPT_CHOICES]
     label_map = {
@@ -4656,6 +4705,57 @@ def print_pdev_pdf(request, pk):
 
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
 
+    # Signatures
+    sig_data = [
+        ['',f"Jakarta, {signing_date}"],
+        ['Orang Tua/Wali,', 'Wali Kelas,'],
+        ['Peserta Didik,', ''],
+        ['', ''],
+        ['', ''],
+        ['', ''],
+        ['_________________________', f"{homeroom_teacher.first_name if homeroom_teacher else '-'} {homeroom_teacher.last_name if homeroom_teacher else ''}"],
+    ]
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+    ]))
+    # flowables.append(sig_table)
+    flowables.append(Spacer(1, 0.3*cm))
+    center_style = ParagraphStyle(
+        'CenterText', parent=styles['label'],
+        alignment=TA_CENTER,
+    )
+    # flowables.append(Paragraph("Mengetahui,", center_style))
+    flowables.append(Spacer(1, 0.3 * cm))
+    headmaster_sig_data = [
+        ['Kepala Sekolah'],
+        [''],
+        [''],
+        [''],
+        # ['_________________________'],
+        [f"{headmaster.full_name if headmaster else '-'}"]
+    ]
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm])
+    headmaster_sig_table.hAlign = 'CENTER'
+    headmaster_sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+    ]))
+
+    # semua dikumpulin jadi 1 block
+    signature_block = [
+        sig_table,
+        Spacer(1, 0.6 * cm),
+        Paragraph("Mengetahui,", center_style),
+        Spacer(1, 0.6 * cm),
+        headmaster_sig_table,
+    ]
+    flowables.append(KeepTogether(signature_block))
 
     # flowables.append(Paragraph(f"Kepala Sekolah — {headmaster.full_name if headmaster else '-'}", styles['label']))
     doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
@@ -4793,7 +4893,8 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
             academic_year = data0.get('academic_year')
             period = data0.get('period')
             level = data0.get('level')
-            is_mid = data0.get('is_mid')
+            # is_mid = data0.get('is_mid')
+            is_mid = False
 
             if not course or not subject:
                 return initial
@@ -4810,7 +4911,8 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
                 reportcard__student_id__in=member_student_ids,
                 reportcard__academic_year=academic_year,
                 reportcard__period=period,
-                reportcard__is_mid=is_mid,
+                # reportcard__is_mid=is_mid,
+                reportcard__is_mid=False,
                 reportcard__level=level,
             ).select_related('reportcard__student__registration_data')
 
@@ -5159,7 +5261,7 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
     def export_csv(self, report_data):
         return super().export_csv(report_data)
 
-    export_csv.title = ("Export Formative Grades to CSV")
+    export_csv.title = ("Export Grades to CSV")
     export_csv.css_class = "btn btn-success"
 
     filters = [
@@ -5197,7 +5299,8 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
     report_model = AssignmentHead
     report_generator_class = CourseGroupByGenerator
     form_class = HomeroomAssignmentMonitorForm
-    group_by = "course"
+    group_by_custom_querysets = [AssignmentHead.objects.none()]  # placeholder, only satisfies the class-time check
+    group_by_custom_querysets_column_verbose_name = "Subject"
 
     def subject_name(self, obj, data):
         return obj.get('subject__short_name')
@@ -5211,15 +5314,40 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
         return f"{obj.get('teacher__first_name', '')} {obj.get('teacher__last_name', '')}".strip()
     teacher_name.verbose_name = "Teacher"
 
+    group_by_custom_querysets_column_verbose_name = "Subject"
+
+    def get_group_by_custom_querysets(self):
+        # self._subjects = list(Subject.objects.all())
+        # return [AssignmentHead.objects.filter(course__subject_id=s.id) for s in self._subjects]
+        self._subjects = list(Subject.objects.all())
+        return [AssignmentHead.objects.filter(course__subject_id=s.id) for s in self._subjects]
+
+    def format_row(self, row_obj):
+        subject = self._subjects[row_obj["__index__"]]
+        courses = Course.objects.filter(subject=subject).select_related('teacher')
+
+        row_obj["__index__"] = subject.short_name
+        row_obj["course_name"] = ", ".join(c.short_name or c.name for c in courses) or "-"
+        row_obj["teacher_name"] = ", ".join(dict.fromkeys(
+            f"{c.teacher.first_name} {c.teacher.last_name}".strip() for c in courses if c.teacher
+        )) or "-"
+        return row_obj
+
     columns = [
-        "subject_name",
-        "course_name",
         "teacher_name",
+        "__index__",
+        # "subject_name",
+        # "course_name",
+
     ]
 
     crosstab_field = "assignment"
     crosstab_columns = [AssignmentCategoryCountField]
-    crosstab_compute_remainder = False
+    crosstab_compute_remainder = True
+    crosstab_ids = [x['id'] for x in Subject.objects.values('id')]
+
+
+
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -5262,7 +5390,37 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
         return list(assignment_ids)
 
     def get_crosstab_compute_remainder(self):
-        return False
+        return True
+
+    # group_by = "id"
+    #
+    # # 3. Kolom dinamis dibentuk berdasarkan Produk yang ada di dalam transaksi klien
+    # crosstab_field = "course__subject"
+    #
+    # # 4. Filter tanggal diarahkan ke field date yang ada di tabel transaksi
+    # date_field = "date"
+    #
+    # # 5. Operasi hitung pada titik temu baris & kolom (menggunakan relasi transaksi)
+    # crosstab_columns = [
+    #     ComputationField.create(
+    #         method=Count,
+    #         field="assignment_type",
+    #         verbose_name=("Total")
+    #     ),
+    # ]
+    #
+    # # 6. Susunan kolom akhir pada tabel HTML
+    # columns = [
+    #     "name",  # Kolom 1: Nama Klien (diambil dari model Client)
+    #     "__crosstab__",  # Kolom Tengah: Produk A, Produk B, dst (Dinamis)
+    #
+    #     # Kolom Terakhir: Total keseluruhan belanja per klien di ujung kanan
+    # #     ComputationField.create(
+    # #         method=Sum,
+    # #         field="transactions__value",
+    # #         verbose_name=_("Total Penjualan")
+    # #     ),
+    # ]
 
     export_actions = ["export_pdf"]
 
@@ -5548,13 +5706,14 @@ def print_midterm_report(request, pk):
     flowables.append(Paragraph(sub_title_text, styles['title2']))
     flowables.append(Spacer(1, 0.3*cm))
 
+    acayear = int(reportcard.academic_year.year)
     meta_data = [
         ['Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas) if student_class else '-'],
         ['NIS', ':', student.id_number or '-',
          'Semester', ':', reportcard.period.period_name],
         ['NISN', ':', student.nisn or '-',
-         'Tahun Ajaran', ':', str(reportcard.academic_year)],
+         'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
     meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
     meta_table.setStyle(TableStyle([
@@ -5656,8 +5815,24 @@ def print_midterm_report(request, pk):
     # flowables.append(prestasi_table)
     # flowables.append(Spacer(1, 0.4*cm))
 
+    # D. PRESTASI
+    flowables.append(Paragraph("C. PRESTASI", styles['group']))
+    prest_data = [
+        ['No', 'Jenis Kegiatan', 'Keterangan'],
+        ['', '-', '-'],
+    ]
+    prest_table = Table(prest_data, colWidths=[1 * cm, 8 * cm, 8 * cm])
+    # attd_table = Table(attd_data, colWidths=[1 * cm, 9 * cm, 3 * cm])
+    # attd_table.hAlign = 'LEFT'
+    prest_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 2), 'CENTER'),
+    ]))
+    flowables.append(prest_table)
+
     # F. KETIDAKHADIRAN
-    flowables.append(Paragraph("C. KETIDAKHADIRAN", styles['group']))
+    flowables.append(Paragraph("D. KETIDAKHADIRAN", styles['group']))
     attd_data = [
         ['No', 'Keterangan', 'Jumlah'],
         ['1', 'Sakit', str(attendance_summary['S']) if attendance_summary['S'] else '-'],
@@ -5674,8 +5849,10 @@ def print_midterm_report(request, pk):
     flowables.append(attd_table)
     # flowables.append(Spacer(1, 0.4 * cm))
 
+
+
     # G. CATATAN WALI KELAS
-    flowables.append(Paragraph("D. CATATAN WALI KELAS", styles['group']))
+    flowables.append(Paragraph("E. CATATAN WALI KELAS", styles['group']))
 
     catatan_table = Table(
         [[Paragraph(ht_comment or '-', styles['label'])]],
@@ -5689,7 +5866,7 @@ def print_midterm_report(request, pk):
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
     ]))
     flowables.append(catatan_table)
-    flowables.append(Spacer(1, 0.4 * cm))
+    # flowables.append(Spacer(1, 0.1 * cm))
 
     # Signatures
     sig_data = [
@@ -5709,7 +5886,7 @@ def print_midterm_report(request, pk):
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
     # flowables.append(sig_table)
-    flowables.append(Spacer(1, 0.3*cm))
+    # flowables.append(Spacer(1, 0.3*cm))
     center_style = ParagraphStyle(
         'CenterText', parent=styles['label'],
         alignment=TA_CENTER,
@@ -5964,11 +6141,11 @@ def cpmp_delete_ge(request, pk):
     in_use = AssignmentHead.objects.filter(cpmp_target=cpmp).exists()
 
     if request.method == 'POST':
-        if in_use:
-            return render(request, "partials/gradebook/gradeentry_partials/cpmp_row_confirm_delete.html", {
-                'target': cpmp,
-                'in_use': in_use,
-            })
+        # if in_use:
+        #     return render(request, "partials/gradebook/gradeentry_partials/cpmp_row_confirm_delete.html", {
+        #         'target': cpmp,
+        #         'in_use': in_use,
+        #     })
         cpmp.delete()
         log_activity(request.user, cpmp, 'delete', "Deleted CPMP entry via Grade Entry")
         return HttpResponse('')  # row is gone, nothing to swap back in

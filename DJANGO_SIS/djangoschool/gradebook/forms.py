@@ -435,6 +435,52 @@ class AssignmentHeadForm(forms.ModelForm):
         # }
 
 
+class AssignmentHeadEditForm(forms.ModelForm):
+    subject = forms.ModelChoiceField(
+        queryset=Subject.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'})
+    )
+
+    class Meta:
+        model = AssignmentHead
+        fields = ['date', 'max_score', 'assignment', 'category', 'course', 'cpmp_target']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'input input-bordered input-sm w-full'}),
+            'max_score': forms.NumberInput(attrs={'class': 'input input-bordered input-sm w-24'}),
+            'assignment': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
+            'category': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
+            'course': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
+            'cpmp_target': forms.SelectMultiple(attrs={'class': 'select select-bordered select-sm w-full h-24'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cpmp_target'].label_from_instance = lambda obj: obj.text
+
+        course_id = self.data.get(self.add_prefix('course')) or self.initial.get('course') or self.instance.course_id
+        course = Course.objects.filter(pk=course_id).first()
+
+        subject_id = self.data.get(self.add_prefix('subject')) or self.initial.get('subject') or getattr(course,
+                                                                                                         'subject_id',
+                                                                                                         None)
+        self.initial.setdefault('subject', subject_id)
+
+        self.fields['course'].queryset = Course.objects.filter(
+            subject_id=subject_id) if subject_id else Course.objects.none()
+        self.fields['cpmp_target'].queryset = (
+            CapaianPemelajaranMataPelajaran.objects.filter(
+                subject_id=subject_id, academic_year_id=course.academic_year_id, level_id=course.level_id
+            ) if course else CapaianPemelajaranMataPelajaran.objects.none()
+        )
+        self.fields['course'].widget.attrs.update({
+            'hx-get': '/gradebook/get-cpmp-target-for-head/',
+            'hx-trigger': 'change',
+            'hx-target': '#cpmp-target-edit-wrapper',
+            'hx-swap': 'innerHTML',
+            'hx-include': 'this',
+        })
+
 
 # Form Step 3 (Detail per Siswa)
 class AssignmentDetailItemForm(forms.ModelForm):
@@ -2579,12 +2625,14 @@ class PersonalDevSelectForm(forms.Form):
             'hx-trigger': 'change',
             'hx-target': '#pd-student-select',
             'hx-swap': 'innerHTML',
-            'hx-include': '#pd-acayear-select, #pd-kelas-select, #pd-is-mid, #pd-period-select',   # include itself
+            # 'hx-include': '#pd-acayear-select, #pd-kelas-select, #pd-is-mid, #pd-period-select',   # include itself
+            'hx-include': '#pd-acayear-select, #pd-level-select, #pd-is-mid, #pd-period-select',
         })
 
         self.fields['student'].widget.attrs.update({
             'id': 'pd-student-select',
             'class': 'custom-select mb-4',
+            'hx-include': '#pd-acayear-select, #pd-level-select, #pd-student-select, #pd-is-mid, #pd-period-select',
         })
 
 
@@ -2718,10 +2766,10 @@ class CpmpCreateForm(forms.ModelForm):
         })
 
 class GetRPCAcademicComments(forms.ModelForm):
-    is_mid = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-    )
+    # is_mid = forms.BooleanField(
+    #     required=False,
+    #     widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    # )
 
     class Meta:
         model = GradeEntry

@@ -15,46 +15,44 @@
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
 <form method="post" class="w-full h-full">
     {% csrf_token %}
-    {{ formset.management_form }}  {# REQUIRED: Handles the row counts #}
+    {{ formset.management_form }}
     <table class="mb-4">
         <tr>
-{#            <td><h1 class="text-2xl font-bold">Topic</h1></td>#}
             <td><h1 class="text-3xl font-bold mb-4">{{ title }}</h1></td>
         </tr>
     </table>
-<table class="mb-6">
+    <table class="mb-6">
         <tr>
             <td style="width: 35%;"><h3 class="font-bold">Date</h3></td>
-            <td><h3 class="font-bold">: {{ date }}</h3></td>
+            <td>{{ head_form.date }}</td>
         </tr>
         <tr>
             <td><h3 class="font-bold">Max Score</h3></td>
-            <td><h3 class="font-bold">: {{ max_score }}</h3></td>
+            <td>{{ head_form.max_score }}</td>
         </tr>
         <tr>
             <td><h3 class="font-bold">Type</h3></td>
-            <td><h3 class="font-bold">: {{ assign_type.name }}</h3></td>
+            <td>{{ head_form.assignment }}</td>
         </tr>
         <tr>
             <td><h3 class="font-bold">Category</h3></td>
-            <td><h3 class="font-bold">: {{ assign_cat }}</h3></td>
+            <td>{{ head_form.category }}</td>
         </tr>
-    <tr>
-    <td><h3 class="font-bold">Subject</h3></td>
-    <td><h3 class="font-bold">: {{ subject }}</h3></td>
-</tr>
-<tr>
-    <td><h3 class="font-bold">Teacher</h3></td>
-    <td><h3 class="font-bold">: {{ teacher }}</h3></td>
-</tr>
-<tr>
-    <td><h3 class="font-bold">Course</h3></td>
-    <td><h3 class="font-bold">: {{ course }}</h3></td>
-</tr>
-
         <tr>
-            <td style="vertical-align: top;"><h3 class="font-bold">Learning Targets</h3></td>
-            <td><h3 class="font-bold">: {{ cpmp_target|linebreaksbr }}</h3></td>
+            <td><h3 class="font-bold">Course</h3></td>
+            <td>{{ head_form.course }}</td>
+        </tr>
+        <tr>
+            <td><h3 class="font-bold">Subject</h3></td>
+            <td><h3 class="font-bold">: {{ parent_head.course.subject }}</h3></td>
+        </tr>
+        <tr>
+            <td><h3 class="font-bold">Teacher</h3></td>
+            <td><h3 class="font-bold">: {{ parent_head.course.teacher }}</h3></td>
+        </tr>
+        <tr>
+            <td style="vertical-align: top;"><h3 class="font-bold">Learning Outcome</h3></td>
+            <td>{{ head_form.cpmp_target }}</td>
         </tr>
     </table>
 <!--<h1 class="text-2xl font-bold">{{ title }}</h1>-->
