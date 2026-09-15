@@ -444,7 +444,7 @@ class AssignmentHeadEditForm(forms.ModelForm):
 
     class Meta:
         model = AssignmentHead
-        fields = ['date', 'max_score', 'assignment', 'category', 'course', 'cpmp_target']
+        fields = ['date', 'max_score', 'assignment', 'category', 'course', 'cpmp_target', 'topic']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'input input-bordered input-sm w-full'}),
             'max_score': forms.NumberInput(attrs={'class': 'input input-bordered input-sm w-24'}),
@@ -452,6 +452,7 @@ class AssignmentHeadEditForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'course': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'cpmp_target': forms.SelectMultiple(attrs={'class': 'select select-bordered select-sm w-full h-24'}),
+            'topic': forms.TextInput(attrs={'class': 'input-ghost input-lg text-xl h-100 px-50'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1646,7 +1647,7 @@ class ExtraGradeItemForm(forms.ModelForm):
 
         # Kelas depends on Teacher (FK relationship in admission.models.Class)
         if teacher:
-            self.fields['kelas'].queryset = Course.objects.all()
+            self.fields['kelas'].queryset = Course.objects.filter(level_id=level)
         else:
             self.fields['kelas'].queryset = Course.objects.none()
 
@@ -1672,6 +1673,10 @@ class ExtraGradeItemForm(forms.ModelForm):
         self.fields['level'].widget.attrs.update({
             'id': 'rubric-level-select',
             'class': 'custom-select mb-4',
+            'hx-target': '#rubric-kelas-select',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-kelas-select',
+            'hx-swap': 'innerHTML',
         })
 
         self.fields['teacher'].widget.attrs.update({
@@ -1681,6 +1686,7 @@ class ExtraGradeItemForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#rubric-kelas-select',
             'hx-swap': 'innerHTML',
+            'hx-include': '#rubric-level-select',
         })
 
         self.fields['kelas'].widget.attrs.update({

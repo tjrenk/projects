@@ -255,15 +255,22 @@
     {% endif %}
 
     {% if wizard.steps.current == '2' %}
-    <button type="submit" form="grade-entry-form" class="btn-sm btn-success btn rounded-md legitRipple"
-            onclick="confirmSubmit(event)">
-        Save
-    </button>
+        {% if locked %}
+            <button type="submit" form="grade-entry-form" class="btn-sm btn-disabled btn rounded-md legitRipple"
+                    onclick="confirmSubmit(event)">
+                Save
+            </button>
+        {% else %}
+                <button type="submit" form="grade-entry-form" class="btn-sm btn-success btn rounded-md legitRipple"
+                    onclick="confirmSubmit(event)">
+                Save
+            </button>
+        {% endif %}
     {% else %}
-    <button type="submit" form="grade-entry-form" class="btn-sm btn-primary btn rounded-md legitRipple"
-            onclick="confirmSubmit(event)">
-        Next
-    </button>
+        <button type="submit" form="grade-entry-form" class="btn-sm btn-primary btn rounded-md legitRipple"
+                onclick="confirmSubmit(event)">
+            Next
+        </button>
     {% endif %}
 </div>
 

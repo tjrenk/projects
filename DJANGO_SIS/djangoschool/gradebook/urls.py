@@ -120,6 +120,7 @@ urlpatterns = [
     path('midterm-report-pdf/<int:pk>', views.print_midterm_report, name='midterm-report-pdf'),
     path('midterm-report-select/', views.midterm_report_select, name='midterm-report-select'),
 
+    # LESSON PLAN EDIT IN A SEPERATE VIEW
     path('cpmp-create/', views.cpmp_create, name='cpmp-create'),
     path('cpmp-edit/', views.get_cpmp_edit, name='cpmp-edit'),
     path('cpmp-delete/<int:pk>/', views.delete_cpmp_single, name='delete_cpmp_single'),

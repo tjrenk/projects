@@ -327,8 +327,8 @@ class CPMPForm(forms.ModelForm):
         self.fields['cpl_root'].choices = CapaianPemelajaranLulusan.objects.all().values_list('id', 'text')
 
 
-# class LockData(forms.ModelForm):
-#     list_display = ("lock_start", "lock_end")
+class LockData(forms.ModelForm):
+    list_display = ("lock_start", "lock_end")
 
 
 class CapaianPemelajaranMataPelajaranAdmin(admin.ModelAdmin):
@@ -355,21 +355,21 @@ class PDRPTAdmin(admin.ModelAdmin):
     form = PDRPTAdminForm
 
 
-# class LockDataEntryAdmin(admin.ModelAdmin):
-#     list_display = ["lock_start", "lock_end"]
-#
-#     def has_add_permission(self, request):
-#         return not LockDataEntry.objects.exists()
-#
-#     def has_delete_permission(self, request, obj=None):
-#         return False
-#
-#     def changelist_view(self, request, extra_context=None):
-#         obj, created = LockDataEntry.objects.get_or_create(
-#             pk=1,
-#             defaults={'lock_start': None, 'lock_end': None}
-#         )
-#         return redirect(f'/admin/gradebook/lockdataentry/{obj.pk}/change/')
+class LockDataEntryAdmin(admin.ModelAdmin):
+    list_display = ["lock_start", "lock_end"]
+
+    def has_add_permission(self, request):
+        return not LockDataEntry.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        obj, created = LockDataEntry.objects.get_or_create(
+            pk=1,
+            defaults={'lock_start': None, 'lock_end': None}
+        )
+        return redirect(f'/admin/gradebook/lockdataentry/{obj.pk}/change/')
 
 
 @staff_member_required
@@ -428,4 +428,4 @@ admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelaj
 admin.site.register(ReportcardPersonalDev, PDRPTAdmin)
 admin.site.register(AssignmentHead, AssignmentHeadAdmin)
 admin.site.register(AssignmentDetail, AssignmentDetailAdmin)
-# admin.site.register(LockDataEntry, LockDataEntryAdmin)
+admin.site.register(LockDataEntry, LockDataEntryAdmin)

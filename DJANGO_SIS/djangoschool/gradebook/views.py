@@ -15,7 +15,7 @@ from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min, Q
 from django.db.models import F
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter, A4, GOV_LEGAL
+from reportlab.lib.pagesizes import letter, A4, GOV_LEGAL, landscape
 from reportlab.lib.units import inch, cm
 from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Frame, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -624,6 +624,8 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         ("2", AssignmentDetailFormSet),
     ]
 
+
+
     def _get_homeroom_class(self):
         return Class.objects.filter(
             teacher__user=self.request.user,
@@ -670,6 +672,10 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
+        locked = LockDataEntry.objects.filter(id=1).exists()
+        context['locked'] = locked
+        if locked:
+            messages.error(self.request, "Grade entry is now currently locked by admin.")
 
         # only query homeroom once and only on steps that need it
         if self.steps.current in ('0', '1'):
@@ -701,7 +707,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         return context
 
     # Grade Entry Form lock
-    #
+    # pengecekan doang ini, claude ngescam ih ckckckck
     def is_grade_entry_locked():
         lock = LockDataEntry.objects.first()
         if not lock or not lock.lock_start or not lock.lock_end:
@@ -1545,7 +1551,7 @@ class AssignmentScoreField(ComputationField):
         if not ah:
             return "N/A"
 
-        return f"F-{ah.date.strftime('%d/%m/%Y')}" if ah.assignment_id == 3 else f"S-{ah.date.strftime('%d/%m/%Y')}" if ah.assignment_id == 2 else "ASGN-N/A"
+        return f"F-{ah.date.strftime('%d/%m/%Y')}" if ah.assignment.short_name == "FORM" else f"S-{ah.date.strftime('%d/%m/%Y')}" if ah.assignment.short_name == "SUMM" else "ASGN-N/A"
 
 class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/report.html"
@@ -1840,6 +1846,20 @@ def ge_edit(request, pk):
         pk=pk
     )
 
+    # lock check
+    # locked = LockDataEntry.objects.filter(lock_start__lte=now, lock_end__gte=now).exists()
+    locked = LockDataEntry.objects.filter(id=1).exists()
+
+    # if locked:
+    #     messages.error(request, f"ERROR! Cannot edit form, admin has locked the feature for a while")
+
+    # today
+    # now = timezone.now()
+
+    # for lock in locked:
+    #     lock.is_button_disabled = lock.date_start <= now <= lock.date_end
+
+
     active_members = CourseMember.objects.filter(
         course=parent_head.course, is_active=True
     ).select_related('student')
@@ -1915,7 +1935,9 @@ def ge_edit(request, pk):
         'subject': parent_head.course.subject,
         'teacher': parent_head.course.teacher,
         'course': parent_head.course,
-        'breadcrumb_extra': str(parent_head.topic)
+        'breadcrumb_extra': str(parent_head.topic),
+        'locked': locked,
+        # 'now': now,
     })
 
 def get_cpmp_target_for_head(request):
@@ -1952,7 +1974,7 @@ def ge_del(request, pk):
     return render(request, 'partials/gradebook/grade_entry_delconf.html', context)
 
 
-# WARNING: UNOPTMIZED
+# WARNING: UNOPTIMIZED
 @login_required
 def tc_table(request):
     user = request.user
@@ -3334,9 +3356,10 @@ def get_teachers_extra(request):
 def get_kelas_extra(request):
     teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+    level_id = request.GET.get('0-level') or request.GET.get('level')
     if teacher_id:
         # Filter classes where the teacher is the homeroom teacher
-        classes = Course.objects.filter(is_activity=True, teacher=teacher_id)
+        classes = Course.objects.filter(is_activity=True, teacher=teacher_id, level=level_id)
     else:
         classes = Course.objects.none()
     context = {
@@ -5218,11 +5241,11 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
 
         buffer = io.BytesIO()
         HEADER_GAP = 0.5 * cm
-        page_width, page_height = GOV_LEGAL
+        page_width, page_height = landscape(GOV_LEGAL)
         header_height = get_pdf_header_height(page_width)
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=GOV_LEGAL,
+            pagesize=landscape(GOV_LEGAL),
             topMargin=header_height + HEADER_GAP,
             bottomMargin=2 * cm,
             leftMargin=2.3 * cm,
@@ -5242,8 +5265,47 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
 
         table = Table(table_data)
         table.setStyle(table_style)
+        course_id = self.request.GET.get('course')
+        teacher_id = self.request.GET.get('teacher')
+        # subject_id = self.request.GET.get('subject')
+        # level_id = self.request.GET.get('level')
 
-        elements.append(Paragraph("Formative Assignment Grade Crosstab Report", styles['title']))
+        qs = AssignmentHead.objects.filter(course_id=course_id)
+
+        if teacher_id:
+            qs = qs.filter(course__teacher_id=teacher_id)
+
+        student_id = self.request.GET.get('student')
+
+        course = get_object_or_404(Course, pk=course_id) if course_id else None
+        student = get_object_or_404(Student, pk=student_id) if student_id else None
+        teacher = get_object_or_404(Teacher, pk=teacher_id) if teacher_id else None
+        subject = course.subject if course else None
+        level = course.level if course else None
+        reg = student.registration_data if student else None
+
+        acayear = int(course.academic_year.year) if course else None
+        meta_data = [
+            ['Tahun Ajaran', ':', f"{acayear}/{acayear + 1}" if acayear else '-'],
+            ['Level', ':', level],
+            ['Subject', ':', subject],
+            ['Teacher', ':', teacher]
+        ]
+        meta_table = Table(meta_data, colWidths=[2.5 * cm, 0.4 * cm, 6.3 * cm])
+        # meta_table.hAlign = "LEFT"
+        meta_table.setStyle(TableStyle([
+            # ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(meta_table)
+        elements.append(Spacer(0, 0.3 * cm))
+
+        elements.append(Paragraph("Assignment Ledger", styles['title']))
         elements.append(Spacer(1, 0.3 * cm))
         elements.append(table)
 
@@ -5285,7 +5347,7 @@ class AssignmentCategoryCountField(ComputationField):
     calculation_field = "id"
     calculation_method = Count
     verbose_name = "Graded"
-    is_summable = True  # lets the "Total" column add up counts across categories
+    is_summable = False  # lets the "Total" column add up counts across categories
 
     @classmethod
     def get_crosstab_field_verbose_name(cls, model, id):
@@ -5294,7 +5356,7 @@ class AssignmentCategoryCountField(ComputationField):
 
 
 class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
-    template_name = "partials/gradebook/report.html"
+    template_name = "partials/gradebook/hr_monitor.html"
     report_title = "Assignment Grading Monitor"
     report_model = AssignmentHead
     report_generator_class = CourseGroupByGenerator
@@ -5314,37 +5376,38 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
         return f"{obj.get('teacher__first_name', '')} {obj.get('teacher__last_name', '')}".strip()
     teacher_name.verbose_name = "Teacher"
 
-    group_by_custom_querysets_column_verbose_name = "Subject"
+    # group_by_custom_querysets_column_verbose_name = "Subject"
 
     def get_group_by_custom_querysets(self):
         # self._subjects = list(Subject.objects.all())
         # return [AssignmentHead.objects.filter(course__subject_id=s.id) for s in self._subjects]
         self._subjects = list(Subject.objects.all())
-        return [AssignmentHead.objects.filter(course__subject_id=s.id) for s in self._subjects]
+        self._courses = list(Course.objects.all())
+        # return [AssignmentHead.objects.filter(course__subject_id=s.id) for s in self._subjects]
+        return [AssignmentHead.objects.filter(course_id=c.id) for c in self._courses]
 
     def format_row(self, row_obj):
-        subject = self._subjects[row_obj["__index__"]]
-        courses = Course.objects.filter(subject=subject).select_related('teacher')
-
-        row_obj["__index__"] = subject.short_name
-        row_obj["course_name"] = ", ".join(c.short_name or c.name for c in courses) or "-"
-        row_obj["teacher_name"] = ", ".join(dict.fromkeys(
-            f"{c.teacher.first_name} {c.teacher.last_name}".strip() for c in courses if c.teacher
-        )) or "-"
+        course = self._courses[row_obj["__index__"]]
+        row_obj["__index__"] = course
+        row_obj["course_name"] = course.short_name or course.name or "-"
+        row_obj["subject_name"] = course.subject.short_name or course.subject.subject_name if course.subject else "-"
+        row_obj["teacher_name"] = (
+            f"{course.teacher.first_name} {course.teacher.last_name}".strip()
+            if course.teacher else "-"
+        )
         return row_obj
 
     columns = [
         "teacher_name",
         "__index__",
-        # "subject_name",
-        # "course_name",
-
+        "subject_name",
+        "course_name",
     ]
 
     crosstab_field = "assignment"
     crosstab_columns = [AssignmentCategoryCountField]
     crosstab_compute_remainder = True
-    crosstab_ids = [x['id'] for x in Subject.objects.values('id')]
+    crosstab_ids = [x['id'] for x in Course.objects.values('id')]
 
 
 
@@ -6241,3 +6304,9 @@ def cpmp_table(request):
     # })
 
     return HttpResponse(status=204)
+
+
+# @property
+# def is_locked(self):
+#     now = timezone.now()
+#     return self.date_start < now < self.date_end

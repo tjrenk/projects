@@ -18,7 +18,7 @@
     {{ formset.management_form }}
     <table class="mb-4">
         <tr>
-            <td><h1 class="text-3xl font-bold mb-4">{{ title }}</h1></td>
+            <td><h1 class="text-3xl font-bold mb-4">{{ head_form.topic }}</h1></td>
         </tr>
     </table>
     <table class="mb-6">
@@ -116,7 +116,11 @@
     </div>
 
     <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
-        <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple">Save Grades</button>
+        {% if locked %}
+            <button type="submit" class="btn-sm btn-disabled btn rounded-md legitRipple">Save Grades</button>
+        {% else %}
+            <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple">Save Grades</button>
+        {% endif %}
 <!--        <a href="{% url 'print-grade-list' pk=parent_head.pk %}" class="btn-sm btn-secondary btn rounded-md legitRipple"><i class="fa-solid fa-file-pdf"></i>Print PDF</a>-->
         <button type="submit" formaction="?next=print" class="btn-sm btn-secondary btn rounded-md legitRipple">
     <i class="fa-solid fa-file-pdf"></i> Print PDF
