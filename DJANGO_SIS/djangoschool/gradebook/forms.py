@@ -452,7 +452,7 @@ class AssignmentHeadEditForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'course': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'cpmp_target': forms.SelectMultiple(attrs={'class': 'select select-bordered select-sm w-full h-24'}),
-            'topic': forms.TextInput(attrs={'class': 'input-ghost input-lg text-xl h-100 px-50'}),
+            'topic': forms.TextInput(attrs={'class': 'input input-ghost'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1059,7 +1059,7 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
         queryset=Teacher.objects.none(),
         required=False,
         widget=forms.RadioSelect(attrs={
-            'class': 'form-control'
+            'class': 'flex flex-wrap gap-x-4 gap-y-2 pt-1 [&_label]:inline-flex [&_label]:items-center [&_label]:gap-1.5 [&_label]:whitespace-nowrap'
         })
     )
 
@@ -1118,7 +1118,8 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
 
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ledger',
-            'class': 'custom-select mb-4',
+            # 'class': 'custom-select mb-4',
+            'class': 'grid grid-cols-5 gap-x-4 gap-y-1 pt-1',
             'hx-get': '/gradebook/get-course-ledger/',
             'hx-trigger': 'change',
             'hx-target': '#course-select-ledger',

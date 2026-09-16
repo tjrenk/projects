@@ -17,11 +17,13 @@
     {% csrf_token %}
     {{ formset.management_form }}
     <table class="mb-4">
-        <tr>
-            <td><h1 class="text-3xl font-bold mb-4">{{ head_form.topic }}</h1></td>
-        </tr>
+        <h1 class="font-bold text-xl">Editing Assessment</h1>
     </table>
     <table class="mb-6">
+        <tr>
+            <td style="width: 35%;"><h3 class="font-bold">Topic</h3></td>
+            <td>{{ head_form.topic }}</td>
+        </tr>
         <tr>
             <td style="width: 35%;"><h3 class="font-bold">Date</h3></td>
             <td>{{ head_form.date }}</td>

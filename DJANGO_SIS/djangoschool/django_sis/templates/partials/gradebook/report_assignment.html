@@ -15,9 +15,12 @@
                 <div class="card-header bg-base-100 border-base-200 border-e">
                     <h3 class="collapse-title text-xl font-medium">{% trans "Filters" %}</h3>
                 </div>
-                <div style="min-width: 0;
-    overflow-wrap: break-word;
-    word-break: break-word;" class="card-body bg-base-100 border-base-200 border-e">
+<!--                <div style="min-width: 0;-->
+<!--    overflow-wrap: break-word;-->
+<!--    word-break: break-word;" class="card-body bg-base-100 border-base-200 border-e">-->
+                <div style="min-width: 10;
+    /*overflow-wrap: break-word;*/
+    word-break: break-word;" class="grid grid-cols-1 gap-x-4 gap-y-1 pt-1">
                     {{ form.as_p }}
                 </div>
                 <div class="card-footer text-end">

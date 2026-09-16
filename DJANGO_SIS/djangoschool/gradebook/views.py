@@ -85,6 +85,10 @@ def log_activity(user, obj, action, message=""):
         change_message=message or f"{action.capitalize()}d via frontend",
     )
 
+# BUAT PENGECEKAN KUNCI
+# def locked():
+
+
 # BUAT SORTING TABEL
 def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
     sort_by = request.GET.get('sort', default_sort)
@@ -672,10 +676,10 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        locked = LockDataEntry.objects.filter(id=1).exists()
+        locked = LockDataEntry.objects.filter(lock_start__lte=now, lock_end__gte=now)
         context['locked'] = locked
         if locked:
-            messages.error(self.request, "Grade entry is now currently locked by admin.")
+            messages.warning(self.request, "Grade entry is now currently locked by admin.")
 
         # only query homeroom once and only on steps that need it
         if self.steps.current in ('0', '1'):
@@ -708,12 +712,12 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
     # Grade Entry Form lock
     # pengecekan doang ini, claude ngescam ih ckckckck
-    def is_grade_entry_locked():
-        lock = LockDataEntry.objects.first()
-        if not lock or not lock.lock_start or not lock.lock_end:
-            return False
-        today = timezone.now().date()
-        return lock.lock_start <= today <= lock.lock_end
+    # def is_grade_entry_locked():
+    #     lock = LockDataEntry.objects.first()
+    #     if not lock or not lock.lock_start or not lock.lock_end:
+    #         return False
+    #     today = timezone.now().date()
+    #     return lock.lock_start <= today <= lock.lock_end
 
     def post(self, *args, **kwargs):
         wizard_goto_step = self.request.POST.get('wizard_goto_step')
@@ -758,6 +762,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         log_activity(self.request.user, assignment_head, 'add', "Created new grade entry")
         messages.success(self.request, "Grade entry saved successfully!")
         return redirect('grade-entry')
+
 
 
 def midterm_report(request):
@@ -1597,16 +1602,6 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     # total (utk skrg ga ada ngapa2in ini var)
     crosstab_compute_remainder = False
 
-    # 3. What goes inside the cells? (The Score)
-    # crosstab_columns = [
-    #     ComputationField.create(
-    #         Sum,
-    #         "final_score",
-    #         verbose_name="Score",
-    #         is_summable=False
-    #     )
-    # ]
-
     # logic filter dari forms.py diulangi lagi disini
     def get_crosstab_ids(self):
         """
@@ -1687,7 +1682,6 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         buffer.close()
         response.write(pdf)
         return response
-        # return FileResponse(buffer, as_attachment=False, filename='ledger.pdf')
 
     export_pdf.title = ("Export PDF")
     export_pdf.icon = "fa fa-file-pdf-o"
@@ -1782,8 +1776,6 @@ def ge_table(request):
             Q(topic__icontains=search_query) |
             Q(course__name__icontains=search_query) |
             Q(assignment__name__icontains=search_query)
-            # Q(max_score=search_query) if search_query.isdigit() else Q() |
-            # Q(date__year=search_query) if search_query.isdigit() else Q()
         )
 
     # apply sort AFTER filtering
@@ -1807,12 +1799,6 @@ def ge_table(request):
                 'options': AcademicYear.objects.all(),
                 'selected': request.GET.get('year', ''),
             },
-            # {
-            #     'label': 'Subject',
-            #     'param': 'subject',
-            #     'options': Subject.objects.filter(is_activity=False),
-            #     'selected': request.GET.get('subject', ''),
-            # },
             {
                 'label': 'Course',
                 'param': 'course',
@@ -1833,8 +1819,6 @@ def ge_table(request):
     })
 
 
-# from .models import AssignmentDetail, CourseMember
-
 
 # INGET YA ID ASSIGNMENTDETAIL != ID ASSIGNMENTHEAD PANTES DRTD NGACO MULU QUERYSETNYA
 @login_required
@@ -1847,17 +1831,7 @@ def ge_edit(request, pk):
     )
 
     # lock check
-    # locked = LockDataEntry.objects.filter(lock_start__lte=now, lock_end__gte=now).exists()
-    locked = LockDataEntry.objects.filter(id=1).exists()
-
-    # if locked:
-    #     messages.error(request, f"ERROR! Cannot edit form, admin has locked the feature for a while")
-
-    # today
-    # now = timezone.now()
-
-    # for lock in locked:
-    #     lock.is_button_disabled = lock.date_start <= now <= lock.date_end
+    locked = LockDataEntry.objects.filter(lock_start__lte=now, lock_end__gte=now)
 
 
     active_members = CourseMember.objects.filter(
@@ -1937,7 +1911,6 @@ def ge_edit(request, pk):
         'course': parent_head.course,
         'breadcrumb_extra': str(parent_head.topic),
         'locked': locked,
-        # 'now': now,
     })
 
 def get_cpmp_target_for_head(request):
@@ -1953,6 +1926,15 @@ def get_cpmp_target_for_head(request):
     return render(request, "partials/gradebook/gradeentry_partials/cpmp_target_edit.html", {
         'cpmp_trg': cpmp_trg,
     })
+
+# def topic_edit(request, pk):
+#     assignh = get_object_or_404(AssignmentHead, pk=pk)
+#     if request.method == "POST":
+#         assignh.topic = request.POST.get("topic", "").strip()
+#         if assignh.topic:
+#             assignh.save()
+#         return render(request, "partials/field_display.html", {"obj": obj})
+#     return render(request, "partials/field_edit.html", {"obj": obj})
 
 
 def ge_del(request, pk):
@@ -5237,7 +5219,7 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
 
     def export_pdf(self, report_data):
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'inline; filename="formative_grade_report.pdf"'
+        response['Content-Disposition'] = 'inline; filename="assignment_grade_report.pdf"'
 
         buffer = io.BytesIO()
         HEADER_GAP = 0.5 * cm
@@ -5336,7 +5318,7 @@ class CourseGroupByGenerator(ReportGenerator):
     def get_database_columns(self):
         # pull course-relative fields into the row alongside Course's own concrete fields
         return super().get_database_columns() + [
-            "subject__short_name",
+            # "subject__short_name",
             "teacher__first_name",
             "teacher__last_name",
         ]
@@ -5361,8 +5343,8 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
     report_model = AssignmentHead
     report_generator_class = CourseGroupByGenerator
     form_class = HomeroomAssignmentMonitorForm
-    group_by_custom_querysets = [AssignmentHead.objects.none()]  # placeholder, only satisfies the class-time check
-    group_by_custom_querysets_column_verbose_name = "Subject"
+    group_by_custom_querysets = [AssignmentHead.objects.all()]  # placeholder, only satisfies the class-time check
+    # group_by_custom_querysets_column_verbose_name = ""
 
     def subject_name(self, obj, data):
         return obj.get('subject__short_name')
@@ -5381,7 +5363,7 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
     def get_group_by_custom_querysets(self):
         # self._subjects = list(Subject.objects.all())
         # return [AssignmentHead.objects.filter(course__subject_id=s.id) for s in self._subjects]
-        self._subjects = list(Subject.objects.all())
+        # self._subjects = list(Subject.objects.all())
         self._courses = list(Course.objects.all())
         # return [AssignmentHead.objects.filter(course__subject_id=s.id) for s in self._subjects]
         return [AssignmentHead.objects.filter(course_id=c.id) for c in self._courses]
@@ -5454,6 +5436,18 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
 
     def get_crosstab_compute_remainder(self):
         return True
+
+    def modify_results(self, report_results):
+        # Loop through each row in the report data
+        field_name = AssignmentCategoryCountField.name
+
+        for row in report_results:
+            for key, val in list(row.items()):
+                # Match the dynamic keys generated for this specific field in the crosstab
+                if field_name in key and "__crosstab__" in key and val is not None:
+                    row[key] = f"{val} kg"
+
+        return report_results
 
     # group_by = "id"
     #
