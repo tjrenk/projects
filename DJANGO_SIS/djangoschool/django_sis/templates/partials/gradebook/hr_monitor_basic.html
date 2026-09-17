@@ -1,0 +1,87 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<style>
+.wide { width: 100%; height: 450px; }
+</style>
+
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4 min-w-0">
+    <div class="card-header bg-base-100 border-base-200 border-e">
+        <h3 class="collapse-title text-xl font-medium">Filters</h3>
+    </div>
+    <form method="get" class="card">
+        <div class="card-body bg-base-100 border-base-200 border-e grid grid-cols-2 gap-4">
+            <div>
+                <label class="label"><span class="label-text">Teacher</span></label>
+                <select name="teacher" class="select select-bordered w-full">
+                    <option value="">All</option>
+                    {% for t in teacher_options %}
+                    <option value="{{ t.id }}" {% if request.GET.teacher == t.id|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label"><span class="label-text">Subject</span></label>
+                <select name="subject" class="select select-bordered w-full">
+                    <option value="">All</option>
+                    {% for s in subject_options %}
+                    <option value="{{ s.id }}" {% if request.GET.subject == s.id|stringformat:"s" %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <input type="submit" value="Filter" class="btn btn-primary">
+        </div>
+    </form>
+</div>
+
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4 min-w-0">
+    <div class="navbar">
+        <div class="navbar-center">
+            <h1 style="font-size: 30px">Homeroom Teacher Grade Monitoring</h1>
+        </div>
+    </div>
+
+    <div class="card-body px-3 py-1 w-full">
+        <div class="overflow-auto max-h-[60vh]">
+            <table class="table table-sm table-hover table-pin-rows border border-base-200 table-auto">
+                <thead class="bg-base-300 text-gray-950">
+                    <tr>
+                        <th class="flex-1"><strong>Teacher</strong></th>
+                        <th class="flex-1"><strong>Subject</strong></th>
+                        <th class="flex-1"><strong>Course</strong></th>
+                        <th class="flex-1"><strong>Formative</strong></th>
+                        <th class="flex-1"><strong>Summative</strong></th>
+                    </tr>
+                </thead>
+                <tbody class="flex-1">
+                {% for leftj in pnation_left %}
+                <tr class="hover:bg-base-200">
+                    <td class="flex-1">{{ leftj.teacher }}</td>
+                    <td class="flex-1">{{ leftj.subject }}</td>
+                    <td class="flex-1">{{ leftj.name }}</td>
+                    <td class="flex-1" style="cursor: pointer;" onclick="window.location.href='{% url 'grade-entry-table' %}{% querystring course=leftj.id type=3 %}'">{{ leftj.form_count }}x</td>
+                    <td class="flex-1" style="cursor: pointer;" onclick="window.location.href='{% url 'grade-entry-table' %}{% querystring course=leftj.id type=2 %}'">{{ leftj.summ_count }}x</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card-actions justify-center">
+        <div class="join">
+            {% if pnation_left.has_previous %}
+            <a class="join-item btn" href="?{% querystring page=1 %}"><<</a>
+            <a class="join-item btn" href="?{% querystring page=pnation_left.previous_page_number %}"><</a>
+            {% endif %}
+            <span class="join-item btn btn-disabled">Page {{ pnation_left.number }} of {{ pnation_left.paginator.num_pages }}</span>
+            {% if pnation_left.has_next %}
+            <a class="join-item btn" href="?{% querystring page=pnation_left.next_page_number %}">></a>
+            <a class="join-item btn" href="?{% querystring page=pnation_left.paginator.num_pages %}">>></a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -206,50 +206,10 @@ def build_pdf_header_table():
 
     # DEV VERSION
 
-    if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
-        FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
-        FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
-        FONT_PATH_BOLD = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
-        pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
-        pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
-        pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
-
-    header_text_styles = {
-        'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
-        'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
-        'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
-        'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2)
-    }
-
-    if os.path.exists(LOGO_PATH):
-        logo = Image(LOGO_PATH, width=4.0 * cm, height=1.9 * cm)
-    else:
-        logo = Paragraph(
-            "LOGO",
-            ParagraphStyle('LogoFallback', fontName='Helvetica-Bold', fontSize=18, textColor=colors.black, alignment=TA_CENTER)
-        )
-
-    location_icon = Image(
-        os.path.join(settings.BASE_DIR, 'static_files', 'images', 'location.png'),
-        width=0.3 * cm, height=0.3 * cm
-    )
-    phone_icon = Image(
-        os.path.join(settings.BASE_DIR, 'static_files', 'images', 'phone.png'),
-        width=0.3 * cm, height=0.3 * cm
-    )
-    email_icon = Image(
-        os.path.join(settings.BASE_DIR, 'static_files', 'images', 'mail.png'),
-        width=0.3 * cm, height=0.3 * cm
-    )
-
-
-
-    # PROD / LIVE VERSION
-
     # if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
-    #     FONT_PATH_REG = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
-    #     FONT_PATH_SEMIB = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
-    #     FONT_PATH_BOLD = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
+    #     FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
+    #     FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
+    #     FONT_PATH_BOLD = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
     #     pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
     #     pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
     #     pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
@@ -270,17 +230,57 @@ def build_pdf_header_table():
     #     )
     #
     # location_icon = Image(
-    #     os.path.join(settings.STATIC_ROOT, 'images', 'location.png'),
+    #     os.path.join(settings.BASE_DIR, 'static_files', 'images', 'location.png'),
     #     width=0.3 * cm, height=0.3 * cm
     # )
     # phone_icon = Image(
-    #     os.path.join(settings.STATIC_ROOT, 'images', 'phone.png'),
+    #     os.path.join(settings.BASE_DIR, 'static_files', 'images', 'phone.png'),
     #     width=0.3 * cm, height=0.3 * cm
     # )
     # email_icon = Image(
-    #     os.path.join(settings.STATIC_ROOT, 'images', 'mail.png'),
+    #     os.path.join(settings.BASE_DIR, 'static_files', 'images', 'mail.png'),
     #     width=0.3 * cm, height=0.3 * cm
     # )
+
+
+
+    # PROD / LIVE VERSION
+
+    if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
+        FONT_PATH_REG = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
+        FONT_PATH_SEMIB = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
+        FONT_PATH_BOLD = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
+        pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
+        pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
+        pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
+
+    header_text_styles = {
+        'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
+        'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
+        'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
+        'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2)
+    }
+
+    if os.path.exists(LOGO_PATH):
+        logo = Image(LOGO_PATH, width=4.0 * cm, height=1.9 * cm)
+    else:
+        logo = Paragraph(
+            "LOGO",
+            ParagraphStyle('LogoFallback', fontName='Helvetica-Bold', fontSize=18, textColor=colors.black, alignment=TA_CENTER)
+        )
+
+    location_icon = Image(
+        os.path.join(settings.STATIC_ROOT, 'images', 'location.png'),
+        width=0.3 * cm, height=0.3 * cm
+    )
+    phone_icon = Image(
+        os.path.join(settings.STATIC_ROOT, 'images', 'phone.png'),
+        width=0.3 * cm, height=0.3 * cm
+    )
+    email_icon = Image(
+        os.path.join(settings.STATIC_ROOT, 'images', 'mail.png'),
+        width=0.3 * cm, height=0.3 * cm
+    )
 
 
 
@@ -1180,13 +1180,31 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             messages.error(self.request, "No homeroom class found for this teacher.")
             return redirect('report-card')
 
+        skipped_students = []
+
         with transaction.atomic():
             for form in formset:
                 if form.is_valid() and form.cleaned_data:
                     data = form.cleaned_data
                     student_id = data.get('student_id')
 
-                    # Save the homeroom teacher comment into ht_comment on StudentReportcard
+                    existing_reportcard = StudentReportcard.objects.filter(
+                        student_id=student_id,
+                        academic_year=academic_year,
+                        period=period,
+                        is_mid=is_mid,
+                        level=level
+                    ).first()
+
+                    has_grades = (
+                            existing_reportcard is not None
+                            and ReportcardGrade.objects.filter(reportcard=existing_reportcard).exists()
+                    )
+
+                    if not has_grades:
+                        skipped_students.append(student_id)
+                        continue
+
                     StudentReportcard.objects.update_or_create(
                         student_id=student_id,
                         academic_year=academic_year,
@@ -1194,12 +1212,15 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                         is_mid=is_mid,
                         level=level,
                         defaults={
-                            # 'level': level,
                             'ht_comment': data.get('ht_comment'),
                         }
                     )
 
-        messages.success(self.request, "Homeroom comments saved successfully!")
+        if skipped_students:
+            messages.error(self.request, f"ERROR: Cannot set comment. {len(skipped_students)} student(s) did not have their assessments graded yet.")
+        else:
+            messages.success(self.request, "Homeroom comments saved successfully!")
+
         return redirect('report-card')
 
 # Grade Entry dynamic fields
@@ -1276,6 +1297,7 @@ def get_period_ge(request):
 
 
 def get_subjects_ge(request):
+    user = request.user
     teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
     level_id = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
     selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
@@ -1283,6 +1305,10 @@ def get_subjects_ge(request):
         subjects = Subject.objects.filter(
             course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
         ).distinct()
+    # elif user.is_staff or user.is_superuser:
+    #     subjects = Subject.objects.filter(
+    #         course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
+    #     ).distinct()
     else:
         subjects = Subject.objects.none()
     context = {
@@ -1986,6 +2012,8 @@ def tc_table(request):
         'period',
     )
 
+
+
     if homeroom_class:
         src = src.filter(
             student__classmember__kelas=homeroom_class,
@@ -2015,6 +2043,14 @@ def tc_table(request):
 
     pnation = Paginator(src, 9)
     pnation_src = pnation.get_page(request.GET.get('page'))
+
+    for strepc in pnation_src:
+        cm = ClassMember.objects.filter(
+            student=strepc.student,
+            kelas__academic_year=strepc.academic_year,
+            is_active=True
+        ).select_related('kelas').first()
+        strepc.student_class = cm.kelas if cm else None
 
     if homeroom_class:
         student_options = Student.objects.filter(
@@ -3601,7 +3637,8 @@ def weighting_exists_for(academic_year, level, period, is_mid, subject):
     return get_effective_weightings(academic_year, level, period, is_mid, subject).exists()
 
 
-def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period, course=None):
+# def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period, course=None):
+def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period):
     weightings = get_effective_weightings(academic_year, level, period, is_mid, subject)
     weight_map = {w.assignment_id: float(w.weight) for w in weightings}
 
@@ -3628,8 +3665,8 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         assignment_head__assignment_id__in=weight_map.keys(),
         assignment_head__date__range=(term_period.date_start, term_period.date_end)
     )
-    if course:
-        grades_data = grades_data.filter(assignment_head__course=course)
+    # if course:
+    #     grades_data = grades_data.filter(assignment_head__course=course)
     grades_data = grades_data.values('student_id', 'assignment_head__assignment_id').annotate(avg_score=Avg('score'))
 
     all_individual_scores = AssignmentDetail.objects.filter(
@@ -3638,8 +3675,8 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         assignment_head__assignment_id__in=weight_map.keys(),
         assignment_head__date__range=(term_period.date_start, term_period.date_end)
     )
-    if course:
-        all_individual_scores = all_individual_scores.filter(assignment_head__course=course)
+    # if course:
+    #     all_individual_scores = all_individual_scores.filter(assignment_head__course=course)
     all_individual_scores = all_individual_scores.select_related(
         'assignment_head__assignment', 'assignment_head'
     ).values('student_id', 'score', 'assignment_head__topic', 'assignment_head__date',
@@ -3722,8 +3759,8 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
                 assignment_head__date__range=(term.date_start, term.date_end),
                 student_id=s_id,
             )
-            if course:
-                term_grades = term_grades.filter(assignment_head__course=course)
+            # if course:
+            #     term_grades = term_grades.filter(assignment_head__course=course)
             term_grades = term_grades.values('assignment_head__assignment_id').annotate(avg_score=Avg('score'))
 
             term_rows = []
@@ -3937,9 +3974,13 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         #     )
         #     return redirect('assignment-avg-wizard')
 
+        # student_results, decided_period = calculate_student_averages_optimized(
+        #     academic_year=academic_year, subject=subject, level=level,
+        #     is_mid=is_mid, period=period, course=course
+        # )
         student_results, decided_period = calculate_student_averages_optimized(
             academic_year=academic_year, subject=subject, level=level,
-            is_mid=is_mid, period=period, course=course
+            is_mid=is_mid, period=period
         )
 
         context = {
@@ -4852,6 +4893,7 @@ def cpmp_create(request):
                     academic_year=form.cleaned_data['academic_year'],
                     level=form.cleaned_data['level'],
                     subject=form.cleaned_data['subject'],
+                    teacher=form.cleaned_data['teacher'],
                     cpl_root=default_root,
                     text=line,
                 )
@@ -4869,6 +4911,28 @@ def cpmp_create(request):
         form = CpmpCreateForm(user=request.user)
 
     return render(request, 'partials/gradebook/cpmp_create.html', {'form': form})
+
+
+def get_subjects_cpmp(request):
+    user = request.user
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
+    # level_id = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
+    selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
+    if teacher_id:
+        subjects = Subject.objects.filter(
+            course__teacher__id=teacher_id, is_activity=False
+        ).distinct()
+    # elif user.is_staff or user.is_superuser:
+    #     subjects = Subject.objects.filter(
+    #         course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
+    #     ).distinct()
+    else:
+        subjects = Subject.objects.none()
+    context = {
+        'subjects': subjects,
+        'selected_subject': selected_subject
+    }
+    return render(request, "partials/gradebook/cpmp_partials/subject.html", context)
 
 
 class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
@@ -5337,13 +5401,14 @@ class AssignmentCategoryCountField(ComputationField):
         return assignment_type.short_name if assignment_type else "N/A"
 
 
+
 class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
     template_name = "partials/gradebook/hr_monitor.html"
     report_title = "Assignment Grading Monitor"
     report_model = AssignmentHead
     report_generator_class = CourseGroupByGenerator
     form_class = HomeroomAssignmentMonitorForm
-    group_by_custom_querysets = [AssignmentHead.objects.all()]  # placeholder, only satisfies the class-time check
+    # group_by_custom_querysets = [AssignmentHead.objects.all()]  # placeholder, only satisfies the class-time check
     # group_by_custom_querysets_column_verbose_name = ""
 
     def subject_name(self, obj, data):
@@ -5370,7 +5435,7 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
 
     def format_row(self, row_obj):
         course = self._courses[row_obj["__index__"]]
-        row_obj["__index__"] = course
+        # row_obj["__index__"] = course
         row_obj["course_name"] = course.short_name or course.name or "-"
         row_obj["subject_name"] = course.subject.short_name or course.subject.subject_name if course.subject else "-"
         row_obj["teacher_name"] = (
@@ -5381,7 +5446,7 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
 
     columns = [
         "teacher_name",
-        "__index__",
+        # "__index__",
         "subject_name",
         "course_name",
     ]
@@ -5437,17 +5502,15 @@ class HomeroomAssignmentMonitor(LoginRequiredMixin, ReportView):
     def get_crosstab_compute_remainder(self):
         return True
 
-    def modify_results(self, report_results):
-        # Loop through each row in the report data
+    def filter_results(self, data, for_print=False):
         field_name = AssignmentCategoryCountField.name
 
-        for row in report_results:
+        for row in data:
             for key, val in list(row.items()):
-                # Match the dynamic keys generated for this specific field in the crosstab
                 if field_name in key and "__crosstab__" in key and val is not None:
                     row[key] = f"{val} kg"
 
-        return report_results
+        return data
 
     # group_by = "id"
     #
@@ -6304,3 +6367,38 @@ def cpmp_table(request):
 # def is_locked(self):
 #     now = timezone.now()
 #     return self.date_start < now < self.date_end
+
+
+@login_required
+def hr_monitor_table(request):
+    filter_params = ['teacher', 'subject']
+
+    if any(request.GET.get(p) for p in filter_params):
+        left = Course.objects.annotate(
+            form_count=Count(
+                'assignmenthead',
+                filter=Q(assignmenthead__assignment__short_name='FORM'),
+                distinct=True,
+            ),
+            summ_count=Count(
+                'assignmenthead',
+                filter=Q(assignmenthead__assignment__short_name='SUMM'),
+                distinct=True,
+            ),
+        )
+        left = apply_filters(left, request, {
+            'teacher': 'teacher_id',
+            'subject': 'subject_id',
+        })
+    else:
+        left = Course.objects.none()
+
+
+    paginator = Paginator(left, 9)
+    pnation_left = paginator.get_page(request.GET.get('page'))
+
+    return render(request, 'partials/gradebook/hr_monitor_basic.html', {
+        'pnation_left': pnation_left,
+        'teacher_options': Teacher.objects.all(),
+        'subject_options': Subject.objects.all(),
+    })

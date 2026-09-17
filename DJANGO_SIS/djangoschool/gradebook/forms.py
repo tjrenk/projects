@@ -1059,7 +1059,7 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
         queryset=Teacher.objects.none(),
         required=False,
         widget=forms.RadioSelect(attrs={
-            'class': 'flex flex-wrap gap-x-4 gap-y-2 pt-1 [&_label]:inline-flex [&_label]:items-center [&_label]:gap-1.5 [&_label]:whitespace-nowrap'
+            'class': 'form-check-input bootstrap-radio-class'
         })
     )
 
@@ -1100,11 +1100,11 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
         else:
             self.fields['course'].queryset = Course.objects.none()
 
-        self.fields['teacher'].label_from_instance = lambda obj: obj.first_name
+        self.fields['teacher'].label_from_instance = lambda obj: f"{obj.first_name} {obj.last_name}"
 
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ledger',
-            'class': 'custom-select mb-4',
+            # 'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-course-ledger/',
             'hx-trigger': 'change',
             'hx-target': '#course-select-ledger',
@@ -1119,7 +1119,6 @@ class AssignmentLedgerForm(BaseReportForm, forms.Form):
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ledger',
             # 'class': 'custom-select mb-4',
-            'class': 'grid grid-cols-5 gap-x-4 gap-y-1 pt-1',
             'hx-get': '/gradebook/get-course-ledger/',
             'hx-trigger': 'change',
             'hx-target': '#course-select-ledger',
@@ -2440,10 +2439,12 @@ class AssignmentAvgForm(forms.Form):
     )
     course = forms.ModelChoiceField(
         queryset=Course.objects.none(),
-        widget=forms.Select(attrs={
-            'id': 'assignment-avg-course-select',
-            'class': 'custom-select mb-4',
-        }),
+        required=False,
+        # widget=forms.HiddenInput(attrs={
+        #     'id': 'assignment-avg-course-select',
+        #     'class': 'custom-select mb-4',
+        # }),
+        widget=forms.HiddenInput(),
     )
     period = forms.ModelChoiceField(
         queryset=LearningPeriod.objects.none(),
@@ -2761,14 +2762,14 @@ class CpmpCreateForm(forms.ModelForm):
         self.fields['teacher'].widget.attrs.update({
             'id': 'teacher-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-get': '/gradebook/get-subjects-cpmp/',
             'hx-trigger': 'change',
-            'hx-target': '#subject-select-ge',
+            'hx-target': '#subject-select-cpmp',
             'hx-swap': 'innerHTML',
         })
 
         self.fields['subject'].widget.attrs.update({
-            'id': 'subject-select-ge',
+            'id': 'subject-select-cpmp',
             'class': 'custom-select mb-4',
         })
 

@@ -7,6 +7,24 @@
 
 {% block content %}
 
+<style>
+    #teacher-select-ledger {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+}
+    #teacher-select-ledger label {
+    order: 2;
+}
+    #teacher-select-ledger input {
+    order: 1;
+}
+</style>
+<!--^ #id-dalam-tag nama-tag {-->
+<!--    edit-style: whatever-you-wanna-edit-here;-->
+<!--}-->
+<!--#TheMoreYouKnow-->
+
 
     <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
         {% if form %}
