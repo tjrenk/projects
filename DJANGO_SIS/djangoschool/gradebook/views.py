@@ -1085,8 +1085,9 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             academic_year = data0.get('academic_year')
             period = data0.get('period')
             is_mid = data0.get('is_mid')
-            level = data0.get('level')
             kelas = data0.get('kelas')
+            level = kelas.level
+
 
             # admin/staff uses kelas from step 0
             # homeroom teacher is locked to their own class
@@ -1154,6 +1155,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = data0.get('period')
             context['selected_is_mid'] = data0.get('is_mid')
             context['selected_level'] = data0.get('level')
+            context['selected_kelas'] = data0.get('kelas')
 
         if self.steps.current == '0' or self.steps.current == '1':
             context['homeroom_class'] = self._get_homeroom_class()
@@ -1163,6 +1165,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = data0.get('period')
             context['selected_is_mid'] = data0.get('is_mid')
             context['selected_level'] = data0.get('level')
+            context['selected_kelas'] = data0.get('kelas')
 
         return context
 
@@ -1174,6 +1177,12 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         period = data0['period']
         is_mid = data0['is_mid']
         level = data0['level']
+        level = kelas.level
+
+        if not level:
+            messages.error(self.request,
+                           f"Class '{kelas}' has no Grade Level set. Assign one in the admin panel first.")
+            return redirect('report-card')
 
         homeroom_class = self._get_homeroom_class()
         if not homeroom_class:
@@ -1217,7 +1226,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     )
 
         if skipped_students:
-            messages.error(self.request, f"ERROR: Cannot set comment. {len(skipped_students)} student(s) did not have their assessments graded yet.")
+            messages.warning(self.request, "WARNING - Cannot put comment. No report card grade saved yet.")
         else:
             messages.success(self.request, "Homeroom comments saved successfully!")
 
@@ -1734,17 +1743,24 @@ def get_period_ledger(request):
         period_name__icontains='semester'
     ) if acayear_id else LearningPeriod.objects.none()
 
-    html = ''
+    html = '<option value="">All</option>'
     for p in periods:
-        checked = 'checked' if selected_period == str(p.id) else ''
-        html += f'''
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="period" 
-                   id="id_period_{p.id}" value="{p.id}" {checked}>
-            <label class="form-check-label" for="id_period_{p.id}">
-                {p.period_name}
-            </label>
-        </div>'''
+        selected = 'selected' if selected_period == str(p.id) else ''
+        html += f'<option value="{p.id}" {selected}>{p.period_name}</option>'
+
+    return HttpResponse(html)
+
+def get_subjects_ledger(request):
+    teacher_id = request.GET.get('teacher')
+    selected_subject = request.GET.get('subject')
+    subjects = Subject.objects.filter(
+        course__teacher_id=teacher_id
+    ).distinct() if teacher_id else Subject.objects.all()
+
+    html = '<option value="">All</option>'
+    for s in subjects:
+        selected = 'selected' if selected_subject == str(s.id) else ''
+        html += f'<option value="{s.id}" {selected}>{s.subject_name}</option>'
 
     return HttpResponse(html)
 
@@ -6371,9 +6387,9 @@ def cpmp_table(request):
 
 @login_required
 def hr_monitor_table(request):
-    filter_params = ['teacher', 'subject']
+    form = HomeroomAssignmentMonitorForm(request.GET or None)
 
-    if any(request.GET.get(p) for p in filter_params):
+    if request.GET.get('academic_year'):
         left = Course.objects.annotate(
             form_count=Count(
                 'assignmenthead',
@@ -6386,10 +6402,10 @@ def hr_monitor_table(request):
                 distinct=True,
             ),
         )
-        left = apply_filters(left, request, {
-            'teacher': 'teacher_id',
-            'subject': 'subject_id',
-        })
+        if request.GET.get('teacher'):
+            left = left.filter(teacher_id=request.GET.get('teacher'))
+        if request.GET.get('subject'):
+            left = left.filter(subject_id=request.GET.get('subject'))
     else:
         left = Course.objects.none()
 
@@ -6398,7 +6414,6 @@ def hr_monitor_table(request):
     pnation_left = paginator.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/hr_monitor_basic.html', {
+        'form': form,
         'pnation_left': pnation_left,
-        'teacher_options': Teacher.objects.all(),
-        'subject_options': Subject.objects.all(),
     })

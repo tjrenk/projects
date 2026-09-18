@@ -115,7 +115,7 @@ class CourseForm(forms.ModelForm):
 
 class CourseAdmin(admin.ModelAdmin):
     list_display = ["short_name", "academic_year", 'is_activity', 'get_teacher_name', 'count_students', 'level']
-    list_filter = ['academic_year', 'level', 'is_activity']
+    list_filter = ['academic_year', 'level', 'is_activity', 'teacher', 'short_name']
     inlines = [CourseMemberInLine, ]
     search_fields = ["name"]
     # ganti nama 'level' ke 'grade', dicomment out untuk sekarang, bakal diaktifin lagi kalo mau diganti

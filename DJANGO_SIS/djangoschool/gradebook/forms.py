@@ -713,7 +713,7 @@ class StudentReportcardForm(forms.ModelForm):
             kelas = Class.objects.filter(teacher__user=user).first()
             if kelas:
                 self.fields['kelas'].initial = kelas.id
-                self.fields['kelas'].widget = forms.HiddenInput()
+                # self.fields['kelas'].widget = forms.HiddenInput()
                 self.fields['kelas'].required = False
 
         if acayear:
@@ -1167,19 +1167,31 @@ class HomeroomAssignmentMonitorForm(BaseReportForm, forms.Form):
     academic_year = forms.ModelChoiceField(
         queryset=AcademicYear.objects.all(),
         required=False,
-        widget=forms.RadioSelect(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
 
     level = forms.ModelChoiceField(
         queryset=GradeLevel.objects.all(),
         required=False,
-        widget=forms.RadioSelect(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
 
     period = forms.ModelChoiceField(
         queryset=LearningPeriod.objects.all(),
         required=False,
-        widget=forms.RadioSelect(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    teacher = forms.ModelChoiceField(
+        queryset=Teacher.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    subject = forms.ModelChoiceField(
+        queryset=Subject.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
 
     def __init__(self, *args, **kwargs):
@@ -1188,11 +1200,16 @@ class HomeroomAssignmentMonitorForm(BaseReportForm, forms.Form):
         self.fields["end_date"].initial = datetime.date
 
         acayear = self.data.get('academic_year') or self.initial.get('academic_year')
+        teacher_id = self.data.get('teacher') or self.initial.get('teacher')
 
         self.fields['period'].queryset = LearningPeriod.objects.filter(
             academic_year_id=acayear,
             period_name__icontains='semester'
         ) if acayear else LearningPeriod.objects.none()
+
+        self.fields['subject'].queryset = Subject.objects.filter(
+            course__teacher_id=teacher_id
+        ).distinct() if teacher_id else Subject.objects.all()
 
         self.fields['academic_year'].widget.attrs.update({
             'id': 'acayear-select-homeroom-monitor',
@@ -1204,13 +1221,28 @@ class HomeroomAssignmentMonitorForm(BaseReportForm, forms.Form):
         })
         self.fields['period'].widget.attrs.update({
             'id': 'period-select-homeroom-monitor',
-            'class': 'form-check-input mb-2',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['teacher'].widget.attrs.update({
+            'id': 'teacher-select-homeroom-monitor',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_subjects_ledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-homeroom-monitor',
+            'hx-swap': 'innerHTML',
+        })
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-homeroom-monitor',
+            'class': 'custom-select mb-4',
         })
 
     def get_filters(self):
         academic_year = self.cleaned_data.get("academic_year")
         level = self.cleaned_data.get("level")
         period = self.cleaned_data.get("period")
+        teacher = self.cleaned_data.get("teacher")
+        subject = self.cleaned_data.get("subject")
 
         filters = {}
         q_filters = []
@@ -1226,6 +1258,10 @@ class HomeroomAssignmentMonitorForm(BaseReportForm, forms.Form):
             filters["course__level"] = level
         if period:
             filters["date__range"] = (period.date_start, period.date_end)
+        if teacher:
+            filters["course__teacher"] = teacher
+        if subject:
+            filters["course__subject"] = subject
 
         return q_filters, filters
 
@@ -1234,6 +1270,49 @@ class HomeroomAssignmentMonitorForm(BaseReportForm, forms.Form):
 
     def get_end_date(self):
         return self.cleaned_data["end_date"]
+
+
+class HomeroomAssignmentMonitorFormLegacy(forms.Form):
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        acayear = self.data.get('academic_year') or self.initial.get('academic_year')
+
+        self.fields['period'].queryset = LearningPeriod.objects.filter(
+            academic_year_id=acayear,
+            period_name__icontains='semester'
+        ) if acayear else LearningPeriod.objects.none()
+
+        # self.fields['academic_year'].widget.attrs.update({
+        #     'id': 'acayear-select-homeroom-monitor',
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get_period_ledger/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#period-select-homeroom-monitor',
+        #     'hx-swap': 'innerHTML',
+        # })
+        # self.fields['period'].widget.attrs.update({
+        #     'id': 'period-select-homeroom-monitor',
+        #     'class': 'form-check-input mb-2',
+        # })
 
 
 

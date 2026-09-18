@@ -61,6 +61,13 @@ class Course(AbstractClass):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     is_activity = models.BooleanField(default=False)
     level = models.ForeignKey(GradeLevel, blank=True, null=True, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['teacher', 'subject', 'academic_year', 'is_activity'],
+                                    name='unique_course_data'),
+        ]
+
     def __str__(self):
         return self.short_name
 

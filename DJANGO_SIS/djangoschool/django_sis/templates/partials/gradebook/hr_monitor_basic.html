@@ -12,23 +12,23 @@
     <form method="get" class="card">
         <div class="card-body bg-base-100 border-base-200 border-e grid grid-cols-2 gap-4">
             <div>
-                <label class="label"><span class="label-text">Teacher</span></label>
-                <select name="teacher" class="select select-bordered w-full">
-                    <option value="">All</option>
-                    {% for t in teacher_options %}
-                    <option value="{{ t.id }}" {% if request.GET.teacher == t.id|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
-                    {% endfor %}
-                </select>
+            <label class="label"><span class="label-text">Academic Year</span></label>
+            {{ form.academic_year }}
+        </div>
+        <div>
+            <label class="label"><span class="label-text">Period</span></label>
+                {{ form.period }}
+        </div>
+        <div>
+            <label class="label"><span class="label-text">Teacher</span></label>
+            <div id="period-select-homeroom-monitor">
+                {{ form.teacher }}
             </div>
-            <div>
-                <label class="label"><span class="label-text">Subject</span></label>
-                <select name="subject" class="select select-bordered w-full">
-                    <option value="">All</option>
-                    {% for s in subject_options %}
-                    <option value="{{ s.id }}" {% if request.GET.subject == s.id|stringformat:"s" %}selected{% endif %}>{{ s }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+        </div>
+          <div>
+            <label class="label"><span class="label-text">Subject</span></label>
+                {{ form.subject }}
+        </div>
         </div>
         <div class="card-footer text-end">
             <input type="submit" value="Filter" class="btn btn-primary">

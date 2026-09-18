@@ -128,6 +128,27 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.id_number} - {self.registration_data.first_name} {self.registration_data.last_name}"
 
+class SchoolLevel(models.Model):
+    level_name = models.CharField(max_length=25, unique=True)
+    short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
+    class Meta:
+        verbose_name_plural = "School Levels"
+        verbose_name = "School Level"
+    def __str__(self):
+        return self.level_name
+
+
+class GradeLevel(models.Model):
+    school_level = models.ForeignKey(SchoolLevel, on_delete=models.CASCADE)
+    grade_name = models.CharField(max_length=25, unique=True)
+    short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "Grade Levels"
+        verbose_name = "Grade Level"
+
+    def __str__(self):
+        return self.grade_name
 
 class AbstractClass(models.Model):
     name = models.CharField(max_length=50)
@@ -140,7 +161,13 @@ class AbstractClass(models.Model):
 class Class(AbstractClass):
     # is_home_class = models.BooleanField(default=True)
     # is_activity = models.BooleanField(default=False)
+    level = models.ForeignKey(GradeLevel, blank=True, null=True, on_delete=models.CASCADE)
     class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['academic_year', 'teacher'],
+                                    name='unique_class_data'),
+        ]
+
         verbose_name_plural = "Classes"
         verbose_name = "Class"
 
@@ -179,29 +206,6 @@ class SchoolData(models.Model):
 
     def __str__(self):
         return self.school_name
-
-class SchoolLevel(models.Model):
-    level_name = models.CharField(max_length=25, unique=True)
-    short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
-    class Meta:
-        verbose_name_plural = "School Levels"
-        verbose_name = "School Level"
-    def __str__(self):
-        return self.level_name
-
-
-
-class GradeLevel(models.Model):
-    school_level = models.ForeignKey(SchoolLevel, on_delete=models.CASCADE)
-    grade_name = models.CharField(max_length=25, unique=True)
-    short_name = models.CharField(max_length=4, unique=True, blank=True, null=True)
-
-    class Meta:
-        verbose_name_plural = "Grade Levels"
-        verbose_name = "Grade Level"
-
-    def __str__(self):
-        return self.grade_name
 
 
 class HeadMaster(models.Model):

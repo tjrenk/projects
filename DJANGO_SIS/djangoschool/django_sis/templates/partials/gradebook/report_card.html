@@ -180,17 +180,17 @@
                                     </div>
                                 </div>
 
-                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                    <div class="mb-1 basis-full md:flex-1">
-                                        {{ wizard.form.level.label }}
-                                        {{ wizard.form.level }}
-                                        <div class="error">
-                                            {{ wizard.form.level.errors }}
-                                        </div>
-                                    </div>
-                                </div>
+<!--                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">-->
+<!--                                    <div class="mb-1 basis-full md:flex-1">-->
+<!--                                        {% comment %}  {{ wizard.form.level.label }} {% endcomment %}-->
+<!--                                        {% comment %}  {{ wizard.form.level }} {% endcomment %}-->
+<!--                                        <div class="error">-->
+<!--                                            {% comment %}  {{ wizard.form.level.errors }} {% endcomment %}-->
+<!--                                        </div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
 
-                                {% if not is_homeroom %}
+                                {% comment %} {% if not is_homeroom %} {% endcomment %}
                                 <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                                     <div class="mb-1 basis-full md:flex-1">
                                         {{ wizard.form.kelas.label }}
@@ -200,7 +200,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                {% endif %}
+                                {% comment %} {% endif %} {% endcomment %}
 
                                 <div class="mt-2 flex items-center gap-4">
                                     {{ wizard.form.is_mid.label }}

@@ -134,6 +134,7 @@ urlpatterns = [
 
     path('assignment-monitor/', views.HomeroomAssignmentMonitor.as_view(), name='assignment_monitor'),
     path('hr-monitor-table/', views.hr_monitor_table, name='hr-monitor-table'),
+    path('get_subjects_ledger/', views.get_subjects_ledger, name='get-subjects-ledger'),
 ]
 
 
