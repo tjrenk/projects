@@ -3,6 +3,7 @@ import decimal
 from django import forms
 
 from .models import *
+from .forms import *
 from simple_history.admin import SimpleHistoryAdmin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render, redirect
@@ -285,6 +286,7 @@ class GradeLevelAdmin(admin.ModelAdmin):
     list_filter = ["school_level"]
 
 
+
 class StudentBehaviorAdmin(admin.ModelAdmin):
     list_display = ("student", "behavior", "rubric", "score")
     list_filter = ["student", "behavior", "rubric", "score"]
@@ -299,6 +301,16 @@ class ReportcardRubricTemplateAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "rubric", "lookup_grade", "text")
     list_filter = ["academic_year", "rubric", "lookup_grade", "text"]
 
+class StudentBehaviourInLine(admin.TabularInline):
+    model = StudentBehaviourReport
+    fields = ("score", "rubric", "student", "description", "grade")
+    extra = 1
+    form = StudentListForm
+
+class ReportcardBehaviourAdmin(admin.ModelAdmin):
+    list_display = ("academic_year", "period", "is_mid", "level")
+    list_filter = ["academic_year", "period", "is_mid", "level"]
+    inline = [StudentBehaviourInLine]
 
 class StudentBehaviourReportAdmin(admin.ModelAdmin):
     list_display = ("score", "rubric", "student", "description", "grade")
@@ -422,6 +434,7 @@ admin.site.register(StudentReportExtra, StudentReportExtraAdmin)
 admin.site.register(ReportcardGrade, ReportCardGradeHistory)
 # admin.site.register(GradeLevel, GradeLevelAdmin)
 admin.site.register(ReportcardRubricTemplate, ReportcardRubricTemplateAdmin)
+admin.site.register(ReportcardBehaviour, ReportcardBehaviourAdmin)
 admin.site.register(StudentBehaviourReport, StudentBehaviourReportAdmin)
 # admin.site.register(CapaianPemelajaranLulusan, CapaianPemelajaranLulusanAdmin)
 admin.site.register(CapaianPemelajaranMataPelajaran, CapaianPemelajaranMataPelajaranAdmin)

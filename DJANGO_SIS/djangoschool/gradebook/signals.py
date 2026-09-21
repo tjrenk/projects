@@ -78,13 +78,13 @@ def new_grade_entry(sender, instance, created, **kwargs):
 
 def set_final_grade(sender, instance, **kwargs):
     if not instance.final_grade:
-        if (instance.final_score > 92) and (instance.final_score < 101):
+        if (instance.final_score > 92 and instance.final_score < 101):
             instance.final_grade = "A"
-        elif (instance.final_score > 85) and (instance.final_score < 93):
+        elif (instance.final_score > 85 and instance.final_score < 93):
             instance.final_grade = "B"
-        elif (instance.final_score > 81) and (instance.final_score < 86):
+        elif (instance.final_score > 81 and instance.final_score < 86):
             instance.final_grade = "C"
-        elif (instance.final_score > 69) and (instance.final_score < 82):
+        elif (instance.final_score > 69 and instance.final_score < 82):
             instance.final_grade = "D"
         else:
             instance.final_grade = "E"
@@ -92,26 +92,26 @@ def set_final_grade(sender, instance, **kwargs):
 # pemetaan grading untuk nilai sikap
 def set_rubric_grade(sender, instance, **kwargs):
     if not instance.grade:
-        if (instance.score > 92) and (instance.score < 101):
+        if (instance.score > 92 and instance.score < 101):
             instance.grade = "A"
-        elif (instance.score > 85) and (instance.score < 93):
+        elif (instance.score > 85 and instance.score < 93):
             instance.grade = "B"
-        elif (instance.score > 81) and (instance.score < 86):
+        elif (instance.score > 81 and instance.score < 86):
             instance.grade = "C"
-        elif (instance.score > 69) and (instance.score < 82):
+        elif (instance.score > 69 and instance.score < 82):
             instance.grade = "D"
         else:
             instance.grade = "E"
 
 def set_extra_grade(sender, instance, **kwargs):
     if not instance.extra_description:
-        if (instance.extra_score > 92) and (instance.extra_score < 101):
+        if (instance.extra_score > 92 and instance.extra_score < 101):
             instance.extra_description = "A"
-        elif (instance.extra_score > 85) and (instance.extra_score < 93):
+        elif (instance.extra_score > 85 and instance.extra_score < 93):
             instance.extra_description = "B"
-        elif (instance.extra_score > 81) and (instance.extra_score < 86):
-            instance.extra_description= "C"
-        elif (instance.extra_score > 69) and (instance.extra_score < 82):
+        elif (instance.extra_score > 81 and instance.extra_score < 86):
+            instance.extra_description = "C"
+        elif (instance.extra_score > 69 and instance.extra_score < 82):
             instance.extra_description = "D"
         else:
             instance.extra_description = "E"

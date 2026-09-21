@@ -1,10 +1,10 @@
 from pyexpat.errors import messages
 
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.urls import reverse
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, JsonResponse
 import re
@@ -15,7 +15,7 @@ from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min, Q
 from django.db.models import F
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter, A4, GOV_LEGAL, landscape
+from reportlab.lib.pagesizes import letter, GOV_LEGAL, landscape
 from reportlab.lib.units import inch, cm
 from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Frame, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -206,50 +206,10 @@ def build_pdf_header_table():
 
     # DEV VERSION
 
-    # if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
-    #     FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
-    #     FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
-    #     FONT_PATH_BOLD = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
-    #     pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
-    #     pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
-    #     pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
-    #
-    # header_text_styles = {
-    #     'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
-    #     'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
-    #     'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
-    #     'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2)
-    # }
-    #
-    # if os.path.exists(LOGO_PATH):
-    #     logo = Image(LOGO_PATH, width=4.0 * cm, height=1.9 * cm)
-    # else:
-    #     logo = Paragraph(
-    #         "LOGO",
-    #         ParagraphStyle('LogoFallback', fontName='Helvetica-Bold', fontSize=18, textColor=colors.black, alignment=TA_CENTER)
-    #     )
-    #
-    # location_icon = Image(
-    #     os.path.join(settings.BASE_DIR, 'static_files', 'images', 'location.png'),
-    #     width=0.3 * cm, height=0.3 * cm
-    # )
-    # phone_icon = Image(
-    #     os.path.join(settings.BASE_DIR, 'static_files', 'images', 'phone.png'),
-    #     width=0.3 * cm, height=0.3 * cm
-    # )
-    # email_icon = Image(
-    #     os.path.join(settings.BASE_DIR, 'static_files', 'images', 'mail.png'),
-    #     width=0.3 * cm, height=0.3 * cm
-    # )
-
-
-
-    # PROD / LIVE VERSION
-
     if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
-        FONT_PATH_REG = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
-        FONT_PATH_SEMIB = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
-        FONT_PATH_BOLD = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
+        FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
+        FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
+        FONT_PATH_BOLD = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
         pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
         pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
         pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
@@ -270,17 +230,57 @@ def build_pdf_header_table():
         )
 
     location_icon = Image(
-        os.path.join(settings.STATIC_ROOT, 'images', 'location.png'),
+        os.path.join(settings.BASE_DIR, 'static_files', 'images', 'location.png'),
         width=0.3 * cm, height=0.3 * cm
     )
     phone_icon = Image(
-        os.path.join(settings.STATIC_ROOT, 'images', 'phone.png'),
+        os.path.join(settings.BASE_DIR, 'static_files', 'images', 'phone.png'),
         width=0.3 * cm, height=0.3 * cm
     )
     email_icon = Image(
-        os.path.join(settings.STATIC_ROOT, 'images', 'mail.png'),
+        os.path.join(settings.BASE_DIR, 'static_files', 'images', 'mail.png'),
         width=0.3 * cm, height=0.3 * cm
     )
+
+
+
+    # PROD / LIVE VERSION
+
+    # if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
+    #     FONT_PATH_REG = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
+    #     FONT_PATH_SEMIB = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
+    #     FONT_PATH_BOLD = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
+    #     pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
+    #     pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
+    #     pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
+    #
+    # header_text_styles = {
+    #     'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
+    #     'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
+    #     'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
+    #     'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2)
+    # }
+    #
+    # if os.path.exists(LOGO_PATH):
+    #     logo = Image(LOGO_PATH, width=4.0 * cm, height=1.9 * cm)
+    # else:
+    #     logo = Paragraph(
+    #         "LOGO",
+    #         ParagraphStyle('LogoFallback', fontName='Helvetica-Bold', fontSize=18, textColor=colors.black, alignment=TA_CENTER)
+    #     )
+    #
+    # location_icon = Image(
+    #     os.path.join(settings.STATIC_ROOT, 'images', 'location.png'),
+    #     width=0.3 * cm, height=0.3 * cm
+    # )
+    # phone_icon = Image(
+    #     os.path.join(settings.STATIC_ROOT, 'images', 'phone.png'),
+    #     width=0.3 * cm, height=0.3 * cm
+    # )
+    # email_icon = Image(
+    #     os.path.join(settings.STATIC_ROOT, 'images', 'mail.png'),
+    #     width=0.3 * cm, height=0.3 * cm
+    # )
 
 
 
@@ -2641,7 +2641,7 @@ def rb_edit(request, pk):
             if request.GET.get('next') == 'print' and student:
                 pdf_url = reverse('rubric-pdf', kwargs={'pk': pk})
                 return redirect(f"{pdf_url}?student={student.pk}")
-            log_activity(request.user, formset, 'change', "Updated student behaviour grades")
+            log_activity(request.user, behaviour, 'change', "Updated student behaviour grades")
             return redirect('rubric-table')
     else:
         formset = BehaviourFormSet(queryset=queryset)
@@ -2733,7 +2733,7 @@ def rb_pdf(request, pk):
     # ))
     sub_title_text = "1ST MID-SEMESTER REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
     flowables.append(Paragraph(sub_title_text, styles['title2']))
-    flowables.append(Spacer(1, 1*cm))
+    flowables.append(Spacer(1, 0.2*cm))
 
     acayear = int(behaviour.academic_year.year)
     meta_data = [
@@ -5820,13 +5820,13 @@ def print_midterm_report(request, pk):
 
     # ─── PDF SETUP ──────────────────────────────────────────
     HEADER_GAP = 0.5 * cm
-    page_width, page_height = A4
+    page_width, page_height = GOV_LEGAL
     header_height = get_pdf_header_height(page_width)
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
-        pagesize=A4,
+        pagesize=GOV_LEGAL,
         topMargin=header_height + HEADER_GAP,
         bottomMargin=2*cm,
         leftMargin=2*cm,

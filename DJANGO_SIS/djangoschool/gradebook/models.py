@@ -64,7 +64,7 @@ class Course(AbstractClass):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['teacher', 'subject', 'academic_year', 'is_activity'],
+            models.UniqueConstraint(fields=['short_name', 'teacher', 'subject', 'academic_year', 'is_activity', 'level'],
                                     name='unique_course_data'),
         ]
 
