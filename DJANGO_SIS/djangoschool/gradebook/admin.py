@@ -211,8 +211,8 @@ class WeightingForm(forms.ModelForm):
 
 
 class WeightingAdmin(admin.ModelAdmin):
-    list_display = ["academic_year", "period", "mid_sem", "subject", "assignment", "format_percentage"]
-    list_filter = ["academic_year", "period", "subject", "is_mid"]
+    list_display = ["academic_year", "period", "mid_sem", "subject", "level", "assignment", "format_percentage"]
+    list_filter = ["academic_year", "period", "subject", "is_mid", "level"]
     form = WeightingForm
 
     def format_percentage(self, obj: Weighting) -> decimal:

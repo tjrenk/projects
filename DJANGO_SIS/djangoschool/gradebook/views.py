@@ -2803,7 +2803,7 @@ def rb_pdf(request, pk):
         ['', ''],
         ['', ''],
         ['', ''],
-        ['_________________________', f"{homeroom_teacher.first_name if homeroom_teacher else '-'} {homeroom_teacher.last_name if homeroom_teacher else ''}"],
+        ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
     sig_table.setStyle(TableStyle([
@@ -3687,6 +3687,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
 
     all_individual_scores = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
+        assignment_head__course__level=level,
         assignment_head__course__academic_year=academic_year,
         assignment_head__assignment_id__in=weight_map.keys(),
         assignment_head__date__range=(term_period.date_start, term_period.date_end)
@@ -3737,6 +3738,16 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         student_records[s_id]['weighted_sum'] += (score * weight)
 
     results = []
+    student_courses = {
+        cm.student_id: cm.course
+        for cm in CourseMember.objects.filter(
+            student_id__in=student_records.keys(),
+            course__subject=subject,
+            course__level=level,
+            course__academic_year=academic_year,
+            is_active=True,
+        ).select_related('course')
+    }
     students = {s.id: s for s in Student.objects.filter(id__in=student_records.keys())}
 
     for s_id, record in student_records.items():
@@ -3805,6 +3816,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'student_name': str(student_obj),
             'nisn': getattr(student_obj, 'nisn', '-'),
             'subject': subject,
+            'course': student_courses.get(s_id),
             'level': level,
             'raw_avg': raw_avg,
             'weighted_avg': final_score,
@@ -3965,7 +3977,7 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         academic_year = form_data.get('academic_year')
         level = form_data.get('level')
         subject = form_data.get('subject')
-        course = form_data.get('course')
+        # course = form_data.get('course')
         is_mid = form_data.get('is_mid')
         period = form_data.get('period')
 
@@ -4003,7 +4015,7 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
             'student_results': student_results,
             'selected_academic_year': academic_year,
             'selected_subject': subject,
-            'selected_course': course,
+            # 'selected_course': course,
             'selected_level': level,
             'selected_period': period,
             'is_mid': is_mid,
@@ -4017,7 +4029,7 @@ def save_assignment_results(request):
     sub_id = request.POST.get('subject_id')
     lvl_id = request.POST.get('level_id')
     period_id = request.POST.get('period_id')
-    course_id = request.POST.get('course_id')
+    # course_id = request.POST.get('course_id')
     is_mid = request.POST.get('is_mid', 'False').lower() == 'true'
 
     if not period_id:
@@ -4028,11 +4040,15 @@ def save_assignment_results(request):
     subject = Subject.objects.get(id=sub_id)
     level = GradeLevel.objects.get(id=lvl_id)
     period = LearningPeriod.objects.get(id=period_id)
-    course = Course.objects.filter(id=course_id).first() if course_id else None
+    # course = Course.objects.filter(id=course_id).first() if course_id else None
 
+    # calculated_data = calculate_student_averages_optimized(
+    #     academic_year=academic_year, subject=subject, level=level,
+    #     is_mid=is_mid, period=period, course=course
+    # )[0]
     calculated_data = calculate_student_averages_optimized(
         academic_year=academic_year, subject=subject, level=level,
-        is_mid=is_mid, period=period, course=course
+        is_mid=is_mid, period=period
     )[0]
 
     # --- THE DUMP (Save to DB) ---
@@ -4909,7 +4925,7 @@ def cpmp_create(request):
                     academic_year=form.cleaned_data['academic_year'],
                     level=form.cleaned_data['level'],
                     subject=form.cleaned_data['subject'],
-                    teacher=form.cleaned_data['teacher'],
+                    # teacher=form.cleaned_data['teacher'],
                     cpl_root=default_root,
                     text=line,
                 )
@@ -6012,7 +6028,7 @@ def print_midterm_report(request, pk):
         ['', ''],
         ['', ''],
         ['', ''],
-        ['_________________________', f"{homeroom_teacher.first_name if homeroom_teacher else '-'} {homeroom_teacher.last_name if homeroom_teacher else ''}"],
+        ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
     sig_table.setStyle(TableStyle([

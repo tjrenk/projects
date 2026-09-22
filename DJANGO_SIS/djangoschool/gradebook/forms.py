@@ -2776,12 +2776,13 @@ class PersonalDevGradeForm(forms.ModelForm):
 
 
 class CpmpCreateForm(forms.ModelForm):
-    teacher = forms.ModelChoiceField(
-        queryset=Teacher.objects.all(),
-        required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Teacher'
-    )
+    # BACKUP, takutnya dibutuhkan
+    # teacher = forms.ModelChoiceField(
+    #     queryset=Teacher.objects.all(),
+    #     required=True,
+    #     widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+    #     label='Teacher'
+    # )
 
     text = forms.CharField(
         widget=forms.Textarea(attrs={
@@ -2818,34 +2819,35 @@ class CpmpCreateForm(forms.ModelForm):
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
 
         # Point 4 — always show Teacher, but restrict its own options
-        if is_admin:
-            self.fields['teacher'].queryset = Teacher.objects.all()
-        elif logged_in_teacher:
-            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
-            if not self.is_bound:
-                self.initial['teacher'] = logged_in_teacher.id
-        else:
-            self.fields['teacher'].queryset = Teacher.objects.none()
-
-        teacher_id = data.get('teacher') or initial.get('teacher')
+        # BACKUP
+        # if is_admin:
+        #     self.fields['teacher'].queryset = Teacher.objects.all()
+        # elif logged_in_teacher:
+        #     self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
+        #     if not self.is_bound:
+        #         self.initial['teacher'] = logged_in_teacher.id
+        # else:
+        #     self.fields['teacher'].queryset = Teacher.objects.none()
+        #
+        # teacher_id = data.get('teacher') or initial.get('teacher')
 
         # Point 2/3 — Subject actually cascades off Teacher now
-        if teacher_id:
-            self.fields['subject'].queryset = Subject.objects.filter(
-                course__teacher_id=teacher_id
-            ).distinct()
-        else:
-            self.fields['subject'].queryset = Subject.objects.none()
+        # if teacher_id:
+        #     self.fields['subject'].queryset = Subject.objects.filter(
+        #         course__teacher_id=teacher_id
+        #     ).distinct()
+        # else:
+        #     self.fields['subject'].queryset = Subject.objects.none()
 
         # HTMX — reuse the existing Grade Entry endpoint, same filter logic
-        self.fields['teacher'].widget.attrs.update({
-            'id': 'teacher-select-ge',
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-subjects-cpmp/',
-            'hx-trigger': 'change',
-            'hx-target': '#subject-select-cpmp',
-            'hx-swap': 'innerHTML',
-        })
+        # self.fields['teacher'].widget.attrs.update({
+        #     'id': 'teacher-select-ge',
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-subjects-cpmp/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#subject-select-cpmp',
+        #     'hx-swap': 'innerHTML',
+        # })
 
         self.fields['subject'].widget.attrs.update({
             'id': 'subject-select-cpmp',

@@ -168,10 +168,11 @@
                     </li>
                     {% if user.is_staff %}
                 <li class="mb-2">
-                        <details {% if request.resolver_match.url_name == 'assignment-avg-wizard' %}open{% endif %}>
+                        <details {% if request.resolver_match.url_name|in_list:"assignment-avg-wizard,midterm-report-select" %}open{% endif %}>
                             <summary><i class="fa-solid fa-calculator"></i>Processes</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-avg-wizard' %}active{% endif %}" href="{% url 'assignment-avg-wizard' %}">Calc Final Grade</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'midterm-report-select' %}active{% endif %}" href="{% url 'midterm-report-select' %}">Print Report Card</a></li>
                             </ul>
                         </details>
                     </li>

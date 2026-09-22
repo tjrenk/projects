@@ -21,7 +21,7 @@
                     <tr class="bg-base-300 text-base-content">
                         <th>NISN</th>
                         <th>Student Name</th>
-<!--                        <th>Kelas</th>-->
+                        <th>Course</th>
 <!--                        <th>Mata Pelajaran</th>-->
 <!--                        <th>Sub-level</th>-->
 <!--                        <th>Rata-rata</th>-->
@@ -35,6 +35,7 @@
     onclick="this.nextElementSibling.classList.toggle('hidden')">
     <td>{{ result.nisn }}</td>
     <td>{{ result.student_name }}</td>
+    <td>{{ result.course }}</td>
     <td>{{ result.final_score_preview }} <span class="text-xs text-base-content/40">▼</span></td>
 </tr>
 <tr class="hidden bg-base-200">
@@ -49,6 +50,7 @@
                     <tr>
                         <th>Type</th>
                         <th>Average</th>
+                        <th>-</th>
                     </tr>
                 </thead>
                 <tbody>
