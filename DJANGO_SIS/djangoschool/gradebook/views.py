@@ -1085,8 +1085,31 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             academic_year = data0.get('academic_year')
             period = data0.get('period')
             is_mid = data0.get('is_mid')
-            level = data0.get('level')
-            kelas = data0.get('kelas')
+            #OLD
+            # kelas = data0.get('kelas')
+            # level = kelas.level
+            #
+            #
+            # # admin/staff uses kelas from step 0
+            # # homeroom teacher is locked to their own class
+            # if user.is_staff or user.is_superuser:
+            #     kelas = data0.get('kelas')
+            #     if not kelas:
+            #         return initial
+            #     members = ClassMember.objects.filter(
+            #         kelas=kelas,
+            #         is_active=True,
+            #     ).select_related('student__registration_data')
+            # else:
+            #     homeroom_class = Class.objects.filter(
+            #         teacher__user=user
+            #     ).first()
+            #     if not homeroom_class:
+            #         return initial
+            #     members = ClassMember.objects.filter(
+            #         kelas=homeroom_class,
+            #         is_active=True,
+            #     ).select_related('student__registration_data')
 
             # admin/staff uses kelas from step 0
             # homeroom teacher is locked to their own class
@@ -1094,20 +1117,19 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                 kelas = data0.get('kelas')
                 if not kelas:
                     return initial
-                members = ClassMember.objects.filter(
-                    kelas=kelas,
-                    is_active=True,
-                ).select_related('student__registration_data')
             else:
-                homeroom_class = Class.objects.filter(
+                kelas = Class.objects.filter(
                     teacher__user=user
                 ).first()
-                if not homeroom_class:
+                if not kelas:
                     return initial
-                members = ClassMember.objects.filter(
-                    kelas=homeroom_class,
-                    is_active=True,
-                ).select_related('student__registration_data')
+
+            level = kelas.level
+
+            members = ClassMember.objects.filter(
+                kelas=kelas,
+                is_active=True,
+            ).select_related('student__registration_data')
 
             # batch fetch existing reportcards to avoid N+1
             student_ids = [m.student_id for m in members]
@@ -1154,6 +1176,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = data0.get('period')
             context['selected_is_mid'] = data0.get('is_mid')
             context['selected_level'] = data0.get('level')
+            context['selected_kelas'] = data0.get('kelas')
 
         if self.steps.current == '0' or self.steps.current == '1':
             context['homeroom_class'] = self._get_homeroom_class()
@@ -1163,6 +1186,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = data0.get('period')
             context['selected_is_mid'] = data0.get('is_mid')
             context['selected_level'] = data0.get('level')
+            context['selected_kelas'] = data0.get('kelas')
 
         return context
 
@@ -1173,12 +1197,36 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         academic_year = data0['academic_year']
         period = data0['period']
         is_mid = data0['is_mid']
-        level = data0['level']
+        #OLD
+        # level = data0['level']
+        # level = kelas.level
+        #
+        # if not level:
+        #     messages.error(self.request,
+        #                    f"Class '{kelas}' has no Grade Level set. Assign one in the admin panel first.")
+        #     return redirect('report-card')
+        #
+        # homeroom_class = self._get_homeroom_class()
+        # if not homeroom_class:
+        #     messages.error(self.request, "No homeroom class found for this teacher.")
+        #     return redirect('report-card')
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            kelas = data0.get('kelas')
+        else:
+            kelas = Class.objects.filter(teacher__user=user).first()
 
-        homeroom_class = self._get_homeroom_class()
-        if not homeroom_class:
-            messages.error(self.request, "No homeroom class found for this teacher.")
+        if not kelas:
+            messages.error(self.request, "No class found. Please select a class or check the homeroom assignment.")
             return redirect('report-card')
+
+        level = kelas.level
+        if not level:
+            messages.error(self.request,
+                           f"Class '{kelas}' has no Grade Level set. Assign one in the admin panel first.")
+            return redirect('report-card')
+
+        skipped_students = []
 
         with transaction.atomic():
             for form in formset:
@@ -1186,7 +1234,23 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     data = form.cleaned_data
                     student_id = data.get('student_id')
 
-                    # Save the homeroom teacher comment into ht_comment on StudentReportcard
+                    existing_reportcard = StudentReportcard.objects.filter(
+                        student_id=student_id,
+                        academic_year=academic_year,
+                        period=period,
+                        is_mid=is_mid,
+                        level=level
+                    ).first()
+
+                    has_grades = (
+                            existing_reportcard is not None
+                            and ReportcardGrade.objects.filter(reportcard=existing_reportcard).exists()
+                    )
+
+                    if not has_grades:
+                        skipped_students.append(student_id)
+                        continue
+
                     StudentReportcard.objects.update_or_create(
                         student_id=student_id,
                         academic_year=academic_year,
@@ -1194,12 +1258,17 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                         is_mid=is_mid,
                         level=level,
                         defaults={
-                            # 'level': level,
                             'ht_comment': data.get('ht_comment'),
                         }
                     )
 
-        messages.success(self.request, "Homeroom comments saved successfully!")
+        if skipped_students:
+            #Old, intended warning; buat ngecek aja siapa tau ada yg keskip karena report cardny blm finalisasi
+            # messages.warning(self.request, "WARNING - Cannot put comment. No report card grade saved yet.")
+            messages.warning(self.request, f"WARNING - Homeroom comments were skipped for {len(skipped_students)} students because their report card grades weren't saved yet.")
+        else:
+            messages.success(self.request, "Homeroom comments saved successfully!")
+
         return redirect('report-card')
 
 # Grade Entry dynamic fields

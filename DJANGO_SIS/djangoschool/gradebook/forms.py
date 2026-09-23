@@ -696,7 +696,9 @@ class StudentReportcardForm(forms.ModelForm):
 
     level = forms.ModelChoiceField(
         queryset=GradeLevel.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
+        required=False,
+        # widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
+        widget=forms.HiddenInput(), # ngga bisa dibuat hidden
         # label='Level Pembelajaran'
     )
 
@@ -711,6 +713,7 @@ class StudentReportcardForm(forms.ModelForm):
         fields = ["academic_year", "period", "is_mid", "level"]
         widgets = {
             'student': forms.Select(attrs={'class': 'form-select select2'}), # Assuming you use select2
+            'level': forms.HiddenInput() # ngga bisa dibuat hidden
         }
         # labels = {
         #     'academic_year': 'Tahun Ajaran',
@@ -722,22 +725,19 @@ class StudentReportcardForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        # BIAR NGGAK ERROR PAS MAU LANJUT KE STEP BERIKUTNYA
         data = self.data
         initial = self.initial
 
         is_staff = user and (user.is_staff or user.is_superuser)
 
         acayear = data.get('0-academic_year') or initial.get('academic_year')
-        level = data.get('0-level') or initial.get('level')
         period = data.get('0-period') or initial.get('period')
 
+        homeroom_class = None
         if not is_staff and user:
-            # homeroom teacher — lock to their class, hide the field
-            kelas = Class.objects.filter(teacher__user=user).first()
-            if kelas:
-                self.fields['kelas'].initial = kelas.id
-                # self.fields['kelas'].widget = forms.HiddenInput()
+            homeroom_class = Class.objects.filter(teacher__user=user).first()
+            if homeroom_class:
+                self.fields['kelas'].initial = homeroom_class.id
                 self.fields['kelas'].required = False
 
         if acayear:
@@ -745,11 +745,16 @@ class StudentReportcardForm(forms.ModelForm):
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
-        if period:
+        if homeroom_class and homeroom_class.level:
+            # Homeroom teacher — lock level to their class's own level, hide the field
+            self.fields['level'].initial = homeroom_class.level.id
+            self.fields['level'].queryset = GradeLevel.objects.filter(pk=homeroom_class.level.id)
+            self.fields['level'].widget = forms.HiddenInput()
+        elif period:
             self.fields['level'].queryset = GradeLevel.objects.all()
         else:
             self.fields['level'].queryset = GradeLevel.objects.none()
-            
+
         self.fields['academic_year'].widget.attrs.update({
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-period-reportcard/',
@@ -757,12 +762,8 @@ class StudentReportcardForm(forms.ModelForm):
             'hx-target': '#period-select',
             'hx-swap': 'innerHTML',
             'hx-include': '[name="1-period"]'
-            })
-        
-        # self.fields['period'].widget.attrs.update({
-        #         'class': 'custom-select mb-4',
-        #         'id': 'period-select'
-        #         })
+        })
+
         self.fields['period'].widget.attrs.update({
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-level-reportcard/',
@@ -770,9 +771,10 @@ class StudentReportcardForm(forms.ModelForm):
             'hx-target': '#level-select',
             'hx-swap': 'innerHTML',
             'hx-include': '[name="1-level"]'
-            })
-        
-        self.fields['level'].widget.attrs['id'] = 'level-select'
+        })
+
+        if not (homeroom_class and homeroom_class.level):
+            self.fields['level'].widget.attrs['id'] = 'level-select'
 
 class CourseByTeacher(forms.ModelForm):
     # subject = forms.ModelChoiceField(
