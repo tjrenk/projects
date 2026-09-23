@@ -64,22 +64,22 @@
 
             <div class="flex justify-center mt-4">
                 <div class="join">
-                    {% if pnation_rb.has_previous %}
+                    {% if pnation_sessions.has_previous %}
                     <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page=1">&laquo;&laquo;</a>
-                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_rb.previous_page_number }}">&laquo;</a>
+                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_sessions.previous_page_number }}">&laquo;</a>
                     {% endif %}
 
-                    {% for num in pnation_rb.paginator.page_range %}
-                        {% if pnation_rb.number == num %}
+                    {% for num in pnation_sessions.paginator.page_range %}
+                        {% if pnation_sessions.number == num %}
                         <button class="join-item btn btn-sm btn-active">{{ num }}</button>
-                        {% elif num > pnation_rb.number|add:"-3" and num < pnation_rb.number|add:"3" %}
+                        {% elif num > pnation_sessions.number|add:"-3" and num < pnation_sessions.number|add:"3" %}
                         <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ num }}">{{ num }}</a>
                         {% endif %}
                     {% endfor %}
 
-                    {% if pnation_rb.has_next %}
-                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_rb.next_page_number }}">&raquo;</a>
-                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_rb.paginator.num_pages }}">&raquo;&raquo;</a>
+                    {% if pnation_sessions.has_next %}
+                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_sessions.next_page_number }}">&raquo;</a>
+                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_sessions.paginator.num_pages }}">&raquo;&raquo;</a>
                     {% endif %}
                 </div>
             </div>

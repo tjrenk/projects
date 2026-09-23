@@ -57,7 +57,7 @@ class CourseMemberForm(forms.ModelForm):
         if self.parent_course:
             qs = qs.exclude(
                 coursemember__course=self.parent_course,
-                coursemember__is_active=True
+                coursemember__is_active=True,
             )
         self.fields['student'].queryset = qs
 

@@ -23,6 +23,7 @@ FINAL_GRADE_CHOICES = [
 ASSIGNMENT_CAT_BY_TYPE = {
     'SUMM': ['WR', 'PR'],
     'FORM': ['OB', 'OR', 'WR', 'PR'],
+    'ACT': ['AC'],
 }
 
 # biar jadi text, bukan field yang gabisa diapa2in
@@ -41,6 +42,11 @@ class GradeEntryForm(forms.ModelForm):
         required=True,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'custom-checkbox-list'}),
         label="Learning Outcomes"
+    )
+
+    is_activity = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
     )
 
     class Meta:
@@ -96,6 +102,7 @@ class GradeEntryForm(forms.ModelForm):
         assignment_type = data.get('0-assignment_type') or initial.get('assignment_type')
         assignment_cat = data.get('0-assignment_cat') or initial.get('assignment_cat')
         cpmp_target = data.get('0-cpmp_target') or initial.get('cpmp_target')
+        is_activity = bool(data.get('0-is_activity') or initial.get('is_activity'))
 
         # 2. Logic: Period depends on Academic Year
 
@@ -141,10 +148,10 @@ class GradeEntryForm(forms.ModelForm):
         # 4. Logic: Subject depends on Teacher + Level
         if teacher and level:
             self.fields['subject'].queryset = Subject.objects.filter(
-                course__teacher__id=teacher, course__level_id=level, is_activity=False
+                course__teacher__id=teacher, course__level_id=level, is_activity=bool(is_activity)
             ).distinct()
             if is_admin:
-                self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
+                self.fields['subject'].queryset = Subject.objects.filter(is_activity=bool(is_activity)).all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
@@ -160,9 +167,14 @@ class GradeEntryForm(forms.ModelForm):
 
         # 6. Logic: Course depends on Subject + Level
         if subject and level:
-            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject, level_id=level)
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject, level_id=level, is_activity=bool(is_activity))
             if is_admin:
-                self.fields['course'].queryset = Course.objects.all()
+                self.fields['course'].queryset = Course.objects.filter(
+                    academic_year_id=acayear,
+                    subject_id=subject,
+                    level_id=level,
+                    is_activity=bool(is_activity)
+                )
         else:
             self.fields['course'].queryset = Course.objects.none()
 
@@ -209,14 +221,15 @@ class GradeEntryForm(forms.ModelForm):
             'hx-include': '#period-select-ge' # Use ID selector for safety
         })
 
-        self.fields['subject'].widget.attrs.update({
-            'id': 'subject-select-ge',
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses-ge/',
+
+        self.fields['is_activity'].widget.attrs.update({
+            'id': 'is-activity-checkbox-ge',
+            'class': 'form-check-input',
+            'hx-get': '/gradebook/get-subjects-ge/',
             'hx-trigger': 'change',
-            'hx-target': '#course-select-ge',
+            'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge',
+            'hx-include': '#teacher-select-ge, #level-select-ge, #is-activity-checkbox-ge',
         })
 
         self.fields['level'].widget.attrs.update({
@@ -226,7 +239,17 @@ class GradeEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#teacher-select-ge, #level-select-ge',
+            'hx-include': '#teacher-select-ge, #level-select-ge, #is-activity-checkbox-ge',
+        })
+
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge, #is-activity-checkbox-ge',
         })
 
 
@@ -274,6 +297,7 @@ class GradeEntryForm(forms.ModelForm):
             'class': 'custom-select mb-4',
             'hx-include': '#acayear-select-ge, #assignment-type-select-ge'
         })
+
         
         # Ensure Teacher/Subject IDs match your previous setup
         self.fields['teacher'].widget.attrs['id'] = 'teacher-select-ge'
@@ -678,7 +702,7 @@ class StudentReportcardForm(forms.ModelForm):
 
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'}),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'kelas-select'}),
         label='Class'
     )
 
@@ -2793,6 +2817,11 @@ class CpmpCreateForm(forms.ModelForm):
         label='Learning Targets (one per line)'
     )
 
+    is_activity = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
     class Meta:
         model = CapaianPemelajaranMataPelajaran
         fields = ['academic_year', 'level', 'subject', 'text']  # cpl_root removed (point 5)
@@ -2810,13 +2839,20 @@ class CpmpCreateForm(forms.ModelForm):
         # Point 1 — move Teacher between Level and Subject.
         # 'teacher' isn't a real model field so it can't go in Meta.fields;
         # order_fields() is the clean way to reposition it after the fact.
-        self.order_fields(['academic_year', 'level', 'teacher', 'subject', 'text'])
+        self.order_fields(['academic_year', 'level', 'teacher', 'is_activity', 'subject', 'text'])
 
         data = self.data
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        level = data.get('level') or initial.get('level')
+
+        is_activity = data.get('is_activity') or initial.get('is_activity')
+        is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
+
+        self.fields['subject'].queryset = Subject.objects.filter(is_activity=is_activity)
 
         # Point 4 — always show Teacher, but restrict its own options
         # BACKUP
@@ -2848,6 +2884,38 @@ class CpmpCreateForm(forms.ModelForm):
         #     'hx-target': '#subject-select-cpmp',
         #     'hx-swap': 'innerHTML',
         # })
+
+        if is_admin:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                is_activity=is_activity
+            ).distinct()
+        elif logged_in_teacher:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                course__teacher=logged_in_teacher, course__level_id=level
+                , is_activity=is_activity
+            ).distinct()
+        else:
+            self.fields['subject'].queryset = Subject.objects.none()
+
+        self.fields['is_activity'].widget.attrs.update({
+            'id': 'is-activity-checkbox-cpmp',
+            'class': 'form-check-input',
+            'hx-get': '/gradebook/get-subjects-cpmp/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-cpmp',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-cpmp',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-subjects-cpmp/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-cpmp',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
+        })
 
         self.fields['subject'].widget.attrs.update({
             'id': 'subject-select-cpmp',
@@ -3065,6 +3133,11 @@ class GetCpmpListForEdit(forms.ModelForm):
         label='Teacher'
     )
 
+    is_activity = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
 
     class Meta:
         model = CapaianPemelajaranMataPelajaran
@@ -3082,13 +3155,16 @@ class GetCpmpListForEdit(forms.ModelForm):
         # Point 1 — move Teacher between Level and Subject.
         # 'teacher' isn't a real model field so it can't go in Meta.fields;
         # order_fields() is the clean way to reposition it after the fact.
-        self.order_fields(['academic_year', 'level', 'teacher', 'subject', 'text'])
+        self.order_fields(['academic_year', 'level', 'teacher', 'is_activity', 'subject', 'text'])
 
         data = self.data
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        is_activity = data.get('is_activity') or initial.get('is_activity')
+        is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
 
         # Point 4 — always show Teacher, but restrict its own options
         if is_admin:
@@ -3105,7 +3181,7 @@ class GetCpmpListForEdit(forms.ModelForm):
         # Point 2/3 — Subject actually cascades off Teacher now
         if teacher_id:
             self.fields['subject'].queryset = Subject.objects.filter(
-                course__teacher_id=teacher_id
+                course__teacher_id=teacher_id, is_activity=is_activity
             ).distinct()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
@@ -3118,6 +3194,17 @@ class GetCpmpListForEdit(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
+            'hx-include': '#teacher-select-ge, #is-activity-checkbox-ge',
+        })
+
+        self.fields['is_activity'].widget.attrs.update({
+            'id': 'is-activity-checkbox-ge',
+            'class': 'form-check-input',
+            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#teacher-select-ge, #is-activity-checkbox-ge',
         })
 
         self.fields['subject'].widget.attrs.update({

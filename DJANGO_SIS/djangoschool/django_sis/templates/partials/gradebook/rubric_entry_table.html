@@ -45,7 +45,7 @@
                 </tr>
             </thead>
             <tbody class="flex-1">
-                {% for ahead in pnation_ah %}
+                {% for ahead in pnation_sessions %}
                 <tr class="hover:bg-base-200" onclick="window.location.href='{% url 'ge-edit' ahead.id %}'" style="cursor: pointer;">
                     <td class="flex-1">{{ ahead.date }}</td>
                     <td class="flex-1"><strong>{{ ahead.topic }}</strong></td>
@@ -70,20 +70,20 @@
         <div class="join">
         <tr>
         <td>
-        {% if pnation_ah.has_previous %}
+        {% if pnation_sessions.has_previous %}
         <a class="join-item btn" href="?page=1"><<</a>
-        <a class="join-item btn" href="?page={{ pnation_ah.previous_page_number }}"><</a>
+        <a class="join-item btn" href="?page={{ pnation_sessions.previous_page_number }}"><</a>
         {% endif %}
         </td>
         <td>
-        <h4>Page {{ pnation_ah.number }} of {{ pnation_ah.paginator.num_pages }}</h4>
+        <h4>Page {{ pnation_sessions.number }} of {{ pnation_sessions.paginator.num_pages }}</h4>
         </td>
 
         <td>
-        {% if pnation_ah.has_next %}
-        <a class="join-item btn" href="?page={{ pnation_ah.next_page_number }}">></a>
+        {% if pnation_sessions.has_next %}
+        <a class="join-item btn" href="?page={{ pnation_sessions.next_page_number }}">></a>
 
-        <a class="join-item btn" href="?page={{ pnation_ah.paginator.num_pages }}">>></a>
+        <a class="join-item btn" href="?page={{ pnation_sessions.paginator.num_pages }}">>></a>
         {% endif %}
         </td>
         </tr>

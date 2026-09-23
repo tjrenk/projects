@@ -28,7 +28,8 @@ ASSIGNMENT_CAT_CHOICES = [
     ("WR", "WRITTEN"),
     ("PR", "PROJECT"),
     ("OB", "OBSERVATION"),
-    ("OR", "ORAL")
+    ("OR", "ORAL"),
+    ("AC", "ACTIVITY"),
 ]
 
 class Subject(models.Model):

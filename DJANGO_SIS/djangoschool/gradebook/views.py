@@ -1085,9 +1085,8 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             academic_year = data0.get('academic_year')
             period = data0.get('period')
             is_mid = data0.get('is_mid')
+            level = data0.get('level')
             kelas = data0.get('kelas')
-            level = kelas.level
-
 
             # admin/staff uses kelas from step 0
             # homeroom teacher is locked to their own class
@@ -1155,7 +1154,6 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = data0.get('period')
             context['selected_is_mid'] = data0.get('is_mid')
             context['selected_level'] = data0.get('level')
-            context['selected_kelas'] = data0.get('kelas')
 
         if self.steps.current == '0' or self.steps.current == '1':
             context['homeroom_class'] = self._get_homeroom_class()
@@ -1165,7 +1163,6 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = data0.get('period')
             context['selected_is_mid'] = data0.get('is_mid')
             context['selected_level'] = data0.get('level')
-            context['selected_kelas'] = data0.get('kelas')
 
         return context
 
@@ -1177,19 +1174,11 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         period = data0['period']
         is_mid = data0['is_mid']
         level = data0['level']
-        level = kelas.level
-
-        if not level:
-            messages.error(self.request,
-                           f"Class '{kelas}' has no Grade Level set. Assign one in the admin panel first.")
-            return redirect('report-card')
 
         homeroom_class = self._get_homeroom_class()
         if not homeroom_class:
             messages.error(self.request, "No homeroom class found for this teacher.")
             return redirect('report-card')
-
-        skipped_students = []
 
         with transaction.atomic():
             for form in formset:
@@ -1197,23 +1186,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     data = form.cleaned_data
                     student_id = data.get('student_id')
 
-                    existing_reportcard = StudentReportcard.objects.filter(
-                        student_id=student_id,
-                        academic_year=academic_year,
-                        period=period,
-                        is_mid=is_mid,
-                        level=level
-                    ).first()
-
-                    has_grades = (
-                            existing_reportcard is not None
-                            and ReportcardGrade.objects.filter(reportcard=existing_reportcard).exists()
-                    )
-
-                    if not has_grades:
-                        skipped_students.append(student_id)
-                        continue
-
+                    # Save the homeroom teacher comment into ht_comment on StudentReportcard
                     StudentReportcard.objects.update_or_create(
                         student_id=student_id,
                         academic_year=academic_year,
@@ -1221,15 +1194,12 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                         is_mid=is_mid,
                         level=level,
                         defaults={
+                            # 'level': level,
                             'ht_comment': data.get('ht_comment'),
                         }
                     )
 
-        if skipped_students:
-            messages.warning(self.request, "WARNING - Cannot put comment. No report card grade saved yet.")
-        else:
-            messages.success(self.request, "Homeroom comments saved successfully!")
-
+        messages.success(self.request, "Homeroom comments saved successfully!")
         return redirect('report-card')
 
 # Grade Entry dynamic fields
@@ -1310,14 +1280,13 @@ def get_subjects_ge(request):
     teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
     level_id = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
     selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
+    is_activity = request.GET.get('0-is_activity') or request.GET.get('1-is_activity') or request.GET.get('is_activity')
+    is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
+
     if teacher_id and level_id:
         subjects = Subject.objects.filter(
-            course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
+            course__teacher__id=teacher_id, course__level_id=level_id, is_activity=is_activity
         ).distinct()
-    # elif user.is_staff or user.is_superuser:
-    #     subjects = Subject.objects.filter(
-    #         course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
-    #     ).distinct()
     else:
         subjects = Subject.objects.none()
     context = {
@@ -1325,6 +1294,7 @@ def get_subjects_ge(request):
         'selected_subject': selected_subject
     }
     return render(request, "partials/gradebook/gradeentry_partials/subject.html", context)
+
 
 
 def get_kelas_ge(request):
@@ -1349,10 +1319,12 @@ def get_courses_ge(request):
     selected_course = request.GET.get('0-course') or request.GET.get('course')
     level_id = request.GET.get('0-level') or request.GET.get('level')
     teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    is_activity = request.GET.get('0-is_activity') or request.GET.get('is_activity')
+    is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
 
     if subject_id and level_id and teacher_id:
         courses = Course.objects.filter(
-            subject_id=subject_id, level_id=level_id, teacher_id=teacher_id
+            subject_id=subject_id, level_id=level_id, teacher_id=teacher_id, is_activity=is_activity
         )
         if acayear_id:
             courses = courses.filter(academic_year_id=acayear_id)
@@ -1364,6 +1336,7 @@ def get_courses_ge(request):
         'selected_course': selected_course
     }
     return render(request, "partials/gradebook/gradeentry_partials/course.html", context)
+
 
 
 def get_assignment_types_ge(request):
@@ -2574,7 +2547,7 @@ def rb_table(request):
         'behaviour__level__grade_name',
     ).distinct().order_by(order_field)
 
-    pnation = Paginator(sessions, 9)
+    pnation = Paginator(sessions, 10)
     pnation_sessions = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/rubric_table.html', {
@@ -2726,7 +2699,7 @@ def rb_pdf(request, pk):
 
     flowables = [Spacer(1, 0.5*cm)]
 
-    flowables.append(Paragraph("LAPORAN PENILAIAN SIKAP SPIRITUAL DAN SOSIAL", styles['title']))
+    flowables.append(Paragraph("LAPORAN PENILAIAN SIKAP", styles['title']))
     # flowables.append(Paragraph(
     #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
     #     styles['subtitle']
@@ -3656,7 +3629,14 @@ def weighting_exists_for(academic_year, level, period, is_mid, subject):
 # def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period, course=None):
 def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period):
     weightings = get_effective_weightings(academic_year, level, period, is_mid, subject)
-    weight_map = {w.assignment_id: float(w.weight) for w in weightings}
+    # OLD
+    # weight_map = {w.assignment_id: float(w.weight) for w in weightings}
+    weight_map = {}
+    for w in weightings:
+        weight = float(w.weight)
+        if w.assignment.short_name == 'ACT' and w.subject_id is None:
+            weight += 0.01
+        weight_map[w.assignment_id] = weight
 
     assign_type_map = {
         at.id: at
@@ -3677,6 +3657,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
 
     grades_data = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
+        assignment_head__course__level=level,
         assignment_head__course__academic_year=academic_year,
         assignment_head__assignment_id__in=weight_map.keys(),
         assignment_head__date__range=(term_period.date_start, term_period.date_end)
@@ -3781,6 +3762,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         for term in all_terms:
             term_grades = AssignmentDetail.objects.filter(
                 assignment_head__course__subject=subject,
+                assignment_head__course__level=level,
                 assignment_head__course__academic_year=academic_year,
                 assignment_head__assignment_id__in=weight_map.keys(),
                 assignment_head__date__range=(term.date_start, term.date_end),
@@ -4944,22 +4926,37 @@ def cpmp_create(request):
 
     return render(request, 'partials/gradebook/cpmp_create.html', {'form': form})
 
-
+@login_required
 def get_subjects_cpmp(request):
     user = request.user
     teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
-    # level_id = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
+    level_id = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
     selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
-    if teacher_id:
-        subjects = Subject.objects.filter(
-            course__teacher__id=teacher_id, is_activity=False
-        ).distinct()
-    # elif user.is_staff or user.is_superuser:
+    is_activity = request.GET.get('is_activity')
+    is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
+    # if teacher_id:
     #     subjects = Subject.objects.filter(
-    #         course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
+    #         course__teacher__id=teacher_id, is_activity=is_activity
     #     ).distinct()
+    # # elif user.is_staff or user.is_superuser:
+    # #     subjects = Subject.objects.filter(
+    # #         course__teacher__id=teacher_id, course__level_id=level_id, is_activity=False
+    # #     ).distinct()
+    # else:
+    #     subjects = Subject.objects.none()
+
+    is_admin = user.is_staff or user.is_superuser
+    logged_in_teacher = Teacher.objects.filter(user=user).first()
+
+    if is_admin:
+        subjects = Subject.objects.filter(is_activity=is_activity).distinct()
+    elif logged_in_teacher:
+        subjects = Subject.objects.filter(
+            course__teacher=logged_in_teacher, course__level_id=level_id, is_activity=is_activity
+        ).distinct()
     else:
         subjects = Subject.objects.none()
+
     context = {
         'subjects': subjects,
         'selected_subject': selected_subject
@@ -5785,9 +5782,15 @@ def print_midterm_report(request, pk):
     ).select_related('subject').order_by('subject__subject_name')
 
     # C. EXTRAKURIKULER — via StudentReportExtra, reversed through reportcard
-    activity_courses = CourseMember.objects.filter(
-        student=student, is_active=True, course__subject__is_activity=True
-    ).select_related('course', 'course__subject')
+    # OLD
+    # activity_courses = CourseMember.objects.filter(
+    #     student=student, is_active=True, course__subject__is_activity=True
+    # ).select_related('course', 'course__subject')
+
+    activity_courses = ReportcardGrade.objects.filter(
+        reportcard=reportcard,
+        subject__is_activity=True
+    ).select_related('subject').order_by('subject__subject_name')
 
     # PROPER QUERY
 #     activity_courses = StudentReportExtra.objects.filter(
@@ -5798,14 +5801,15 @@ def print_midterm_report(request, pk):
         reportcard=reportcard, extra_type='EK'
     ))
 
-    extracurricular_rows = []
-    for i, member in enumerate(activity_courses):
-        matching_extra = extra_scores[i] if i < len(extra_scores) else None
-        extracurricular_rows.append({
-            'course_name': member.course.name,
-            'score': matching_extra.extra_score if matching_extra else '-',
-            'grade': matching_extra.extra_description if matching_extra else '-',
-        })
+    # OLD
+    # extracurricular_rows = []
+    # for i, member in enumerate(activity_courses):
+    #     matching_extra = extra_scores[i] if i < len(extra_scores) else None
+    #     extracurricular_rows.append({
+    #         'course_name': member.course.name,
+    #         'score': matching_extra.extra_score if matching_extra else '-',
+    #         'grade': matching_extra.extra_description if matching_extra else '-',
+    #     })
 
     # D. PENGEMBANGAN DIRI — leave commented for now
     # personal_dev = StudentReportExtra.objects.filter(reportcard=reportcard, extra_type='PD')
@@ -5905,11 +5909,14 @@ def print_midterm_report(request, pk):
     else:
         grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Predikat']]
 
+    #OLD
     # for i, g in enumerate(grades, start=1):
     #     row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
     #     if show_notes:
     #         row.append(Paragraph(g.teacher_notes or '-', styles['label']))
     #     grade_data.append(row)
+
+    #NEW
     for i, g in enumerate(grades, start=1):
         if show_notes:
             row = [str(i), g.subject.subject_name, '82', str(g.final_score)]
@@ -5936,8 +5943,14 @@ def print_midterm_report(request, pk):
     # C. EXTRAKURIKULER
     flowables.append(Paragraph("B. EKSTRAKURIKULER", styles['group']))
     extra_data = [['No', 'Mata Pelajaran', 'Nilai', 'Predikat']]
-    for i, row in enumerate(extracurricular_rows, start=1):
-        extra_data.append([str(i), row['course_name'], str(row['score']), row['grade']])
+    #OLD
+    # for i, row in enumerate(extracurricular_rows, start=1):
+    #     extra_data.append([str(i), row['course_name'], str(row['score']), row['grade']])
+
+    #NEW
+    for i, g in enumerate(activity_courses, start=1):
+        row = [str(i), g.subject.subject_name, str(g.final_score), g.final_grade]
+        extra_data.append(row)
     extra_table = Table(extra_data, colWidths=[1 * cm, 9 * cm, 2 * cm, 5 * cm])
     extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
@@ -6026,8 +6039,6 @@ def print_midterm_report(request, pk):
         ['Orang Tua/Wali,', 'Wali Kelas,'],
         ['Peserta Didik,', ''],
         ['', ''],
-        ['', ''],
-        ['', ''],
         ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
@@ -6047,7 +6058,6 @@ def print_midterm_report(request, pk):
     flowables.append(Spacer(1, 0.3 * cm))
     headmaster_sig_data = [
         ['Kepala Sekolah'],
-        [''],
         [''],
         [''],
         # ['_________________________'],
