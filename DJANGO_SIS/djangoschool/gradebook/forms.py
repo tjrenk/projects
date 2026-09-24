@@ -984,7 +984,7 @@ class RequestLogForm(BaseReportForm, forms.Form):
     )
 
     period = forms.ModelChoiceField(
-        queryset = LearningPeriod.objects.all(),
+        queryset = LearningPeriod.objects.none(),
         required=False,
         widget=forms.RadioSelect(attrs={
             'class': 'form-control'
@@ -1026,8 +1026,8 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
         self.fields['academic_year'].widget.attrs.update({
             'id': 'acayear-select-ledger',  # Vital for the listener
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get_period_ledger/',
+            # 'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_period_rpledger/',
             'hx-trigger': 'change',
             'hx-target': '#period-select-ledger', # Updates Period normally
             'hx-swap': 'innerHTML',
@@ -1035,7 +1035,7 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
         self.fields['period'].widget.attrs.update({
             'id': 'period-select-ledger',
-            'class': 'form-check-input mb-2',
+            'class': 'custom-select mb-4',
         })
 
 

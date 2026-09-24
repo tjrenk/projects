@@ -1077,38 +1077,17 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         if step == '1':
             user = self.request.user
             data0 = self.get_cleaned_data_for_step('0')
+            homeroom_class = self._get_homeroom_class()
 
-            if not data0:
+            if not data0 or not homeroom_class:
                 return initial
 
             academic_year = data0.get('academic_year')
             period = data0.get('period')
             is_mid = data0.get('is_mid')
-            #OLD
-            # kelas = data0.get('kelas')
-            # level = kelas.level
-            #
-            #
-            # # admin/staff uses kelas from step 0
-            # # homeroom teacher is locked to their own class
-            # if user.is_staff or user.is_superuser:
-            #     kelas = data0.get('kelas')
-            #     if not kelas:
-            #         return initial
-            #     members = ClassMember.objects.filter(
-            #         kelas=kelas,
-            #         is_active=True,
-            #     ).select_related('student__registration_data')
-            # else:
-            #     homeroom_class = Class.objects.filter(
-            #         teacher__user=user
-            #     ).first()
-            #     if not homeroom_class:
-            #         return initial
-            #     members = ClassMember.objects.filter(
-            #         kelas=homeroom_class,
-            #         is_active=True,
-            #     ).select_related('student__registration_data')
+            kelas = data0.get('kelas')
+            level = kelas.level
+
 
             # admin/staff uses kelas from step 0
             # homeroom teacher is locked to their own class
@@ -1116,19 +1095,20 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                 kelas = data0.get('kelas')
                 if not kelas:
                     return initial
+                members = ClassMember.objects.filter(
+                    kelas=kelas,
+                    is_active=True,
+                ).select_related('student__registration_data')
             else:
-                kelas = Class.objects.filter(
+                homeroom_class = Class.objects.filter(
                     teacher__user=user
                 ).first()
-                if not kelas:
+                if not homeroom_class:
                     return initial
-
-            level = kelas.level
-
-            members = ClassMember.objects.filter(
-                kelas=kelas,
-                is_active=True,
-            ).select_related('student__registration_data')
+                members = ClassMember.objects.filter(
+                    kelas=homeroom_class,
+                    is_active=True,
+                ).select_related('student__registration_data')
 
             # batch fetch existing reportcards to avoid N+1
             student_ids = [m.student_id for m in members]
@@ -1196,33 +1176,17 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
         academic_year = data0['academic_year']
         period = data0['period']
         is_mid = data0['is_mid']
-        #OLD
-        # level = data0['level']
-        # level = kelas.level
-        #
-        # if not level:
-        #     messages.error(self.request,
-        #                    f"Class '{kelas}' has no Grade Level set. Assign one in the admin panel first.")
-        #     return redirect('report-card')
-        #
-        # homeroom_class = self._get_homeroom_class()
-        # if not homeroom_class:
-        #     messages.error(self.request, "No homeroom class found for this teacher.")
-        #     return redirect('report-card')
-        user = self.request.user
-        if user.is_staff or user.is_superuser:
-            kelas = data0.get('kelas')
-        else:
-            kelas = Class.objects.filter(teacher__user=user).first()
-
-        if not kelas:
-            messages.error(self.request, "No class found. Please select a class or check the homeroom assignment.")
-            return redirect('report-card')
-
+        level = data0['level']
         level = kelas.level
+
         if not level:
             messages.error(self.request,
                            f"Class '{kelas}' has no Grade Level set. Assign one in the admin panel first.")
+            return redirect('report-card')
+
+        homeroom_class = self._get_homeroom_class()
+        if not homeroom_class:
+            messages.error(self.request, "No homeroom class found for this teacher.")
             return redirect('report-card')
 
         skipped_students = []
@@ -1262,9 +1226,7 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                     )
 
         if skipped_students:
-            #Old, intended warning; buat ngecek aja siapa tau ada yg keskip karena report cardny blm finalisasi
-            # messages.warning(self.request, "WARNING - Cannot put comment. No report card grade saved yet.")
-            messages.warning(self.request, f"WARNING - Homeroom comments were skipped for {len(skipped_students)} students because their report card grades weren't saved yet.")
+            messages.warning(self.request, "WARNING - Cannot put comment. No report card grade saved yet.")
         else:
             messages.success(self.request, "Homeroom comments saved successfully!")
 
@@ -1723,11 +1685,11 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
         buffer = io.BytesIO()
         HEADER_GAP = 0.5 * cm
-        page_width, page_height = landscape(GOV_LEGAL)
+        page_width, page_height = GOV_LEGAL
         header_height = get_pdf_header_height(page_width)
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=landscape(GOV_LEGAL),
+            pagesize=GOV_LEGAL,
             topMargin=header_height + HEADER_GAP,
             bottomMargin=2 * cm,
             leftMargin=2.3 * cm,
@@ -1788,33 +1750,6 @@ def get_period_ledger(request):
     for p in periods:
         selected = 'selected' if selected_period == str(p.id) else ''
         html += f'<option value="{p.id}" {selected}>{p.period_name}</option>'
-
-    return HttpResponse(html)
-
-
-def get_period_rpledger(request):
-    acayear_id = request.GET.get('academic_year')
-    selected_period = request.GET.get('period')
-    periods = LearningPeriod.objects.filter(
-        academic_year_id=acayear_id,
-        period_name__icontains='semester'
-    ) if acayear_id else LearningPeriod.objects.none()
-
-    # html = '<option value="">All</option>'
-    # for p in periods:
-    #     selected = 'selected' if selected_period == str(p.id) else ''
-    #     html += f'<option value="{p.id}" {selected}>{p.period_name}</option>'
-    html = ''
-    for p in periods:
-        checked = 'checked' if selected_period == str(p.id) else ''
-        html += f'''
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="period"
-                   id="id_course_{p.id}" value="{p.id}" {checked}>
-            <label class="form-check-label" for="id_period_{p.id}">
-                {p}
-            </label>
-        </div>'''
 
     return HttpResponse(html)
 
@@ -2642,7 +2577,7 @@ def rb_table(request):
         'behaviour__level__grade_name',
     ).distinct().order_by(order_field)
 
-    pnation = Paginator(sessions, 10)
+    pnation = Paginator(sessions, 3)
     pnation_sessions = pnation.get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/rubric_table.html', {
@@ -2869,27 +2804,29 @@ def rb_pdf(request, pk):
         ['Orang Tua/Wali,', 'Wali Kelas,'],
         ['Peserta Didik,', ''],
         ['', ''],
-        # ['', ''],
+        ['', ''],
+        ['', ''],
         ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
     sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, -1), (-1, -1), 12),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
     # flowables.append(sig_table)
-    flowables.append(Spacer(1, 0.1 * cm))
+    flowables.append(Spacer(1, 0.3*cm))
     center_style = ParagraphStyle(
         'CenterText', parent=styles['label'],
         alignment=TA_CENTER,
     )
     # flowables.append(Paragraph("Mengetahui,", center_style))
-    flowables.append(Spacer(1, 0.1 * cm))
+    flowables.append(Spacer(1, 0.3 * cm))
     headmaster_sig_data = [
         ['Kepala Sekolah'],
+        [''],
+        [''],
         [''],
         # ['_________________________'],
         [f"{headmaster.full_name if headmaster else '-'}"]
@@ -2899,7 +2836,6 @@ def rb_pdf(request, pk):
     headmaster_sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, -1), (-1, -1), 27),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
@@ -2908,7 +2844,7 @@ def rb_pdf(request, pk):
         sig_table,
         Spacer(1, 0.1 * cm),
         Paragraph("Mengetahui,", center_style),
-        Spacer(1, 0.1 * cm),
+        Spacer(1, 0.6 * cm),
         headmaster_sig_table,
     ]
     flowables.append(KeepTogether(signature_block))
@@ -6003,14 +5939,11 @@ def print_midterm_report(request, pk):
     else:
         grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Predikat']]
 
-    #OLD
     # for i, g in enumerate(grades, start=1):
     #     row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
     #     if show_notes:
     #         row.append(Paragraph(g.teacher_notes or '-', styles['label']))
     #     grade_data.append(row)
-
-    #NEW
     for i, g in enumerate(grades, start=1):
         if show_notes:
             row = [str(i), g.subject.subject_name, '82', str(g.final_score)]
@@ -6037,11 +5970,8 @@ def print_midterm_report(request, pk):
     # C. EXTRAKURIKULER
     flowables.append(Paragraph("B. EKSTRAKURIKULER", styles['group']))
     extra_data = [['No', 'Mata Pelajaran', 'Nilai', 'Predikat']]
-    #OLD
     # for i, row in enumerate(extracurricular_rows, start=1):
     #     extra_data.append([str(i), row['course_name'], str(row['score']), row['grade']])
-
-    #NEW
     for i, g in enumerate(activity_courses, start=1):
         row = [str(i), g.subject.subject_name, str(g.final_score), g.final_grade]
         extra_data.append(row)
@@ -6133,13 +6063,14 @@ def print_midterm_report(request, pk):
         ['Orang Tua/Wali,', 'Wali Kelas,'],
         ['Peserta Didik,', ''],
         ['', ''],
+        ['', ''],
+        ['', ''],
         ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
     sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, -1), (-1, -1), 17),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
@@ -6150,9 +6081,10 @@ def print_midterm_report(request, pk):
         alignment=TA_CENTER,
     )
     # flowables.append(Paragraph("Mengetahui,", center_style))
-    flowables.append(Spacer(1, 0.1 * cm))
+    flowables.append(Spacer(1, 0.3 * cm))
     headmaster_sig_data = [
         ['Kepala Sekolah'],
+        [''],
         [''],
         [''],
         # ['_________________________'],
@@ -6170,9 +6102,9 @@ def print_midterm_report(request, pk):
     # semua dikumpulin jadi 1 block
     signature_block = [
         sig_table,
-        Spacer(1, 0.01 * cm),
+        Spacer(1, 0.6 * cm),
         Paragraph("Mengetahui,", center_style),
-        Spacer(1, 0.01 * cm),
+        Spacer(1, 0.6 * cm),
         headmaster_sig_table,
     ]
     flowables.append(KeepTogether(signature_block))
