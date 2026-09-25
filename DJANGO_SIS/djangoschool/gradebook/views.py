@@ -109,56 +109,83 @@ def apply_filters(queryset, request, filter_map):
 
 
 # styling isi dokumen PDF
+
+# register custom fonts
+def register_pdf_fonts():
+    """
+    Registers all custom fonts used across PDF generation, guarded so
+    each font only gets registered once even if called multiple times.
+    """
+    if 'arial-narrow-regular' not in pdfmetrics.getRegisteredFontNames():
+        FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'arial-narrow', 'arialnarrow.ttf')
+        FONT_PATH_BOLD = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'arial-narrow', 'arialnarrow_bold.ttf')
+        FONT_PATH_ITALIC = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'arial-narrow', 'arialnarrow_bolditalic.ttf')
+        pdfmetrics.registerFont(TTFont('arial-narrow', FONT_PATH_REG))
+        pdfmetrics.registerFont(TTFont('arial-narrow-bold', FONT_PATH_BOLD))
+        pdfmetrics.registerFont(TTFont('arial-narrow-italic', FONT_PATH_ITALIC))
+
+    if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
+        FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
+        FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
+        FONT_PATH_BOLD = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
+        pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
+        pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
+        pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
+
+# styling untuk dokumen2 PDF
 def get_pdf_styles():
     """
     Returns a dict of reusable ParagraphStyles and a standard TableStyle
     for use across all PDF generation views.
     """
     base_styles = getSampleStyleSheet()
+    register_pdf_fonts()
 
     styles = {
         'title': ParagraphStyle(
             'Title', parent=base_styles['Normal'],
-            fontSize=13, fontName='Times-Bold',
+            fontSize=13, fontName='arial-narrow-bold',
             # alignment=TA_CENTER, spaceAfter=4,
             alignment=TA_CENTER, spaceAfter=1.5,
         ),
         'title2': ParagraphStyle(
             'Title', parent=base_styles['Normal'],
-            fontSize=11, fontName='Times-Italic',
+            fontSize=11, fontName='arial-narrow-bold',
             alignment=TA_CENTER, spaceAfter=4,
         ),
         'subtitle': ParagraphStyle(
             'Subtitle', parent=base_styles['Normal'],
-            fontSize=9, fontName='Times-Roman',
+            fontSize=9, fontName='arial-narrow',
             alignment=TA_CENTER, spaceAfter=4,
         ),
         'group': ParagraphStyle(
             'Group', parent=base_styles['Normal'],
-            fontSize=10, fontName='Helvetica-Bold',
+            fontSize=9, fontName='arial-narrow',
             spaceAfter=2, spaceBefore=2,
         ),
         'label': ParagraphStyle(
             'Label', parent=base_styles['Normal'],
-            fontSize=8, fontName='Times-Roman',
+            fontSize=7, fontName='arial-narrow',
             alignment=TA_LEFT, spaceAfter=2,
         ),
         'content': ParagraphStyle(
             'Content', parent=base_styles['Normal'],
-            fontSize=8,
+            fontSize=7,
             alignment=TA_LEFT,
+            fontName='arial-narrow'
             # spaceAfter=2, leading=10
         ),
         'grading': ParagraphStyle(
             'Grading', parent=base_styles['Normal'],
-            fontSize=9,
+            fontSize=7,
             alignment=TA_CENTER,
+            fontName='arial-narrow'
             # spaceAfter=2, leading=10
         ),
         'footer': ParagraphStyle(
             'Footer', parent=base_styles['Normal'],
-            fontSize=6, fontName='Times-Italic',
-            alignment=TA_LEFT, textColor=colors.HexColor('#e0e0e0'),
+            fontSize=4, fontName='arial-narrow',
+            alignment=TA_LEFT, textColor=colors.HexColor('#ffffee'),
         ),
 
     }
@@ -166,7 +193,7 @@ def get_pdf_styles():
     table_style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
@@ -180,7 +207,7 @@ def get_pdf_styles():
     reportc_table_style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
@@ -194,25 +221,14 @@ def get_pdf_styles():
     return styles, table_style, reportc_table_style
 
 
+# konten kop surat
 def build_pdf_header_table():
     """
     Pure builder — constructs and returns the header Table object without
     drawing anything. Used both for measuring height and for drawing.
     """
     LOGO_PATH = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_ecs1.png')
-
-
-
-
-    # DEV VERSION
-
-    if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
-        FONT_PATH_REG = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
-        FONT_PATH_SEMIB = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
-        FONT_PATH_BOLD = os.path.join(settings.BASE_DIR, 'static_files', 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
-        pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
-        pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
-        pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
+    register_pdf_fonts()
 
     header_text_styles = {
         'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
@@ -241,49 +257,6 @@ def build_pdf_header_table():
         os.path.join(settings.BASE_DIR, 'static_files', 'images', 'mail.png'),
         width=0.3 * cm, height=0.3 * cm
     )
-
-
-
-    # PROD / LIVE VERSION
-
-    # if 'Montserrat-Regular' not in pdfmetrics.getRegisteredFontNames():
-    #     FONT_PATH_REG = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Regular.ttf')
-    #     FONT_PATH_SEMIB = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-SemiBold.ttf')
-    #     FONT_PATH_BOLD = os.path.join(settings.STATIC_ROOT, 'fonts', 'montserrat', 'Montserrat-Bold.ttf')
-    #     pdfmetrics.registerFont(TTFont('Montserrat-Regular', FONT_PATH_REG))
-    #     pdfmetrics.registerFont(TTFont('Montserrat-SemiBold', FONT_PATH_SEMIB))
-    #     pdfmetrics.registerFont(TTFont('Montserrat-Bold', FONT_PATH_BOLD))
-    #
-    # header_text_styles = {
-    #     'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
-    #     'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
-    #     'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
-    #     'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2)
-    # }
-    #
-    # if os.path.exists(LOGO_PATH):
-    #     logo = Image(LOGO_PATH, width=4.0 * cm, height=1.9 * cm)
-    # else:
-    #     logo = Paragraph(
-    #         "LOGO",
-    #         ParagraphStyle('LogoFallback', fontName='Helvetica-Bold', fontSize=18, textColor=colors.black, alignment=TA_CENTER)
-    #     )
-    #
-    # location_icon = Image(
-    #     os.path.join(settings.STATIC_ROOT, 'images', 'location.png'),
-    #     width=0.3 * cm, height=0.3 * cm
-    # )
-    # phone_icon = Image(
-    #     os.path.join(settings.STATIC_ROOT, 'images', 'phone.png'),
-    #     width=0.3 * cm, height=0.3 * cm
-    # )
-    # email_icon = Image(
-    #     os.path.join(settings.STATIC_ROOT, 'images', 'mail.png'),
-    #     width=0.3 * cm, height=0.3 * cm
-    # )
-
-
-
     contact_row = Table(
         [[
           phone_icon, Paragraph("0813-9948-8499", header_text_styles['line3']),
@@ -375,6 +348,7 @@ def get_pdf_header(canvas, doc):
     header_table.drawOn(canvas, doc.leftMargin - 1.5*cm, doc.pagesize[1] - header_height)
     canvas.restoreState()
 
+# konten dan styling footer dokumen (tulisan kasat mata / watermark terletak dibawah kiri tiap halaman dokumen)
 def get_pdf_footer(canvas, doc, user=None, date=None):
     styles, _, _ = get_pdf_styles()
     footer_style = styles['footer']
@@ -386,6 +360,7 @@ def get_pdf_footer(canvas, doc, user=None, date=None):
     canvas.drawString(2*cm, 1*cm, footer_text)
     canvas.restoreState()
 
+# styling watermark dokumen
 def get_pdf_watermark(canvas, doc):
     canvas.saveState()
 
@@ -1686,6 +1661,8 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         # Get filters from the request
         ay_id = self.request.GET.get('academic_year')
         period_id = self.request.GET.get('period')
+        level_id = self.request.GET.get('level')
+        course_id = self.request.GET.get('course')
         # Checkbox often comes as 'on' or 'true' or just present
         is_mid = self.request.GET.get('is_mid')
 
@@ -1703,6 +1680,14 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
             qs = qs.filter(reportcard__academic_year_id=ay_id)
         if period_id:
             qs = qs.filter(reportcard__period_id=period_id)
+        if level_id:
+            qs = qs.filter(reportcard__level_id=level_id)
+        if course_id:
+            qs = qs.filter(
+                reportcard__student__coursemember__course_id=course_id,
+                reportcard__student__coursemember__is_active=True,
+                subject_id=F('reportcard__student__coursemember__course__subject_id'),
+            )
         if is_mid:
             qs = qs.filter(reportcard__is_mid=True)
 
@@ -1800,19 +1785,64 @@ def get_period_rpledger(request):
         period_name__icontains='semester'
     ) if acayear_id else LearningPeriod.objects.none()
 
-    # html = '<option value="">All</option>'
-    # for p in periods:
-    #     selected = 'selected' if selected_period == str(p.id) else ''
-    #     html += f'<option value="{p.id}" {selected}>{p.period_name}</option>'
     html = ''
     for p in periods:
         checked = 'checked' if selected_period == str(p.id) else ''
         html += f'''
         <div class="form-check">
             <input class="form-check-input" type="radio" name="period"
-                   id="id_course_{p.id}" value="{p.id}" {checked}>
+                   id="id_period_{p.id}" value="{p.id}" {checked}
+                   hx-get="/gradebook/get_level_rpledger/"
+                   hx-trigger="change"
+                   hx-target="#level-select-ledger"
+                   hx-swap="innerHTML">
             <label class="form-check-label" for="id_period_{p.id}">
                 {p}
+            </label>
+        </div>'''
+
+    return HttpResponse(html)
+
+
+
+def get_level_rpledger(request):
+    period_id = request.GET.get('period')
+    selected_level = request.GET.get('level')
+    levels = GradeLevel.objects.all() if period_id else GradeLevel.objects.none()
+
+    html = ''
+    for l in levels:
+        checked = 'checked' if selected_level == str(l.id) else ''
+        html += f'''
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="level"
+                   id="id_level_{l.id}" value="{l.id}" {checked}
+                   hx-get="/gradebook/get_course_rpledger/"
+                   hx-trigger="change"
+                   hx-target="#course-select-ledger"
+                   hx-swap="innerHTML">
+            <label class="form-check-label" for="id_level_{l.id}">
+                {l}
+            </label>
+        </div>'''
+
+    return HttpResponse(html)
+
+
+def get_course_rpledger(request):
+    level_id = request.GET.get('level')
+    selected_course = request.GET.get('course')
+    courses = Course.objects.filter(level_id=level_id) if level_id else Course.objects.none()
+
+    html = ''
+    for c in courses:
+        checked = 'checked' if selected_course == str(c.id) else ''
+        html += f'''
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="course"
+                   id="id_course_{c.id}" value="{c.id}" {checked}>
+            <label class="form-check-label" for="id_course_{c.id}">
+                {c}
             </label>
         </div>'''
 
@@ -2792,7 +2822,7 @@ def rb_pdf(request, pk):
 
     styles, table_style, reportc_table_style = get_pdf_styles()
 
-    flowables = [Spacer(1, 0.5*cm)]
+    flowables = [Spacer(1, 0.2*cm)]
 
     flowables.append(Paragraph("LAPORAN PENILAIAN SIKAP", styles['title']))
     # flowables.append(Paragraph(
@@ -2815,8 +2845,8 @@ def rb_pdf(request, pk):
     meta_table = Table(meta_data, colWidths=[1.6 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.6 * cm])
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -2874,11 +2904,11 @@ def rb_pdf(request, pk):
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
     sig_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, -1), (-1, -1), 12),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
     ]))
     # flowables.append(sig_table)
     flowables.append(Spacer(1, 0.1 * cm))
@@ -2901,7 +2931,7 @@ def rb_pdf(request, pk):
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, -1), (-1, -1), 27),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow')
     ]))
 
     signature_block = [
@@ -4400,7 +4430,7 @@ def print_grade_list(request, pk):
 
     cell_style = ParagraphStyle(
         'CellText', parent=styles['label'],
-        fontSize=8, fontName='Helvetica', leading=10,
+        fontSize=8, fontName='arial-narrow', leading=10,
     )
 
     flowables = []
@@ -4423,8 +4453,8 @@ def print_grade_list(request, pk):
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
+        ('FONTNAME', (2, 0), (2, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
@@ -4794,7 +4824,7 @@ def print_pdev_pdf(request, pk):
     # ]
     # meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     # meta_table.setStyle(TableStyle([
-    #     ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+    #     ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
     #     ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
     #     ('FONTSIZE', (0, 0), (-1, -1), 9),
     #     ('TOPPADDING', (0, 0), (-1, -1), 2),
@@ -4815,8 +4845,8 @@ def print_pdev_pdf(request, pk):
     meta_table = Table(meta_data, colWidths=[1.6 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.6 * cm])
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
+        ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -4874,7 +4904,7 @@ def print_pdev_pdf(request, pk):
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        ('FONTNAME', (0, -1), (-1, -1), 'arial-narrow')
     ]))
     # flowables.append(sig_table)
     flowables.append(Spacer(1, 0.3*cm))
@@ -4898,7 +4928,7 @@ def print_pdev_pdf(request, pk):
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        ('FONTNAME', (0, -1), (-1, -1), 'arial-narrow')
     ]))
 
     # semua dikumpulin jadi 1 block
@@ -5464,8 +5494,8 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         # meta_table.hAlign = "LEFT"
         meta_table.setStyle(TableStyle([
             # ('BOX', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
+            ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -5756,7 +5786,7 @@ def midterm_reportcard_pdf(request, pk):
 
     cell_style = ParagraphStyle(
         'CellText', parent=styles['label'],
-        fontSize=8, fontName='Helvetica', leading=10,
+        fontSize=8, fontName='arial-narrow', leading=10,
     )
 
     flowables = []
@@ -5779,8 +5809,8 @@ def midterm_reportcard_pdf(request, pk):
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
+        ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
+        ('FONTNAME', (2, 0), (2, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
@@ -5837,6 +5867,7 @@ def print_midterm_report(request, pk):
     student = reportcard.student
     reg = student.registration_data
     show_notes = not reportcard.is_mid
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
 
     terms = LearningPeriod.objects.filter(
         academic_year=reportcard.academic_year,
@@ -5968,8 +5999,8 @@ def print_midterm_report(request, pk):
     meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -6026,6 +6057,7 @@ def print_midterm_report(request, pk):
 
     grade_table = Table(grade_data, colWidths=col_widths)
     grade_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
         ('ALIGN', (3, 0), (3, -1), 'CENTER'),
@@ -6084,6 +6116,7 @@ def print_midterm_report(request, pk):
     # attd_table = Table(attd_data, colWidths=[1 * cm, 9 * cm, 3 * cm])
     # attd_table.hAlign = 'LEFT'
     prest_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, 2), 'CENTER'),
@@ -6102,6 +6135,7 @@ def print_midterm_report(request, pk):
     # attd_table = Table(attd_data, colWidths=[1 * cm, 9 * cm, 3 * cm])
     # attd_table.hAlign = 'LEFT'
     attd_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
     ]))
@@ -6119,6 +6153,7 @@ def print_midterm_report(request, pk):
     )
     catatan_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('TOPPADDING', (0, 0), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
@@ -6141,7 +6176,7 @@ def print_midterm_report(request, pk):
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, -1), (-1, -1), 17),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow')
     ]))
     # flowables.append(sig_table)
     # flowables.append(Spacer(1, 0.3*cm))
@@ -6164,7 +6199,7 @@ def print_midterm_report(request, pk):
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow')
     ]))
 
     # semua dikumpulin jadi 1 block

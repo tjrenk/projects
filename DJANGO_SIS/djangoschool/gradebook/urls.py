@@ -86,6 +86,9 @@ urlpatterns = [
     path('rcard-ledger-alt/', views.grade_ledger, name='rcard-ledger-alt'),
     path('get_period_ledger/', views.get_period_ledger, name='get_period_ledger'),
     path('get_period_rpledger/', views.get_period_rpledger, name='get_period_rpledger'),
+    path('get_level_rpledger/', views.get_level_rpledger, name='get_level_rpledger'),
+    path('get_course_rpledger/', views.get_course_rpledger, name='get_course_rpledger'),
+
 
     # FORMATIVE LEDGER
     path('assignment-ledger/', views.AssignmentGradeLedger.as_view(), name='assignment-ledger'),

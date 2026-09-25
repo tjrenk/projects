@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q, F
 from django.shortcuts import get_object_or_404
 from django import forms
 from datetime import datetime
@@ -692,6 +692,7 @@ class StudentReportcardForm(forms.ModelForm):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     level = forms.ModelChoiceField(
@@ -966,7 +967,6 @@ ReportCardGradeFormset = formset_factory(ReportCardGradeForm, extra=0)
 
 
 class RequestLogForm(BaseReportForm, forms.Form):
-
     start_date = forms.DateField(
         required=False,
         label="Start Date",
@@ -991,9 +991,26 @@ class RequestLogForm(BaseReportForm, forms.Form):
         })
     )
 
+    level = forms.ModelChoiceField(
+        queryset = GradeLevel.objects.none(),
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    course = forms.ModelChoiceField(
+        queryset = Course.objects.none(),
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
+        })
+    )
+
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput()
+        widget=forms.CheckboxInput(),
+        label="Mid?",
     )
 
     def __init__(self, *args, **kwargs):
@@ -1006,6 +1023,8 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
         # no wizard prefix — this is a plain GET form
         acayear = data.get('academic_year') or initial.get('academic_year')
+        period = data.get('period') or initial.get('period')
+        level = data.get('level') or initial.get('level')
 
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(
@@ -1018,6 +1037,18 @@ class RequestLogForm(BaseReportForm, forms.Form):
                 academic_year_id=acayear,
                 period_name__icontains='semester'
             )
+
+        if period:
+            self.fields['level'].queryset = GradeLevel.objects.all()
+        else:
+            # show all semesters as fallback so period is never empty
+            self.fields['level'].queryset = GradeLevel.objects.none()
+
+        if level:
+            self.fields['course'].queryset = Course.objects.filter(level=level)
+        else:
+            # show all semesters as fallback so period is never empty
+            self.fields['course'].queryset = Course.objects.none()
 
 
         # self.fields["start_date"].widget.is_hidden = True
@@ -1035,13 +1066,32 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
         self.fields['period'].widget.attrs.update({
             'id': 'period-select-ledger',
+            # 'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_level_rpledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#level-select-ledger', # Updates Period normally
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-ledger',
             'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_course_rpledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select-ledger',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['course'].widget.attrs.update({
+            'id': 'course-select-ledger',
         })
 
 
     def get_filters(self):
         academic_year = self.cleaned_data.get("academic_year")
         period = self.cleaned_data.get("period")
+        level = self.cleaned_data.get("level")
+        course = self.cleaned_data.get("course")
         is_mid = self.cleaned_data.get("is_mid")
         # return the filters to be used in the report
         # Note: the use of Q filters and kwargs filters
@@ -1056,6 +1106,14 @@ class RequestLogForm(BaseReportForm, forms.Form):
             
         if period:
             filters["reportcard__period"] = period
+
+        if level:
+            filters["reportcard__level"] = level
+
+        if course:
+            filters["reportcard__student__coursemember__course"] = course
+            filters["reportcard__student__coursemember__is_active"] = True
+            filters["subject"] = course.subject
 
         # For Booleans, usually we only filter if the checkbox is checked, 
         # or you can force the filter regardless:
@@ -1382,11 +1440,9 @@ class RubricEntryForm(forms.ModelForm):
     class Meta:
         model = ReportcardBehaviour
         fields = ['academic_year', 'period', 'level', 'is_mid']
-        # labels = {
-        #     'academic_year': 'Tahun Ajaran',
-        #     'period': 'Periode Pembelajaran / Semester',
-        #     'level': 'Level Pembelajaran'
-        # }
+        labels = {
+            'is_mid': 'Mid?',
+        }
         # widget = {
         #     'is_mid': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         # }
@@ -1979,7 +2035,8 @@ class StudentsExamGradesEntry(forms.ModelForm):
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput()
+        widget=forms.CheckboxInput(),
+        label="Mid?",
     )
 
 
@@ -2071,7 +2128,8 @@ class GradesSelectionForm(forms.ModelForm):
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     class Meta:
@@ -2339,7 +2397,8 @@ class TotalGradesForm(forms.ModelForm):
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     class Meta:
@@ -2562,6 +2621,7 @@ class AssignmentAvgForm(forms.Form):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     def __init__(self, *args, **kwargs):
@@ -2644,7 +2704,7 @@ class PersonalDevSelectForm(forms.Form):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        label="Mid Semester?"
+        label="Mid?"
     )
     student = forms.ModelChoiceField(
         queryset=StudentReportcard.objects.none(),
