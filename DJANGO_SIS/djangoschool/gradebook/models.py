@@ -36,6 +36,7 @@ class Subject(models.Model):
     subject_name = models.CharField(max_length=100, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
     is_activity = models.BooleanField(default=False)
+    rp_print_order = models.IntegerField(blank=True, null=True)
     def __str__(self):
         return self.subject_name
 

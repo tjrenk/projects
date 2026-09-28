@@ -387,7 +387,7 @@ def get_pdf_watermark(canvas, doc):
 # decorator / combiner, karena onFirstPage & onLastPage cuma bisa terima 1 value, atau canvas & doc
 def get_pdf_page_decorations(canvas, doc, user=None, date=None):
     get_pdf_header(canvas, doc)
-    get_pdf_watermark(canvas, doc)
+    # get_pdf_watermark(canvas, doc)
     get_pdf_footer(canvas, doc, user=user, date=date)
 
 
@@ -1673,7 +1673,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
         # --- SCENARIO 2: FILTERED (User selected Year/Period) ---
         # We start with all grades
-        qs = ReportcardGrade.objects.all()
+        qs = ReportcardGrade.objects.filter(subject__is_activity=False).all()
 
         # Apply the same filters that the report body uses
         if ay_id:
@@ -2808,12 +2808,13 @@ def rb_pdf(request, pk):
     homeroom_teacher = student_class.kelas.teacher if student_class else None
 
     buf = io.BytesIO()
+    F4 = (21.5 * cm, 33.0 * cm)
     # HEADER_GAP = 0.5 * cm
-    page_width, page_height = GOV_LEGAL
+    page_width, page_height = F4
     header_height = get_pdf_header_height(page_width)
     doc = SimpleDocTemplate(
         buf,
-        pagesize=GOV_LEGAL,
+        pagesize=F4,
         topMargin=header_height + 0.5*cm,
         bottomMargin=2*cm,
         leftMargin=2.3*cm,
@@ -2835,14 +2836,14 @@ def rb_pdf(request, pk):
 
     acayear = int(behaviour.academic_year.year)
     meta_data = [
-        ['Nama', ':', f"{student.registration_data.first_name or ''} {student.registration_data.middle_name or ''} {student.registration_data.last_name or ''}".strip(),
+        ['', 'Nama', ':', f"{student.registration_data.first_name or ''} {student.registration_data.middle_name or ''} {student.registration_data.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas) if student_class else '-'],
-        ['NIS', ':', student.id_number or '-',
+        ['', 'NIS', ':', student.id_number or '-',
          'Semester', ':', behaviour.period.period_name],
-        ['NISN', ':', student.nisn or '-',
+        ['', 'NISN', ':', student.nisn or '-',
          'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
-    meta_table = Table(meta_data, colWidths=[1.6 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.6 * cm])
+    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
@@ -2870,8 +2871,19 @@ def rb_pdf(request, pk):
         rows = grouped.get(rubric_key)
         if not rows:
             continue
+        # pdf_label = RUBRIC_TYPE_PDF_LABELS.get(rubric_key, rubric_key)
         pdf_label = RUBRIC_TYPE_PDF_LABELS.get(rubric_key, rubric_key)
-        flowables.append(Paragraph(pdf_label, styles['group']))
+        pdf_label_content = [
+            [f"{pdf_label}"]
+        ]
+        label_table = Table(pdf_label_content, colWidths=[19.8 * cm])
+        # flowables.append(Paragraph(pdf_label, styles['group']))
+        label_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ]))
+        flowables.append(label_table)
+        flowables.append(Spacer(0, 0.0 * cm))
 
         table_data = [['Indikator', 'Grade', 'Deskripsi']]
         for r in rows:
@@ -2884,8 +2896,24 @@ def rb_pdf(request, pk):
 
         # col_widths = [9 * cm] + [2.5 * cm] * len(RUBRIC_TYPE_PDF_LABELS)
         # table = Table(table_data, colWidths=[7.5*cm, 1.2*cm, 1.2*cm, 6.6*cm])
-        table = Table(table_data, colWidths=[8.1 * cm, 1.4 * cm, 7.2 * cm])
-        table.setStyle(table_style)
+        table = Table(table_data, colWidths=[7.1 * cm, 1.1 * cm, 11.2 * cm])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, 0), 'arial-narrow'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            # ('FONTSIZE', (0, -1), (-1, 0), 10), # table headers
+            # ('FONTSIZE', (0, 0), (-2, -1), 10),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ]))
+        # table.setStyle(table_style)
+        # table.setStyle(behav_table)
         flowables.append(table)
         # flowables.append(Spacer(1, 0.3*cm))
 
@@ -5965,13 +5993,14 @@ def print_midterm_report(request, pk):
 
     # ─── PDF SETUP ──────────────────────────────────────────
     HEADER_GAP = 0.5 * cm
-    page_width, page_height = GOV_LEGAL
+    F4 = (21.5 * cm, 33.0 * cm)
+    page_width, page_height = F4
     header_height = get_pdf_header_height(page_width)
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
-        pagesize=GOV_LEGAL,
+        pagesize=F4,
         topMargin=header_height + HEADER_GAP,
         bottomMargin=2*cm,
         leftMargin=2*cm,
@@ -6079,6 +6108,7 @@ def print_midterm_report(request, pk):
         extra_data.append(row)
     extra_table = Table(extra_data, colWidths=[1 * cm, 9 * cm, 2 * cm, 5 * cm])
     extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
         ('ALIGN', (3, 0), (3, -1), 'CENTER')

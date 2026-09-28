@@ -248,8 +248,10 @@ pre_save.connect(set_final_grade, ReportcardGrade)
 
 # konversi nilai sikap ke huruf
 pre_save.connect(set_rubric_grade, StudentBehaviourReport)
+post_save.connect(set_rubric_grade, StudentBehaviourReport)
 
 pre_save.connect(set_rubric_desc, StudentBehaviourReport)
+post_save.connect(set_rubric_desc, StudentBehaviourReport)
 
 pre_save.connect(set_extra_grade, StudentReportExtra)
 
