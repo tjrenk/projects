@@ -220,6 +220,16 @@ def get_pdf_styles():
 
     return styles, table_style, reportc_table_style
 
+def section_header(text):
+    """Same pattern as rb_pdf's label_table — keeps section titles aligned
+    with the rest of the tables instead of drifting per Paragraph's own margins."""
+    t = Table([[text]], colWidths=[19.8 * cm])
+    t.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow-bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+    ]))
+    return t
+
 
 # konten kop surat
 def build_pdf_header_table():
@@ -301,8 +311,8 @@ def build_pdf_header_table():
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (0, 0), 'CENTER'),
         ('LEFTPADDING', (1, 0), (1, 0), 24),
-        ('TOPPADDING', (0, 0), (-1, -1), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 0.7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (0, 0), 4),
         ('BOTTOMPADDING', (0, 0), (0, 0), 20),
     ]))
@@ -2816,9 +2826,9 @@ def rb_pdf(request, pk):
         buf,
         pagesize=F4,
         topMargin=header_height + 0.5*cm,
-        bottomMargin=2*cm,
-        leftMargin=2.3*cm,
-        rightMargin=2.3*cm,
+        # bottomMargin=2*cm,
+        # leftMargin=2.3*cm,
+        # rightMargin=2.3*cm,
     )
 
     styles, table_style, reportc_table_style = get_pdf_styles()
@@ -2879,29 +2889,43 @@ def rb_pdf(request, pk):
         label_table = Table(pdf_label_content, colWidths=[19.8 * cm])
         # flowables.append(Paragraph(pdf_label, styles['group']))
         label_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow-bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
         ]))
         flowables.append(label_table)
         flowables.append(Spacer(0, 0.0 * cm))
 
+        indikator_style = ParagraphStyle(
+            'IndikatorStyle', parent=styles['content'], fontSize=8.3,
+        )
+
+        grade_style = ParagraphStyle(
+            'GradeStyle', parent=styles['content'], fontSize=8.3, alignment=TA_CENTER
+        )
+
         table_data = [['Indikator', 'Grade', 'Deskripsi']]
         for r in rows:
             table_data.append([
-                Paragraph(r.rubric.description or '-', styles['content']),
+                # Paragraph(r.rubric.description or '-', styles['content']),
+                Paragraph(r.rubric.description or '-', indikator_style),
                 # Paragraph(str(r.score) or '-', styles['grading']),
-                Paragraph(r.grade or '-', styles['grading']),
+                # Paragraph(r.grade or '-', styles['grading']),
+                Paragraph(r.grade or '-', grade_style),
                 Paragraph(r.description or '-', styles['content']),
             ])
 
         # col_widths = [9 * cm] + [2.5 * cm] * len(RUBRIC_TYPE_PDF_LABELS)
         # table = Table(table_data, colWidths=[7.5*cm, 1.2*cm, 1.2*cm, 6.6*cm])
         table = Table(table_data, colWidths=[7.1 * cm, 1.1 * cm, 11.2 * cm])
+        deskripsi_header_size = 10.2 if rubric_key == 'Social' else 10
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('FONTNAME', (0, 0), (-1, 0), 'arial-narrow'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),  # bump everything up first
+            ('FONTSIZE', (2, 1), (2, -1), 9),  # then put Deskripsi (col 2) back down
+            ('FONTSIZE', (2, 0), (2, 0), deskripsi_header_size),
+            # ('FONTSIZE', (0, 0), (-1, -1), 8),
             # ('FONTSIZE', (0, -1), (-1, 0), 10), # table headers
             # ('FONTSIZE', (0, 0), (-2, -1), 10),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
@@ -2940,8 +2964,11 @@ def rb_pdf(request, pk):
     ]))
     # flowables.append(sig_table)
     flowables.append(Spacer(1, 0.1 * cm))
+    # center_style = ParagraphStyle(
+    #     'CenterText', parent=styles['label'],
+    #     alignment=TA_CENTER,
     center_style = ParagraphStyle(
-        'CenterText', parent=styles['label'],
+        'CenterText', fontSize=9, fontName='arial-narrow',
         alignment=TA_CENTER,
     )
     # flowables.append(Paragraph("Mengetahui,", center_style))
@@ -5932,7 +5959,7 @@ def print_midterm_report(request, pk):
         reportcard=reportcard
     ).exclude(
         subject__is_activity=True
-    ).select_related('subject').order_by('subject__subject_name')
+    ).order_by('subject__rp_print_order').select_related('subject')
 
     # C. EXTRAKURIKULER — via StudentReportExtra, reversed through reportcard
     # OLD
@@ -6002,9 +6029,9 @@ def print_midterm_report(request, pk):
         buf,
         pagesize=F4,
         topMargin=header_height + HEADER_GAP,
-        bottomMargin=2*cm,
-        leftMargin=2*cm,
-        rightMargin=2*cm,
+        bottomMargin=0.01*cm,
+        # leftMargin=2.3*cm,
+        # rightMargin=2.3*cm,
     )
 
     styles, table_style, reportc_table_style = get_pdf_styles()
@@ -6018,14 +6045,16 @@ def print_midterm_report(request, pk):
 
     acayear = int(reportcard.academic_year.year)
     meta_data = [
-        ['Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
+        ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas) if student_class else '-'],
-        ['NIS', ':', student.id_number or '-',
+        ['', 'NIS', ':', student.id_number or '-',
          'Semester', ':', reportcard.period.period_name],
-        ['NISN', ':', student.nisn or '-',
+        ['', 'NISN', ':', student.nisn or '-',
          'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
-    meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
+    #ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
+    # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
+    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
@@ -6055,7 +6084,10 @@ def print_midterm_report(request, pk):
     # else:
     #     flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
 
-    flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
+    #OLD, SPACING NOT SYNCED WITH TABLES
+    # flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
+    #NEW ONE USES THE "TABLE" STYLING DEFINED FROM WAY ABOVE THIS FILE TO MATCH THE SPACING WITH THE TABLES (section_header() is the func)
+    flowables.append(section_header("A. INTRAKURIKULER"))
 
 
     if show_notes:
@@ -6080,23 +6112,40 @@ def print_midterm_report(request, pk):
         grade_data.append(row)
 
     if show_notes:
-        col_widths = [1 * cm, 4 * cm, 2 * cm, 2 * cm, 8 * cm]
+        col_widths = [1.1 * cm, 4.6 * cm, 2.3 * cm, 2.3 * cm, 9.1 * cm]
     else:
-        col_widths = [1 * cm, 9 * cm, 2 * cm, 3 * cm, 2 * cm]
+        col_widths = [1.1 * cm, 10.3 * cm, 2.3 * cm, 3.4 * cm, 2.3 * cm]
 
     grade_table = Table(grade_data, colWidths=col_widths)
-    grade_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+    # grade_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
+    #     ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+    #     ('FONTSIZE', (0, 0), (-1, -1), 10),
+    #     ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+    #     ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+    #     ('ALIGN', (3, 0), (3, -1), 'CENTER'),
+    #     ('ALIGN', (4, 0), (4, -1), 'CENTER')
+    # ]))
+    # if show_notes:
+    #     # Catatan (comments) column — reset body rows only, keep header at 10
+    #     grade_table_style.add('FONTSIZE', (4, 1), (4, -1), 8)
+    grade_table_style = TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
         ('ALIGN', (3, 0), (3, -1), 'CENTER'),
-        ('ALIGN', (4, 0), (4, -1), 'CENTER')
-    ]))
+        ('ALIGN', (4, 0), (4, -1), 'CENTER'),
+    ])
+    if show_notes:
+        # Catatan (comments) column — reset body rows only, keep header at 10
+        grade_table_style.add('FONTSIZE', (4, 1), (4, -1), 8)
+
+    grade_table.setStyle(grade_table_style)
     flowables.append(grade_table)
     # flowables.append(Spacer(1, 0.4*cm))
 
     # C. EXTRAKURIKULER
-    flowables.append(Paragraph("B. EKSTRAKURIKULER", styles['group']))
+    flowables.append(section_header("B. EKSTRAKURIKULER"))
     extra_data = [['No', 'Mata Pelajaran', 'Nilai', 'Predikat']]
     #OLD
     # for i, row in enumerate(extracurricular_rows, start=1):
@@ -6106,12 +6155,13 @@ def print_midterm_report(request, pk):
     for i, g in enumerate(activity_courses, start=1):
         row = [str(i), g.subject.subject_name, str(g.final_score), g.final_grade]
         extra_data.append(row)
-    extra_table = Table(extra_data, colWidths=[1 * cm, 9 * cm, 2 * cm, 5 * cm])
+    extra_table = Table(extra_data, colWidths=[1.1 * cm, 10.3 * cm, 2.3 * cm, 5.7 * cm])
     extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
-        ('ALIGN', (3, 0), (3, -1), 'CENTER')
+        ('ALIGN', (3, 0), (3, -1), 'CENTER'),
     ]))
     flowables.append(extra_table)
     # flowables.append(Spacer(1, 0.4 * cm))
@@ -6137,35 +6187,34 @@ def print_midterm_report(request, pk):
     # flowables.append(Spacer(1, 0.4*cm))
 
     # D. PRESTASI
-    flowables.append(Paragraph("C. PRESTASI", styles['group']))
+    flowables.append(section_header("C. PRESTASI"))
     prest_data = [
         ['No', 'Jenis Kegiatan', 'Keterangan'],
         ['', '-', '-'],
     ]
-    prest_table = Table(prest_data, colWidths=[1 * cm, 8 * cm, 8 * cm])
-    # attd_table = Table(attd_data, colWidths=[1 * cm, 9 * cm, 3 * cm])
-    # attd_table.hAlign = 'LEFT'
+    prest_table = Table(prest_data, colWidths=[1.1 * cm, 9.1 * cm, 9.2 * cm])
     prest_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('FONTSIZE', (2, 1), (2, -1), 8),  # Keterangan body — keep small
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (1, 1), (1, 1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
-        ('ALIGN', (2, 0), (2, 2), 'CENTER'),
     ]))
     flowables.append(prest_table)
 
     # F. KETIDAKHADIRAN
-    flowables.append(Paragraph("D. KETIDAKHADIRAN", styles['group']))
+    flowables.append(section_header("D. KETIDAKHADIRAN"))
     attd_data = [
         ['No', 'Keterangan', 'Jumlah'],
         ['1', 'Sakit', str(attendance_summary['S']) if attendance_summary['S'] else '-'],
         ['2', 'Izin', str(attendance_summary['P']) if attendance_summary['P'] else '-'],
         ['3', 'Tanpa Keterangan', str(attendance_summary['A']) if attendance_summary['A'] else '-'],
     ]
-    attd_table = Table(attd_data, colWidths=[1 * cm, 8 * cm, 8 * cm])
-    # attd_table = Table(attd_data, colWidths=[1 * cm, 9 * cm, 3 * cm])
-    # attd_table.hAlign = 'LEFT'
+    attd_table = Table(attd_data, colWidths=[1.1 * cm, 9.1 * cm, 9.2 * cm])
     attd_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
     ]))
@@ -6175,11 +6224,11 @@ def print_midterm_report(request, pk):
 
 
     # G. CATATAN WALI KELAS
-    flowables.append(Paragraph("E. CATATAN WALI KELAS", styles['group']))
+    flowables.append(section_header("E. CATATAN WALI KELAS"))
 
     catatan_table = Table(
         [[Paragraph(ht_comment or '-', styles['label'])]],
-        colWidths=[17 * cm],
+        colWidths=[19.4 * cm],
     )
     catatan_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
@@ -6190,7 +6239,7 @@ def print_midterm_report(request, pk):
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
     ]))
     flowables.append(catatan_table)
-    # flowables.append(Spacer(1, 0.1 * cm))
+    flowables.append(Spacer(1, 0.2 * cm))
 
     # Signatures
     sig_data = [
@@ -6211,7 +6260,7 @@ def print_midterm_report(request, pk):
     # flowables.append(sig_table)
     # flowables.append(Spacer(1, 0.3*cm))
     center_style = ParagraphStyle(
-        'CenterText', parent=styles['label'],
+        'CenterText', fontSize=9, fontName='arial-narrow',
         alignment=TA_CENTER,
     )
     # flowables.append(Paragraph("Mengetahui,", center_style))

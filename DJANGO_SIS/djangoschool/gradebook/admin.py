@@ -46,6 +46,15 @@ class LogEntryAdmin(admin.ModelAdmin):
 class SubjectAdmin(admin.ModelAdmin):
     list_display = ["subject_name", "is_activity", "short_name"]
 
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change, **kwargs)
+
+        # Modify the display label
+        form.base_fields['rp_print_order'].label = "Print Order in Report Cards"
+
+
+        return form
+
 
 class CourseMemberForm(forms.ModelForm):
     parent_course = None  # will be set dynamically per inline instance
