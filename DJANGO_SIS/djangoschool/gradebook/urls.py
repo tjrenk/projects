@@ -87,7 +87,8 @@ urlpatterns = [
     path('get_period_ledger/', views.get_period_ledger, name='get_period_ledger'),
     path('get_period_rpledger/', views.get_period_rpledger, name='get_period_rpledger'),
     path('get_level_rpledger/', views.get_level_rpledger, name='get_level_rpledger'),
-    path('get_course_rpledger/', views.get_course_rpledger, name='get_course_rpledger'),
+    # path('get_course_rpledger/', views.get_course_rpledger, name='get_course_rpledger'),
+    path('get_kelas_rpledger/', views.get_kelas_rpledger, name='get_kelas_rpledger'),
 
 
     # FORMATIVE LEDGER

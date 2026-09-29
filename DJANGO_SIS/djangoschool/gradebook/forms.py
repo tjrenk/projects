@@ -999,8 +999,15 @@ class RequestLogForm(BaseReportForm, forms.Form):
         })
     )
 
-    course = forms.ModelChoiceField(
-        queryset = Course.objects.none(),
+    # course = forms.ModelChoiceField(
+    #     queryset = Course.objects.none(),
+    #     required=False,
+    #     widget=forms.RadioSelect(attrs={
+    #         'class': 'form-control'
+    #     })
+    # )
+    kelas = forms.ModelChoiceField(
+        queryset = Class.objects.none(),
         required=False,
         widget=forms.RadioSelect(attrs={
             'class': 'form-control'
@@ -1025,6 +1032,7 @@ class RequestLogForm(BaseReportForm, forms.Form):
         acayear = data.get('academic_year') or initial.get('academic_year')
         period = data.get('period') or initial.get('period')
         level = data.get('level') or initial.get('level')
+        kelas = data.get('kelas') or initial.get('kelas')
 
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(
@@ -1044,11 +1052,16 @@ class RequestLogForm(BaseReportForm, forms.Form):
             # show all semesters as fallback so period is never empty
             self.fields['level'].queryset = GradeLevel.objects.none()
 
+        # if level:
+        #     self.fields['course'].queryset = Course.objects.filter(level=level)
+        # else:
+        #     # show all semesters as fallback so period is never empty
+        #     self.fields['course'].queryset = Course.objects.none()
         if level:
-            self.fields['course'].queryset = Course.objects.filter(level=level)
+            self.fields['kelas'].queryset = Class.objects.all()
         else:
             # show all semesters as fallback so period is never empty
-            self.fields['course'].queryset = Course.objects.none()
+            self.fields['kelas'].queryset = Class.objects.none()
 
 
         # self.fields["start_date"].widget.is_hidden = True
@@ -1076,14 +1089,15 @@ class RequestLogForm(BaseReportForm, forms.Form):
         self.fields['level'].widget.attrs.update({
             'id': 'level-select-ledger',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get_course_rpledger/',
+            'hx-get': '/gradebook/get_kelas_rpledger/',
             'hx-trigger': 'change',
-            'hx-target': '#course-select-ledger',
+            'hx-target': '#kelas-select-ledger',
             'hx-swap': 'innerHTML',
         })
 
-        self.fields['course'].widget.attrs.update({
-            'id': 'course-select-ledger',
+        self.fields['kelas'].widget.attrs.update({
+            'id': 'kelas-select-ledger',
+            'class': 'custom-select mb-4',
         })
 
 
@@ -1091,7 +1105,8 @@ class RequestLogForm(BaseReportForm, forms.Form):
         academic_year = self.cleaned_data.get("academic_year")
         period = self.cleaned_data.get("period")
         level = self.cleaned_data.get("level")
-        course = self.cleaned_data.get("course")
+        # course = self.cleaned_data.get("course")
+        kelas = self.cleaned_data.get("kelas")
         is_mid = self.cleaned_data.get("is_mid")
         # return the filters to be used in the report
         # Note: the use of Q filters and kwargs filters
@@ -1110,10 +1125,13 @@ class RequestLogForm(BaseReportForm, forms.Form):
         if level:
             filters["reportcard__level"] = level
 
-        if course:
-            filters["reportcard__student__coursemember__course"] = course
-            filters["reportcard__student__coursemember__is_active"] = True
-            filters["subject"] = course.subject
+        # if course:
+        #     filters["reportcard__student__coursemember__course"] = course
+        #     filters["reportcard__student__coursemember__is_active"] = True
+        #     filters["subject"] = course.subject
+        if kelas:
+            filters["reportcard__student__classmember__kelas"] = kelas
+            filters["reportcard__student__classmember__is_active"] = True
 
         # For Booleans, usually we only filter if the checkbox is checked, 
         # or you can force the filter regardless:
@@ -3285,3 +3303,105 @@ CpmpFormSet = modelformset_factory(
         'text': forms.TextInput(attrs={'class': 'input input-bordered input-sm w-full'}),
     },
 )
+
+
+class ClassAttendanceRecap(BaseReportForm, forms.Form):
+    start_date = forms.DateField(
+        required=False,
+        label="Start Date",
+        widget=forms.DateInput(),
+        initial=datetime.now
+    )
+    end_date = forms.DateField(required=False, label="End Date", widget=forms.DateInput(),
+                               initial=datetime.now)
+
+    # course = forms.ModelChoiceField(
+    #     queryset = Course.objects.none(),
+    #     required=False,
+    #     widget=forms.RadioSelect(attrs={
+    #         'class': 'form-control'
+    #     })
+    # )
+    # kelas = forms.ModelChoiceField(
+    #     queryset=Class.objects.none(),
+    #     required=False,
+    #     widget=forms.RadioSelect(attrs={
+    #         'class': 'form-control'
+    #     })
+    # )
+
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(),
+        label="Mid?",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["start_date"].initial = datetime.date
+        self.fields["end_date"].initial = datetime.date
+
+        self.fields['kelas'].queryset = Class.objects.all()
+
+        data = self.data
+        initial = self.initial
+
+        # no wizard prefix — this is a plain GET form
+        # kelas = data.get('kelas') or initial.get('kelas')
+
+        #Commented this out - incase Homeroom Class needs to be filtered thru the header field
+        # if level:
+        #     self.fields['kelas'].queryset = Class.objects.all()
+        # else:
+        #     # show all semesters as fallback so period is never empty
+        #     self.fields['kelas'].queryset = Class.objects.none()
+
+        # self.fields["start_date"].widget.is_hidden = True
+        # self.fields['period'].queryset = LearningPeriod.objects.all()
+
+
+        # self.fields['kelas'].widget.attrs.update({
+        #     'id': 'kelas-select-ledger',
+        #     'class': 'custom-select mb-4',
+        # })
+
+    def get_filters(self):
+        # kelas = self.cleaned_data.get("kelas")
+        is_mid = self.cleaned_data.get("is_mid")
+        # return the filters to be used in the report
+        # Note: the use of Q filters and kwargs filters
+        filters = {}
+        q_filters = []
+        if not academic_year and not period:
+            filters['id'] = -1  # Impossible ID, results in empty table
+            return q_filters, filters
+
+        if academic_year:
+            filters["reportcard__academic_year"] = academic_year
+
+        if period:
+            filters["reportcard__period"] = period
+
+        if level:
+            filters["reportcard__level"] = level
+
+        # if course:
+        #     filters["reportcard__student__coursemember__course"] = course
+        #     filters["reportcard__student__coursemember__is_active"] = True
+        #     filters["subject"] = course.subject
+        if kelas:
+            filters["reportcard__student__classmember__kelas"] = kelas
+            filters["reportcard__student__classmember__is_active"] = True
+
+        # For Booleans, usually we only filter if the checkbox is checked,
+        # or you can force the filter regardless:
+        if is_mid is not None:
+            filters["reportcard__is_mid"] = is_mid
+
+        return q_filters, filters
+
+    def get_start_date(self):
+        return self.cleaned_data["start_date"]
+
+    def get_end_date(self):
+        return self.cleaned_data["end_date"]

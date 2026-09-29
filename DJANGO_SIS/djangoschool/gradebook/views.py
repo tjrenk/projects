@@ -1672,7 +1672,8 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         ay_id = self.request.GET.get('academic_year')
         period_id = self.request.GET.get('period')
         level_id = self.request.GET.get('level')
-        course_id = self.request.GET.get('course')
+        # course_id = self.request.GET.get('course')
+        kelas_id = self.request.GET.get('kelas')
         # Checkbox often comes as 'on' or 'true' or just present
         is_mid = self.request.GET.get('is_mid')
 
@@ -1692,12 +1693,14 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
             qs = qs.filter(reportcard__period_id=period_id)
         if level_id:
             qs = qs.filter(reportcard__level_id=level_id)
-        if course_id:
-            qs = qs.filter(
-                reportcard__student__coursemember__course_id=course_id,
-                reportcard__student__coursemember__is_active=True,
-                subject_id=F('reportcard__student__coursemember__course__subject_id'),
-            )
+        # if course_id:
+        #     qs = qs.filter(
+        #         reportcard__student__coursemember__course_id=course_id,
+        #         reportcard__student__coursemember__is_active=True,
+        #         subject_id=F('reportcard__student__coursemember__course__subject_id'),
+        #     )
+        if kelas_id:
+            qs = qs.filter(reportcard__student__classmember__kelas_id=kelas_id)
         if is_mid:
             qs = qs.filter(reportcard__is_mid=True)
 
@@ -1827,9 +1830,9 @@ def get_level_rpledger(request):
         <div class="form-check">
             <input class="form-check-input" type="radio" name="level"
                    id="id_level_{l.id}" value="{l.id}" {checked}
-                   hx-get="/gradebook/get_course_rpledger/"
+                   hx-get="/gradebook/get_kelas_rpledger/"
                    hx-trigger="change"
-                   hx-target="#course-select-ledger"
+                   hx-target="#kelas-select-ledger"
                    hx-swap="innerHTML">
             <label class="form-check-label" for="id_level_{l.id}">
                 {l}
@@ -1839,19 +1842,37 @@ def get_level_rpledger(request):
     return HttpResponse(html)
 
 
-def get_course_rpledger(request):
+# def get_course_rpledger(request):
+#     level_id = request.GET.get('level')
+#     selected_course = request.GET.get('course')
+#     courses = Course.objects.filter(level_id=level_id) if level_id else Course.objects.none()
+#
+#     html = ''
+#     for c in courses:
+#         checked = 'checked' if selected_course == str(c.id) else ''
+#         html += f'''
+#         <div class="form-check">
+#             <input class="form-check-input" type="radio" name="course"
+#                    id="id_course_{c.id}" value="{c.id}" {checked}>
+#             <label class="form-check-label" for="id_course_{c.id}">
+#                 {c}
+#             </label>
+#         </div>'''
+#
+#     return HttpResponse(html)
+def get_kelas_rpledger(request):
     level_id = request.GET.get('level')
-    selected_course = request.GET.get('course')
-    courses = Course.objects.filter(level_id=level_id) if level_id else Course.objects.none()
+    selected_kelas = request.GET.get('kelas')
+    classes = Class.objects.filter(level_id=level_id) if level_id else Class.objects.none()
 
     html = ''
-    for c in courses:
-        checked = 'checked' if selected_course == str(c.id) else ''
+    for c in classes:
+        checked = 'checked' if selected_kelas == str(c.id) else ''
         html += f'''
         <div class="form-check">
-            <input class="form-check-input" type="radio" name="course"
-                   id="id_course_{c.id}" value="{c.id}" {checked}>
-            <label class="form-check-label" for="id_course_{c.id}">
+            <input class="form-check-input" type="radio" name="kelas"
+                   id="id_kelas_{c.id}" value="{c.id}" {checked}>
+            <label class="form-check-label" for="id_kelas_{c.id}">
                 {c}
             </label>
         </div>'''
