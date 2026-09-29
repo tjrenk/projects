@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q, F
 from django.shortcuts import get_object_or_404
 from django import forms
 from datetime import datetime
@@ -23,6 +23,7 @@ FINAL_GRADE_CHOICES = [
 ASSIGNMENT_CAT_BY_TYPE = {
     'SUMM': ['WR', 'PR'],
     'FORM': ['OB', 'OR', 'WR', 'PR'],
+    'ACT': ['AC'],
 }
 
 # biar jadi text, bukan field yang gabisa diapa2in
@@ -41,6 +42,11 @@ class GradeEntryForm(forms.ModelForm):
         required=True,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'custom-checkbox-list'}),
         label="Learning Outcomes"
+    )
+
+    is_activity = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
     )
 
     class Meta:
@@ -96,6 +102,7 @@ class GradeEntryForm(forms.ModelForm):
         assignment_type = data.get('0-assignment_type') or initial.get('assignment_type')
         assignment_cat = data.get('0-assignment_cat') or initial.get('assignment_cat')
         cpmp_target = data.get('0-cpmp_target') or initial.get('cpmp_target')
+        is_activity = bool(data.get('0-is_activity') or initial.get('is_activity'))
 
         # 2. Logic: Period depends on Academic Year
 
@@ -141,10 +148,10 @@ class GradeEntryForm(forms.ModelForm):
         # 4. Logic: Subject depends on Teacher + Level
         if teacher and level:
             self.fields['subject'].queryset = Subject.objects.filter(
-                course__teacher__id=teacher, course__level_id=level, is_activity=False
+                course__teacher__id=teacher, course__level_id=level, is_activity=bool(is_activity)
             ).distinct()
             if is_admin:
-                self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
+                self.fields['subject'].queryset = Subject.objects.filter(is_activity=bool(is_activity)).all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
@@ -160,9 +167,14 @@ class GradeEntryForm(forms.ModelForm):
 
         # 6. Logic: Course depends on Subject + Level
         if subject and level:
-            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject, level_id=level)
+            self.fields['course'].queryset = Course.objects.filter(teacher_id=teacher, academic_year_id=acayear, subject_id=subject, level_id=level, is_activity=bool(is_activity))
             if is_admin:
-                self.fields['course'].queryset = Course.objects.all()
+                self.fields['course'].queryset = Course.objects.filter(
+                    academic_year_id=acayear,
+                    subject_id=subject,
+                    level_id=level,
+                    is_activity=bool(is_activity)
+                )
         else:
             self.fields['course'].queryset = Course.objects.none()
 
@@ -209,14 +221,15 @@ class GradeEntryForm(forms.ModelForm):
             'hx-include': '#period-select-ge' # Use ID selector for safety
         })
 
-        self.fields['subject'].widget.attrs.update({
-            'id': 'subject-select-ge',
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses-ge/',
+
+        self.fields['is_activity'].widget.attrs.update({
+            'id': 'is-activity-checkbox-ge',
+            'class': 'form-check-input',
+            'hx-get': '/gradebook/get-subjects-ge/',
             'hx-trigger': 'change',
-            'hx-target': '#course-select-ge',
+            'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge',
+            'hx-include': '#teacher-select-ge, #level-select-ge, #is-activity-checkbox-ge',
         })
 
         self.fields['level'].widget.attrs.update({
@@ -226,7 +239,17 @@ class GradeEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#teacher-select-ge, #level-select-ge',
+            'hx-include': '#teacher-select-ge, #level-select-ge, #is-activity-checkbox-ge',
+        })
+
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-ge',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#course-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #teacher-select-ge, #is-activity-checkbox-ge',
         })
 
 
@@ -274,6 +297,7 @@ class GradeEntryForm(forms.ModelForm):
             'class': 'custom-select mb-4',
             'hx-include': '#acayear-select-ge, #assignment-type-select-ge'
         })
+
         
         # Ensure Teacher/Subject IDs match your previous setup
         self.fields['teacher'].widget.attrs['id'] = 'teacher-select-ge'
@@ -668,17 +692,20 @@ class StudentReportcardForm(forms.ModelForm):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     level = forms.ModelChoiceField(
         queryset=GradeLevel.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
+        required=False,
+        # widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'})
+        widget=forms.HiddenInput(), # ngga bisa dibuat hidden
         # label='Level Pembelajaran'
     )
 
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'level-select'}),
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'kelas-select'}),
         label='Class'
     )
 
@@ -687,6 +714,7 @@ class StudentReportcardForm(forms.ModelForm):
         fields = ["academic_year", "period", "is_mid", "level"]
         widgets = {
             'student': forms.Select(attrs={'class': 'form-select select2'}), # Assuming you use select2
+            'level': forms.HiddenInput() # ngga bisa dibuat hidden
         }
         # labels = {
         #     'academic_year': 'Tahun Ajaran',
@@ -698,22 +726,19 @@ class StudentReportcardForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        # BIAR NGGAK ERROR PAS MAU LANJUT KE STEP BERIKUTNYA
         data = self.data
         initial = self.initial
 
         is_staff = user and (user.is_staff or user.is_superuser)
 
         acayear = data.get('0-academic_year') or initial.get('academic_year')
-        level = data.get('0-level') or initial.get('level')
         period = data.get('0-period') or initial.get('period')
 
+        homeroom_class = None
         if not is_staff and user:
-            # homeroom teacher — lock to their class, hide the field
-            kelas = Class.objects.filter(teacher__user=user).first()
-            if kelas:
-                self.fields['kelas'].initial = kelas.id
-                # self.fields['kelas'].widget = forms.HiddenInput()
+            homeroom_class = Class.objects.filter(teacher__user=user).first()
+            if homeroom_class:
+                self.fields['kelas'].initial = homeroom_class.id
                 self.fields['kelas'].required = False
 
         if acayear:
@@ -721,11 +746,16 @@ class StudentReportcardForm(forms.ModelForm):
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
-        if period:
+        if homeroom_class and homeroom_class.level:
+            # Homeroom teacher — lock level to their class's own level, hide the field
+            self.fields['level'].initial = homeroom_class.level.id
+            self.fields['level'].queryset = GradeLevel.objects.filter(pk=homeroom_class.level.id)
+            self.fields['level'].widget = forms.HiddenInput()
+        elif period:
             self.fields['level'].queryset = GradeLevel.objects.all()
         else:
             self.fields['level'].queryset = GradeLevel.objects.none()
-            
+
         self.fields['academic_year'].widget.attrs.update({
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-period-reportcard/',
@@ -733,12 +763,8 @@ class StudentReportcardForm(forms.ModelForm):
             'hx-target': '#period-select',
             'hx-swap': 'innerHTML',
             'hx-include': '[name="1-period"]'
-            })
-        
-        # self.fields['period'].widget.attrs.update({
-        #         'class': 'custom-select mb-4',
-        #         'id': 'period-select'
-        #         })
+        })
+
         self.fields['period'].widget.attrs.update({
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-level-reportcard/',
@@ -746,9 +772,10 @@ class StudentReportcardForm(forms.ModelForm):
             'hx-target': '#level-select',
             'hx-swap': 'innerHTML',
             'hx-include': '[name="1-level"]'
-            })
-        
-        self.fields['level'].widget.attrs['id'] = 'level-select'
+        })
+
+        if not (homeroom_class and homeroom_class.level):
+            self.fields['level'].widget.attrs['id'] = 'level-select'
 
 class CourseByTeacher(forms.ModelForm):
     # subject = forms.ModelChoiceField(
@@ -940,7 +967,6 @@ ReportCardGradeFormset = formset_factory(ReportCardGradeForm, extra=0)
 
 
 class RequestLogForm(BaseReportForm, forms.Form):
-
     start_date = forms.DateField(
         required=False,
         label="Start Date",
@@ -958,7 +984,30 @@ class RequestLogForm(BaseReportForm, forms.Form):
     )
 
     period = forms.ModelChoiceField(
-        queryset = LearningPeriod.objects.all(),
+        queryset = LearningPeriod.objects.none(),
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    level = forms.ModelChoiceField(
+        queryset = GradeLevel.objects.none(),
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    # course = forms.ModelChoiceField(
+    #     queryset = Course.objects.none(),
+    #     required=False,
+    #     widget=forms.RadioSelect(attrs={
+    #         'class': 'form-control'
+    #     })
+    # )
+    kelas = forms.ModelChoiceField(
+        queryset = Class.objects.none(),
         required=False,
         widget=forms.RadioSelect(attrs={
             'class': 'form-control'
@@ -967,7 +1016,8 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput()
+        widget=forms.CheckboxInput(),
+        label="Mid?",
     )
 
     def __init__(self, *args, **kwargs):
@@ -980,6 +1030,9 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
         # no wizard prefix — this is a plain GET form
         acayear = data.get('academic_year') or initial.get('academic_year')
+        period = data.get('period') or initial.get('period')
+        level = data.get('level') or initial.get('level')
+        kelas = data.get('kelas') or initial.get('kelas')
 
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(
@@ -993,6 +1046,23 @@ class RequestLogForm(BaseReportForm, forms.Form):
                 period_name__icontains='semester'
             )
 
+        if period:
+            self.fields['level'].queryset = GradeLevel.objects.all()
+        else:
+            # show all semesters as fallback so period is never empty
+            self.fields['level'].queryset = GradeLevel.objects.none()
+
+        # if level:
+        #     self.fields['course'].queryset = Course.objects.filter(level=level)
+        # else:
+        #     # show all semesters as fallback so period is never empty
+        #     self.fields['course'].queryset = Course.objects.none()
+        if level:
+            self.fields['kelas'].queryset = Class.objects.all()
+        else:
+            # show all semesters as fallback so period is never empty
+            self.fields['kelas'].queryset = Class.objects.none()
+
 
         # self.fields["start_date"].widget.is_hidden = True
         # self.fields['period'].queryset = LearningPeriod.objects.all()
@@ -1000,8 +1070,8 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
         self.fields['academic_year'].widget.attrs.update({
             'id': 'acayear-select-ledger',  # Vital for the listener
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get_period_ledger/',
+            # 'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_period_rpledger/',
             'hx-trigger': 'change',
             'hx-target': '#period-select-ledger', # Updates Period normally
             'hx-swap': 'innerHTML',
@@ -1009,13 +1079,34 @@ class RequestLogForm(BaseReportForm, forms.Form):
 
         self.fields['period'].widget.attrs.update({
             'id': 'period-select-ledger',
-            'class': 'form-check-input mb-2',
+            # 'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_level_rpledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#level-select-ledger', # Updates Period normally
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-ledger',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get_kelas_rpledger/',
+            'hx-trigger': 'change',
+            'hx-target': '#kelas-select-ledger',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['kelas'].widget.attrs.update({
+            'id': 'kelas-select-ledger',
+            'class': 'custom-select mb-4',
         })
 
 
     def get_filters(self):
         academic_year = self.cleaned_data.get("academic_year")
         period = self.cleaned_data.get("period")
+        level = self.cleaned_data.get("level")
+        # course = self.cleaned_data.get("course")
+        kelas = self.cleaned_data.get("kelas")
         is_mid = self.cleaned_data.get("is_mid")
         # return the filters to be used in the report
         # Note: the use of Q filters and kwargs filters
@@ -1030,6 +1121,17 @@ class RequestLogForm(BaseReportForm, forms.Form):
             
         if period:
             filters["reportcard__period"] = period
+
+        if level:
+            filters["reportcard__level"] = level
+
+        # if course:
+        #     filters["reportcard__student__coursemember__course"] = course
+        #     filters["reportcard__student__coursemember__is_active"] = True
+        #     filters["subject"] = course.subject
+        if kelas:
+            filters["reportcard__student__classmember__kelas"] = kelas
+            filters["reportcard__student__classmember__is_active"] = True
 
         # For Booleans, usually we only filter if the checkbox is checked, 
         # or you can force the filter regardless:
@@ -1356,11 +1458,9 @@ class RubricEntryForm(forms.ModelForm):
     class Meta:
         model = ReportcardBehaviour
         fields = ['academic_year', 'period', 'level', 'is_mid']
-        # labels = {
-        #     'academic_year': 'Tahun Ajaran',
-        #     'period': 'Periode Pembelajaran / Semester',
-        #     'level': 'Level Pembelajaran'
-        # }
+        labels = {
+            'is_mid': 'Mid?',
+        }
         # widget = {
         #     'is_mid': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         # }
@@ -1953,7 +2053,8 @@ class StudentsExamGradesEntry(forms.ModelForm):
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput()
+        widget=forms.CheckboxInput(),
+        label="Mid?",
     )
 
 
@@ -2045,7 +2146,8 @@ class GradesSelectionForm(forms.ModelForm):
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     class Meta:
@@ -2313,7 +2415,8 @@ class TotalGradesForm(forms.ModelForm):
 
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     class Meta:
@@ -2536,6 +2639,7 @@ class AssignmentAvgForm(forms.Form):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Mid?",
     )
 
     def __init__(self, *args, **kwargs):
@@ -2618,7 +2722,7 @@ class PersonalDevSelectForm(forms.Form):
     is_mid = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        label="Mid Semester?"
+        label="Mid?"
     )
     student = forms.ModelChoiceField(
         queryset=StudentReportcard.objects.none(),
@@ -2793,6 +2897,11 @@ class CpmpCreateForm(forms.ModelForm):
         label='Learning Targets (one per line)'
     )
 
+    is_activity = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
     class Meta:
         model = CapaianPemelajaranMataPelajaran
         fields = ['academic_year', 'level', 'subject', 'text']  # cpl_root removed (point 5)
@@ -2810,13 +2919,20 @@ class CpmpCreateForm(forms.ModelForm):
         # Point 1 — move Teacher between Level and Subject.
         # 'teacher' isn't a real model field so it can't go in Meta.fields;
         # order_fields() is the clean way to reposition it after the fact.
-        self.order_fields(['academic_year', 'level', 'teacher', 'subject', 'text'])
+        self.order_fields(['academic_year', 'level', 'teacher', 'is_activity', 'subject', 'text'])
 
         data = self.data
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        level = data.get('level') or initial.get('level')
+
+        is_activity = data.get('is_activity') or initial.get('is_activity')
+        is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
+
+        self.fields['subject'].queryset = Subject.objects.filter(is_activity=is_activity)
 
         # Point 4 — always show Teacher, but restrict its own options
         # BACKUP
@@ -2848,6 +2964,38 @@ class CpmpCreateForm(forms.ModelForm):
         #     'hx-target': '#subject-select-cpmp',
         #     'hx-swap': 'innerHTML',
         # })
+
+        if is_admin:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                is_activity=is_activity
+            ).distinct()
+        elif logged_in_teacher:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                course__teacher=logged_in_teacher, course__level_id=level
+                , is_activity=is_activity
+            ).distinct()
+        else:
+            self.fields['subject'].queryset = Subject.objects.none()
+
+        self.fields['is_activity'].widget.attrs.update({
+            'id': 'is-activity-checkbox-cpmp',
+            'class': 'form-check-input',
+            'hx-get': '/gradebook/get-subjects-cpmp/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-cpmp',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-cpmp',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-subjects-cpmp/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-cpmp',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
+        })
 
         self.fields['subject'].widget.attrs.update({
             'id': 'subject-select-cpmp',
@@ -3065,6 +3213,11 @@ class GetCpmpListForEdit(forms.ModelForm):
         label='Teacher'
     )
 
+    is_activity = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
 
     class Meta:
         model = CapaianPemelajaranMataPelajaran
@@ -3082,13 +3235,16 @@ class GetCpmpListForEdit(forms.ModelForm):
         # Point 1 — move Teacher between Level and Subject.
         # 'teacher' isn't a real model field so it can't go in Meta.fields;
         # order_fields() is the clean way to reposition it after the fact.
-        self.order_fields(['academic_year', 'level', 'teacher', 'subject', 'text'])
+        self.order_fields(['academic_year', 'level', 'teacher', 'is_activity', 'subject', 'text'])
 
         data = self.data
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        is_activity = data.get('is_activity') or initial.get('is_activity')
+        is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
 
         # Point 4 — always show Teacher, but restrict its own options
         if is_admin:
@@ -3105,7 +3261,7 @@ class GetCpmpListForEdit(forms.ModelForm):
         # Point 2/3 — Subject actually cascades off Teacher now
         if teacher_id:
             self.fields['subject'].queryset = Subject.objects.filter(
-                course__teacher_id=teacher_id
+                course__teacher_id=teacher_id, is_activity=is_activity
             ).distinct()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
@@ -3118,6 +3274,17 @@ class GetCpmpListForEdit(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',
+            'hx-include': '#teacher-select-ge, #is-activity-checkbox-ge',
+        })
+
+        self.fields['is_activity'].widget.attrs.update({
+            'id': 'is-activity-checkbox-ge',
+            'class': 'form-check-input',
+            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-ge',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#teacher-select-ge, #is-activity-checkbox-ge',
         })
 
         self.fields['subject'].widget.attrs.update({
@@ -3136,3 +3303,105 @@ CpmpFormSet = modelformset_factory(
         'text': forms.TextInput(attrs={'class': 'input input-bordered input-sm w-full'}),
     },
 )
+
+
+class ClassAttendanceRecap(BaseReportForm, forms.Form):
+    start_date = forms.DateField(
+        required=False,
+        label="Start Date",
+        widget=forms.DateInput(),
+        initial=datetime.now
+    )
+    end_date = forms.DateField(required=False, label="End Date", widget=forms.DateInput(),
+                               initial=datetime.now)
+
+    # course = forms.ModelChoiceField(
+    #     queryset = Course.objects.none(),
+    #     required=False,
+    #     widget=forms.RadioSelect(attrs={
+    #         'class': 'form-control'
+    #     })
+    # )
+    # kelas = forms.ModelChoiceField(
+    #     queryset=Class.objects.none(),
+    #     required=False,
+    #     widget=forms.RadioSelect(attrs={
+    #         'class': 'form-control'
+    #     })
+    # )
+
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(),
+        label="Mid?",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["start_date"].initial = datetime.date
+        self.fields["end_date"].initial = datetime.date
+
+        self.fields['kelas'].queryset = Class.objects.all()
+
+        data = self.data
+        initial = self.initial
+
+        # no wizard prefix — this is a plain GET form
+        # kelas = data.get('kelas') or initial.get('kelas')
+
+        #Commented this out - incase Homeroom Class needs to be filtered thru the header field
+        # if level:
+        #     self.fields['kelas'].queryset = Class.objects.all()
+        # else:
+        #     # show all semesters as fallback so period is never empty
+        #     self.fields['kelas'].queryset = Class.objects.none()
+
+        # self.fields["start_date"].widget.is_hidden = True
+        # self.fields['period'].queryset = LearningPeriod.objects.all()
+
+
+        # self.fields['kelas'].widget.attrs.update({
+        #     'id': 'kelas-select-ledger',
+        #     'class': 'custom-select mb-4',
+        # })
+
+    def get_filters(self):
+        # kelas = self.cleaned_data.get("kelas")
+        is_mid = self.cleaned_data.get("is_mid")
+        # return the filters to be used in the report
+        # Note: the use of Q filters and kwargs filters
+        filters = {}
+        q_filters = []
+        if not academic_year and not period:
+            filters['id'] = -1  # Impossible ID, results in empty table
+            return q_filters, filters
+
+        if academic_year:
+            filters["reportcard__academic_year"] = academic_year
+
+        if period:
+            filters["reportcard__period"] = period
+
+        if level:
+            filters["reportcard__level"] = level
+
+        # if course:
+        #     filters["reportcard__student__coursemember__course"] = course
+        #     filters["reportcard__student__coursemember__is_active"] = True
+        #     filters["subject"] = course.subject
+        if kelas:
+            filters["reportcard__student__classmember__kelas"] = kelas
+            filters["reportcard__student__classmember__is_active"] = True
+
+        # For Booleans, usually we only filter if the checkbox is checked,
+        # or you can force the filter regardless:
+        if is_mid is not None:
+            filters["reportcard__is_mid"] = is_mid
+
+        return q_filters, filters
+
+    def get_start_date(self):
+        return self.cleaned_data["start_date"]
+
+    def get_end_date(self):
+        return self.cleaned_data["end_date"]
