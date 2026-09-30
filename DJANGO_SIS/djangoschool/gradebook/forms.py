@@ -3322,13 +3322,13 @@ class ClassAttendanceRecap(BaseReportForm, forms.Form):
     #         'class': 'form-control'
     #     })
     # )
-    # kelas = forms.ModelChoiceField(
-    #     queryset=Class.objects.none(),
-    #     required=False,
-    #     widget=forms.RadioSelect(attrs={
-    #         'class': 'form-control'
-    #     })
-    # )
+    kelas = forms.ModelChoiceField(
+        queryset=Class.objects.none(),
+        required=False,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-control'
+        })
+    )
 
     is_mid = forms.BooleanField(
         required=False,
@@ -3347,7 +3347,7 @@ class ClassAttendanceRecap(BaseReportForm, forms.Form):
         initial = self.initial
 
         # no wizard prefix — this is a plain GET form
-        # kelas = data.get('kelas') or initial.get('kelas')
+        kelas = data.get('kelas') or initial.get('kelas')
 
         #Commented this out - incase Homeroom Class needs to be filtered thru the header field
         # if level:
@@ -3366,32 +3366,17 @@ class ClassAttendanceRecap(BaseReportForm, forms.Form):
         # })
 
     def get_filters(self):
-        # kelas = self.cleaned_data.get("kelas")
+        kelas = self.cleaned_data.get("kelas")
         is_mid = self.cleaned_data.get("is_mid")
         # return the filters to be used in the report
         # Note: the use of Q filters and kwargs filters
-        filters = {}
+        filters = {
+            "student__classmember__is_active": True,
+        }
         q_filters = []
-        if not academic_year and not period:
-            filters['id'] = -1  # Impossible ID, results in empty table
-            return q_filters, filters
 
-        if academic_year:
-            filters["reportcard__academic_year"] = academic_year
-
-        if period:
-            filters["reportcard__period"] = period
-
-        if level:
-            filters["reportcard__level"] = level
-
-        # if course:
-        #     filters["reportcard__student__coursemember__course"] = course
-        #     filters["reportcard__student__coursemember__is_active"] = True
-        #     filters["subject"] = course.subject
         if kelas:
-            filters["reportcard__student__classmember__kelas"] = kelas
-            filters["reportcard__student__classmember__is_active"] = True
+            filters["student__classmember__kelas"] = kelas
 
         # For Booleans, usually we only filter if the checkbox is checked,
         # or you can force the filter regardless:

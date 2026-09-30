@@ -137,6 +137,9 @@ urlpatterns = [
     path('cpmp-edit-ge/<int:pk>', views.cpmp_edit_ge, name='cpmp-edit-ge'),
     path('cpmp-delete-ge/<int:pk>', views.cpmp_delete_ge, name='cpmp-delete-ge'),
 
+    # ATTENDANCE CROSSTAB LEDGER
+    path('class-attendance-ledger/', views.ClassAttendanceLedger.as_view(), name='class-attendance-ledger'),
+
     path('assignment-monitor/', views.HomeroomAssignmentMonitor.as_view(), name='assignment_monitor'),
     path('hr-monitor-table/', views.hr_monitor_table, name='hr-monitor-table'),
     path('get_subjects_ledger/', views.get_subjects_ledger, name='get-subjects-ledger'),

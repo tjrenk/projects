@@ -26,7 +26,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus import KeepTogether
 from slick_reporting.views import ReportView, SlickReportView
-from slick_reporting.fields import ComputationField
+from slick_reporting.fields import ComputationField, SlickReportField
 from slick_reporting.generator import ReportGenerator
 import io
 from django.contrib.auth.decorators import login_required
@@ -150,7 +150,7 @@ def get_pdf_styles():
         ),
         'title2': ParagraphStyle(
             'Title', parent=base_styles['Normal'],
-            fontSize=11, fontName='arial-narrow-bold',
+            fontSize=11, fontName='arial-narrow-italic',
             alignment=TA_CENTER, spaceAfter=4,
         ),
         'subtitle': ParagraphStyle(
@@ -305,15 +305,15 @@ def build_pdf_header_table():
         contact_row,
     ]
 
-    header_table = Table([[logo, info_block]], colWidths=[4 * cm, 13 * cm])
+    header_table = Table([[logo, info_block]], colWidths=[2.9 * cm, 13 * cm])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (0, 0), 'CENTER'),
         ('LEFTPADDING', (1, 0), (1, 0), 24),
-        ('TOPPADDING', (0, 0), (-1, -1), 0.7),
+        ('TOPPADDING', (0, 0), (-1, -1), 0.01),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (0, 0), 4),
+        ('TOPPADDING', (0, 0), (0, 0), 0.01),
         ('BOTTOMPADDING', (0, 0), (0, 0), 20),
     ]))
     return header_table
@@ -1746,7 +1746,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         table = Table(table_data)
         table.setStyle(table_style)
 
-        elements.append(Paragraph("Student Grade Crosstab Report", styles['title']))
+        elements.append(Paragraph("Report Card Ledger", styles['title']))
         elements.append(Spacer(1, 0.3 * cm))
         elements.append(table)
 
@@ -2839,7 +2839,7 @@ def rb_pdf(request, pk):
     homeroom_teacher = student_class.kelas.teacher if student_class else None
 
     buf = io.BytesIO()
-    F4 = (21.5 * cm, 33.0 * cm)
+    F4 = (21.0 * cm, 33.0 * cm)
     # HEADER_GAP = 0.5 * cm
     page_width, page_height = F4
     header_height = get_pdf_header_height(page_width)
@@ -2861,14 +2861,14 @@ def rb_pdf(request, pk):
     #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
     #     styles['subtitle']
     # ))
-    sub_title_text = "1ST MID-SEMESTER REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
+    sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
     flowables.append(Paragraph(sub_title_text, styles['title2']))
     flowables.append(Spacer(1, 0.2*cm))
 
     acayear = int(behaviour.academic_year.year)
     meta_data = [
         ['', 'Nama', ':', f"{student.registration_data.first_name or ''} {student.registration_data.middle_name or ''} {student.registration_data.last_name or ''}".strip(),
-         'Kelas', ':', str(student_class.kelas) if student_class else '-'],
+         'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
         ['', 'NIS', ':', student.id_number or '-',
          'Semester', ':', behaviour.period.period_name],
         ['', 'NISN', ':', student.nisn or '-',
@@ -2969,7 +2969,7 @@ def rb_pdf(request, pk):
     # Signatures
     sig_data = [
         ['',f"Jakarta, {signing_date}"],
-        ['Orang Tua/Wali,', 'Wali Kelas,'],
+        ['Orang Tua/Wali', 'Wali Kelas,'],
         ['Peserta Didik,', ''],
         ['', ''],
         # ['', ''],
@@ -4884,7 +4884,7 @@ def print_pdev_pdf(request, pk):
     #     f"{reportcard.academic_year} / {reportcard.period.period_name}",
     #     styles['subtitle']
     # ))
-    sub_title_text = "1ST MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
+    sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
     flowables.append(Paragraph(sub_title_text, styles['title2']))
     # flowables.append(Spacer(1, 1*cm))
 
@@ -6041,7 +6041,7 @@ def print_midterm_report(request, pk):
 
     # ─── PDF SETUP ──────────────────────────────────────────
     HEADER_GAP = 0.5 * cm
-    F4 = (21.5 * cm, 33.0 * cm)
+    F4 = (21.0 * cm, 33.0 * cm)
     page_width, page_height = F4
     header_height = get_pdf_header_height(page_width)
 
@@ -6059,7 +6059,7 @@ def print_midterm_report(request, pk):
     flowables = [Spacer(1, 0.1*cm)]
 
     title_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
-    sub_title_text = "1ST MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
+    sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
     flowables.append(Paragraph(title_text, styles['title']))
     flowables.append(Paragraph(sub_title_text, styles['title2']))
     flowables.append(Spacer(1, 0.3*cm))
@@ -6067,7 +6067,7 @@ def print_midterm_report(request, pk):
     acayear = int(reportcard.academic_year.year)
     meta_data = [
         ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
-         'Kelas', ':', str(student_class.kelas) if student_class else '-'],
+         'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
         ['', 'NIS', ':', student.id_number or '-',
          'Semester', ':', reportcard.period.period_name],
         ['', 'NISN', ':', student.nisn or '-',
@@ -6211,7 +6211,7 @@ def print_midterm_report(request, pk):
     flowables.append(section_header("C. PRESTASI"))
     prest_data = [
         ['No', 'Jenis Kegiatan', 'Keterangan'],
-        ['', '-', '-'],
+        ['1', '-', '-'],
     ]
     prest_table = Table(prest_data, colWidths=[1.1 * cm, 9.1 * cm, 9.2 * cm])
     prest_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
@@ -6247,8 +6247,12 @@ def print_midterm_report(request, pk):
     # G. CATATAN WALI KELAS
     flowables.append(section_header("E. CATATAN WALI KELAS"))
 
+    hr_notes_style = ParagraphStyle(
+        'HomeroomNotesStyle', parent=styles['content'], fontSize=7.8,
+    )
+
     catatan_table = Table(
-        [[Paragraph(ht_comment or '-', styles['label'])]],
+        [[Paragraph(ht_comment or '-', hr_notes_style)]],
         colWidths=[19.4 * cm],
     )
     catatan_table.setStyle(TableStyle([
@@ -6265,7 +6269,7 @@ def print_midterm_report(request, pk):
     # Signatures
     sig_data = [
         ['',f"Jakarta, {signing_date}"],
-        ['Orang Tua/Wali,', 'Wali Kelas,'],
+        ['Orang Tua/Wali', 'Wali Kelas,'],
         ['Peserta Didik,', ''],
         ['', ''],
         ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
@@ -6276,7 +6280,8 @@ def print_midterm_report(request, pk):
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, -1), (-1, -1), 17),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
     ]))
     # flowables.append(sig_table)
     # flowables.append(Spacer(1, 0.3*cm))
@@ -6299,7 +6304,8 @@ def print_midterm_report(request, pk):
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
     ]))
 
     # semua dikumpulin jadi 1 block
@@ -6673,3 +6679,55 @@ def hr_monitor_table(request):
         'form': form,
         'pnation_left': pnation_left,
     })
+
+
+AbsentCountField = SlickReportField.create(
+    Count, "id", name="absent_count", verbose_name="Absent"
+)
+
+
+class ClassAttendanceLedger(LoginRequiredMixin, ReportView):
+    template_name = "partials/gradebook/report.html"
+    report_title = "Class Attendance Recap"
+
+    report_model = StudentAttendance
+    form_class = ClassAttendanceRecap
+    date_field = "attendance_date"
+
+    group_by = "student__classmember__kelas"
+
+    def class_name(self, obj, data):
+        return obj.get('name', '-')
+    class_name.verbose_name = "Class"
+
+    columns = [
+        "class_name",
+    ]
+
+    crosstab_field = "attendance_date"
+    crosstab_columns = [AbsentCountField]
+    crosstab_compute_remainder = False
+
+    def get_crosstab_ids(self):
+        start = self.request.GET.get('start_date')
+        end = self.request.GET.get('end_date')
+
+        if start and end:
+            start = datetime.strptime(start, '%Y-%m-%d').date()
+            end = datetime.strptime(end, '%Y-%m-%d').date()
+        else:
+            # default view: last 7 days
+            end = datetime.now().date()
+            start = end - timedelta(days=6)
+
+        days = (end - start).days
+        return [start + timedelta(days=i) for i in range(days + 1)]
+
+    def get_crosstab_compute_remainder(self):
+        return False
+
+    filters = [
+        "student__id_number",
+        "student__registration_data__first_name",
+        "student__registration_data__last_name",
+    ]
