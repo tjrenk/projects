@@ -55,6 +55,15 @@ urlpatterns = [
     path('rubric-delete/<int:pk>', views.rb_del, name='rubric-delete'),
     path('rubric-pdf/<int:pk>', views.rb_pdf, name='rubric-pdf'),
 
+    # DORMITORY RUBRIC ENTRY
+    path('dorm-rubric-entry/', views.DormRubricEntryWizard.as_view(), name="dorm-rubric-entry"),
+    path('student-dormitory-grading/<int:pk>', views.student_dormitory_grading, name='student-dormitory-grading'),
+    path('get-kelas-dorm/', views.get_kelas_dorm, name='get-kelas-dorm'),
+    path('dorm-rubric-table/', views.dorm_table, name='dorm-rubric-table'),
+    path('dorm-rubric-edit/<int:pk>', views.dorm_edit, name='dorm-rubric-edit'),
+    path('dorm-rubric-delete/<int:pk>', views.dorm_del, name='dorm-rubric-delete'),
+    path('dorm-rubric-pdf/<int:pk>', views.dorm_pdf, name='dorm-rubric-pdf'),
+
     # EXTRA REPORT
     path('extra-report/', views.ExtraReportWizard.as_view(), name='extra-report'),
     path('report_extrac/<int:pk>',views.student_act_extra_grading, name='report_extrac'),

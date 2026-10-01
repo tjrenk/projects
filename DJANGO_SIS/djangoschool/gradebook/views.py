@@ -2854,7 +2854,7 @@ def rb_pdf(request, pk):
 
     styles, table_style, reportc_table_style = get_pdf_styles()
 
-    flowables = [Spacer(1, 0.2*cm)]
+    flowables = [Spacer(1, 0.0*cm)]
 
     flowables.append(Paragraph("LAPORAN PENILAIAN SIKAP", styles['title']))
     # flowables.append(Paragraph(
@@ -2866,24 +2866,37 @@ def rb_pdf(request, pk):
     flowables.append(Spacer(1, 0.2*cm))
 
     acayear = int(behaviour.academic_year.year)
+
+    # kalo ada teks ditukar dengan karakter kosong (jadi nanti yg keisi cuma '1' atau '2')
+    period_number = ''.join(filter(str.isdigit, behaviour.period.period_name)) or behaviour.period.period_name
+
+    # isian kata2 untuk header; disetor dalam sebuah array
     meta_data = [
         ['', 'Nama', ':', f"{student.registration_data.first_name or ''} {student.registration_data.middle_name or ''} {student.registration_data.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
         ['', 'NIS', ':', student.id_number or '-',
-         'Semester', ':', behaviour.period.period_name],
+         'Semester', ':', period_number],
         ['', 'NISN', ':', student.nisn or '-',
          'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
+    # ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
+    # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
+
+    # isian array itu dimasukkin ke dlm tabel, sama konfigurasi jarak kiri-kanan antar kolom)
     meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
+
+    # styling tabel
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
     ]))
+
+    # append / catat ke flowables (kertas)
     flowables.append(meta_table)
     flowables.append(Spacer(0, 0.0 * cm))
 
@@ -2972,22 +2985,19 @@ def rb_pdf(request, pk):
         ['Orang Tua/Wali', 'Wali Kelas,'],
         ['Peserta Didik,', ''],
         ['', ''],
-        # ['', ''],
         ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
-    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
     sig_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, -1), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, -1), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
     ]))
     # flowables.append(sig_table)
-    flowables.append(Spacer(1, 0.1 * cm))
-    # center_style = ParagraphStyle(
-    #     'CenterText', parent=styles['label'],
-    #     alignment=TA_CENTER,
+    # flowables.append(Spacer(1, 0.3*cm))
     center_style = ParagraphStyle(
         'CenterText', fontSize=9, fontName='arial-narrow',
         alignment=TA_CENTER,
@@ -3000,21 +3010,22 @@ def rb_pdf(request, pk):
         # ['_________________________'],
         [f"{headmaster.full_name if headmaster else '-'}"]
     ]
-    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm])
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm], rowHeights=[16, 23, 30])
     headmaster_sig_table.hAlign = 'CENTER'
     headmaster_sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, -1), (-1, -1), 27),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
     ]))
 
+    # semua dikumpulin jadi 1 block
     signature_block = [
         sig_table,
-        Spacer(1, 0.1 * cm),
+        Spacer(1, 0.01 * cm),
         Paragraph("Mengetahui,", center_style),
-        Spacer(1, 0.1 * cm),
+        Spacer(1, 0.01 * cm),
         headmaster_sig_table,
     ]
     flowables.append(KeepTogether(signature_block))
@@ -4865,69 +4876,63 @@ def print_pdev_pdf(request, pk):
     homeroom_teacher = student_class.kelas.teacher if student_class else None
 
     buf = io.BytesIO()
-    page_width, page_height = GOV_LEGAL
+    HEADER_GAP = 0.5 * cm
+    F4 = (21.0 * cm, 33.0 * cm)
+    page_width, page_height = F4
     header_height = get_pdf_header_height(page_width)
+
     doc = SimpleDocTemplate(
         buf,
-        pagesize=GOV_LEGAL,
-        topMargin=header_height + 0.5*cm,
-        bottomMargin=2*cm,
-        leftMargin=2.3*cm,
-        rightMargin=2.3*cm,
+        pagesize=F4,
+        topMargin=header_height + HEADER_GAP,
+        bottomMargin=0.01*cm,
+        # leftMargin=2.3*cm,
+        # rightMargin=2.3*cm,
     )
 
     styles, table_style, reportc_table_style = get_pdf_styles()
-
-    flowables = []
-    flowables.append(Paragraph("Laporan Konseling Peserta Didik", styles['title']))
+    flowables = [Spacer(1, 0.0*cm)]
+    flowables.append(Paragraph("LAPORAN KONSELING PESERTA DIDIK", styles['title']))
     # flowables.append(Paragraph(
     #     f"{reportcard.academic_year} / {reportcard.period.period_name}",
     #     styles['subtitle']
     # ))
     sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
     flowables.append(Paragraph(sub_title_text, styles['title2']))
-    # flowables.append(Spacer(1, 1*cm))
-
-    # acayear = int(reportcard.academic_year.year)
-    #
-    # meta_data = [
-    #     ['Peserta Didik', ':', f"{reg.first_name} {reg.last_name}"],
-    #     ['NIS', ':', student.id_number],
-    #     ['Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
-    #     ['Semester', ':', reportcard.period.period_name],
-    #     ['Kelas', ':', str(reportcard.level)],
-    #     # ['Mid Semester', ':', 'Yes' if reportcard.is_mid else 'No'], <-- NGGAK DIPAKE LAGI
-    # ]
-    # meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
-    # meta_table.setStyle(TableStyle([
-    #     ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
-    #     ('FONTNAME', (2, 0), (2, -1), 'Helvetica'),
-    #     ('FONTSIZE', (0, 0), (-1, -1), 9),
-    #     ('TOPPADDING', (0, 0), (-1, -1), 2),
-    #     ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-    # ]))
-    # flowables.append(meta_table)
-    # flowables.append(Spacer(1, 0.5*cm))
+    flowables.append(Spacer(1, 0.2 * cm))
 
     acayear = int(reportcard.academic_year.year)
+
+    # kalo ada teks ditukar dengan karakter kosong (jadi nanti yg keisi cuma '1' atau '2')
+    period_number = ''.join(filter(str.isdigit, reportcard.period.period_name)) or reportcard.period.period_name
+
+    # isian kata2 untuk header; disetor dalam sebuah array
     meta_data = [
-        ['Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
+        ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas) if student_class else '-'],
-        ['NIS', ':', student.id_number or '-',
-         'Semester', ':', reportcard.period.period_name],
-        ['NISN', ':', student.nisn or '-',
+        ['', 'NIS', ':', student.id_number or '-',
+         'Semester', ':', period_number],
+        ['', 'NISN', ':', student.nisn or '-',
          'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
-    meta_table = Table(meta_data, colWidths=[1.6 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.6 * cm])
+    # ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
+    # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
+
+    # isian array itu dimasukkin ke dlm tabel, sama konfigurasi jarak kiri-kanan antar kolom)
+    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
+
+    # styling tabel
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
-        ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
     ]))
+
+    # append / catat ke flowables (kertas)
     flowables.append(meta_table)
     flowables.append(Spacer(0, 0.0 * cm))
 
@@ -4943,21 +4948,49 @@ def print_pdev_pdf(request, pk):
         'excellence4': 'Memiliki inisiatif tinggi',
     }
 
+    indicator_style = ParagraphStyle(
+        'IndicatorStyle', parent=styles['content'], fontSize=9,
+    )
+
     for group_name, field_names in PERSONAL_DEV_FIELDS.items():
-        flowables.append(Paragraph(group_name, styles['group']))
+        pdf_label_content = [[group_name]]
+        label_table = Table(pdf_label_content, colWidths=[19.89 * cm])
+        label_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow-bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ]))
+        flowables.append(label_table)
+        flowables.append(Spacer(0, 0.0 * cm))
+
+        # harus pake font lain, pake arial narrow nggak bisa
+        checkmark = ParagraphStyle(
+            'CheckStyle', fontName='Helvetica', fontSize=8, alignment=TA_CENTER,
+        )
+
         table_data = [['Indicator'] + choice_labels]
         for field_name in field_names:
             value = getattr(instance, field_name)
-            row = [label_map.get(field_name, field_name)]
+            row = [Paragraph(label_map.get(field_name, field_name), indicator_style)]
             for choice_val, _ in PDRPT_CHOICES:
-                row.append('✓' if value == choice_val else ' ')
+                row.append(Paragraph('✓' if value == choice_val else '', checkmark))
             table_data.append(row)
 
-        col_widths = [9 * cm] + [2.5 * cm] * len(PDRPT_CHOICES)
+        col_widths = [11.9 * cm] + [2.5 * cm] * len(PDRPT_CHOICES)
         table = Table(table_data, colWidths=col_widths)
         table.setStyle(TableStyle([
-            *table_style.getCommands(),
-            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, 0), 'arial-narrow'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 1.7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ]))
         flowables.append(table)
         # flowables.append(Spacer(1, 0.3 * cm))
@@ -4968,51 +5001,50 @@ def print_pdev_pdf(request, pk):
     # Signatures
     sig_data = [
         ['',f"Jakarta, {signing_date}"],
-        ['Orang Tua/Wali,', 'Wali Kelas,'],
+        ['Orang Tua/Wali', 'Wali Kelas,'],
         ['Peserta Didik,', ''],
         ['', ''],
-        ['', ''],
-        ['', ''],
-        ['_________________________', f"{homeroom_teacher.first_name if homeroom_teacher else '-'} {homeroom_teacher.last_name if homeroom_teacher else ''}"],
+        ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
-    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
     sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, -1), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'arial-narrow')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
     ]))
     # flowables.append(sig_table)
-    flowables.append(Spacer(1, 0.3*cm))
+    # flowables.append(Spacer(1, 0.3*cm))
     center_style = ParagraphStyle(
-        'CenterText', parent=styles['label'],
+        'CenterText', fontSize=9, fontName='arial-narrow',
         alignment=TA_CENTER,
     )
     # flowables.append(Paragraph("Mengetahui,", center_style))
-    flowables.append(Spacer(1, 0.3 * cm))
+    flowables.append(Spacer(1, 0.1 * cm))
     headmaster_sig_data = [
         ['Kepala Sekolah'],
-        [''],
-        [''],
         [''],
         # ['_________________________'],
         [f"{headmaster.full_name if headmaster else '-'}"]
     ]
-    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm])
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm], rowHeights=[16, 23, 30])
     headmaster_sig_table.hAlign = 'CENTER'
     headmaster_sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, -1), (-1, -1), 'arial-narrow')
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
     ]))
 
     # semua dikumpulin jadi 1 block
     signature_block = [
         sig_table,
-        Spacer(1, 0.6 * cm),
+        Spacer(1, 0.01 * cm),
         Paragraph("Mengetahui,", center_style),
-        Spacer(1, 0.6 * cm),
+        Spacer(1, 0.01 * cm),
         headmaster_sig_table,
     ]
     flowables.append(KeepTogether(signature_block))
@@ -6056,36 +6088,51 @@ def print_midterm_report(request, pk):
     )
 
     styles, table_style, reportc_table_style = get_pdf_styles()
-    flowables = [Spacer(1, 0.1*cm)]
+    flowables = [Spacer(1, 0.0*cm)]
 
     title_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
     sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
     flowables.append(Paragraph(title_text, styles['title']))
     flowables.append(Paragraph(sub_title_text, styles['title2']))
-    flowables.append(Spacer(1, 0.3*cm))
+    flowables.append(Spacer(1, 0.2*cm))
 
+    # convert ke integer biar bisa +1 di dalam array teksnya dibawah
     acayear = int(reportcard.academic_year.year)
+
+    # kalo ada teks ditukar dengan karakter kosong (jadi nanti yg keisi cuma '1' atau '2')
+    period_number = ''.join(filter(str.isdigit, reportcard.period.period_name)) or reportcard.period.period_name
+
+    # isian kata2 untuk header; disetor dalam sebuah array
     meta_data = [
         ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
         ['', 'NIS', ':', student.id_number or '-',
-         'Semester', ':', reportcard.period.period_name],
+         # 'Semester', ':', reportcard.period.period_name],
+         'Semester', ':', period_number],
         ['', 'NISN', ':', student.nisn or '-',
          'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
     ]
     #ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
     # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
+
+    # isian array itu dimasukkin ke dlm tabel, sama konfigurasi jarak kiri-kanan antar kolom)
     meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
+
+    # styling tabel
     meta_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
     ]))
+
+    # append / catat ke flowables (kertas)
     flowables.append(meta_table)
+
+    # spacing antar konten dibawah
     flowables.append(Spacer(0, 0.0 * cm))
 
     # A. SIKAP
@@ -6135,7 +6182,7 @@ def print_midterm_report(request, pk):
     if show_notes:
         col_widths = [1.1 * cm, 4.6 * cm, 2.3 * cm, 2.3 * cm, 9.1 * cm]
     else:
-        col_widths = [1.1 * cm, 10.3 * cm, 2.3 * cm, 3.4 * cm, 2.3 * cm]
+        col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm, 4.4 * cm]
 
     grade_table = Table(grade_data, colWidths=col_widths)
     # grade_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
@@ -6176,7 +6223,7 @@ def print_midterm_report(request, pk):
     for i, g in enumerate(activity_courses, start=1):
         row = [str(i), g.subject.subject_name, str(g.final_score), g.final_grade]
         extra_data.append(row)
-    extra_table = Table(extra_data, colWidths=[1.1 * cm, 10.3 * cm, 2.3 * cm, 5.7 * cm])
+    extra_table = Table(extra_data, colWidths=[1.1 * cm, 9.1 * cm, 2.4 * cm, 6.8 * cm])
     extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -6258,13 +6305,15 @@ def print_midterm_report(request, pk):
     catatan_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
     ]))
     flowables.append(catatan_table)
-    flowables.append(Spacer(1, 0.2 * cm))
+    flowables.append(Spacer(1, 0.05 * cm))
+
+
 
     # Signatures
     sig_data = [
@@ -6274,11 +6323,11 @@ def print_midterm_report(request, pk):
         ['', ''],
         ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
     ]
-    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
     sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, -1), (-1, -1), 17),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, -1), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
@@ -6294,15 +6343,14 @@ def print_midterm_report(request, pk):
     headmaster_sig_data = [
         ['Kepala Sekolah'],
         [''],
-        [''],
         # ['_________________________'],
         [f"{headmaster.full_name if headmaster else '-'}"]
     ]
-    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm])
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm], rowHeights=[16, 23, 30])
     headmaster_sig_table.hAlign = 'CENTER'
     headmaster_sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
@@ -6731,3 +6779,682 @@ class ClassAttendanceLedger(LoginRequiredMixin, ReportView):
         "student__registration_data__first_name",
         "student__registration_data__last_name",
     ]
+
+# ENTRY NILAI ASRAMA
+class DormRubricEntryWizard(LoginRequiredMixin, SessionWizardView):
+    # Definisikan template untuk setiap step (opsional, bisa pakai satu template saja)
+    template_name = "partials/gradebook/dorm_rubric_entry.html"
+
+    form_list = [
+        ("0", DormitoryRubricEntryForm),
+        ("1", StudentListFormSet)
+    ]
+
+    # def get_template_names(self):
+    #     return [self.templates[self.steps.current]]
+
+    def get(self, request, *args, **kwargs):
+        """Override GET to allow redirecting to a specific step without resetting storage."""
+        goto_step = request.GET.get('step')
+
+        # If we passed a specific step in the URL (?step=1) and it exists in our wizard
+        if goto_step in self.steps.all:
+            # Update the current step WITHOUT resetting the storage
+            self.storage.current_step = goto_step
+            # Return an unbound form. This ensures get_form_initial runs again
+            # so the "Pending" badge updates to "Graded"!
+            return self.render(self.get_form())
+
+        # Default behavior for a normal GET request: wipe data and start fresh
+        self.storage.reset()
+        self.storage.current_step = self.steps.first
+        return self.render(self.get_form())
+
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+
+        if step == '1':
+            data0 = self.get_cleaned_data_for_step('0')
+            if not data0: return initial
+
+            # Cari siapa aja yang udah punya nilai di session ini
+            graded_student_ids = StudentDormitoryReport.objects.filter(
+                behaviour__academic_year=data0['academic_year'],
+                behaviour__period=data0['period'],
+                behaviour__level=data0['level'],
+                behaviour__is_mid=data0['is_mid']
+            ).values_list('student_id', flat=True).distinct()
+
+            # filter by coursemember (child of Course)
+            # students = CourseMember.objects.filter(
+            #     course=data0['kelas'],  # kelas now holds a Course instance
+            #     is_active=True
+            # ).select_related('student')
+
+
+            # filter by classmember (child of Class / kelas)
+            students = ClassMember.objects.filter(
+                kelas=data0['kelas'],  # kelas now holds a Course instance
+                is_active=True
+            ).select_related('student')
+
+            initial_list = []
+            for member in students:
+                initial_list.append({
+                    'student': member.student.id,
+                    'is_graded': member.student.id in graded_student_ids,  # Ini logic kuncinya
+                    'is_active': member.is_active,
+                })
+            return initial_list
+        return initial
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '0':
+            kwargs['user'] = self.request.user
+        if step == '1':
+            step0_data = self.get_cleaned_data_for_step('0')
+            if step0_data and 'kelas' in step0_data:
+                kwargs['kelas'] = step0_data['kelas']
+            # Pass form_kwargs_list for each form in the formset
+            initial = self.get_form_initial(step)
+            kwargs['form_kwargs_list'] = [{'form_index': i} for i in range(len(initial))]
+        return kwargs
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+
+        if self.steps.current == '1':
+            data_step0 = self.get_cleaned_data_for_step('0')
+            if data_step0:
+                context['selected_kelas'] = data_step0.get('kelas')  # actual selected Course instance
+
+        if self.steps.current == '0':
+            context['selected_acayear'] = AcademicYear.objects.all()
+            context['selected_period'] = LearningPeriod.objects.all().select_related('academic_year')
+
+            # filter by course
+            # context['selected_kelas'] = Course.objects.all().select_related('subject')  # Course not Class
+
+            # filter by hr class
+            context['selected_kelas'] = Class.objects.all().select_related('teacher')  # Course not Class
+            context['selected_level'] = GradeLevel.objects.all()
+
+        return context
+
+    # def post(self, *args, **kwargs):
+    #     """Handle the 'Back' button logic to delete data if going to step 0"""
+    #     if self.request.POST.get('wizard_goto_step') == '0' and self.steps.current == '1':
+    #         step0_data = self.get_cleaned_data_for_step('0')
+    #         if step0_data:
+    #             # Find the container
+    #             behaviour = ReportcardBehaviour.objects.filter(
+    #                 academic_year=step0_data.get('academic_year'),
+    #                 period=step0_data.get('period'),
+    #                 level=step0_data.get('level'),
+    #                 is_mid=False
+    #             ).first()
+    #
+    #             if behaviour:
+    #                 # Delete all reports associated with this specific behavior grading session
+    #                 # This acts as the 'Undo' logic for the Back button
+    #                 StudentBehaviourReport.objects.filter(behaviour=behaviour).delete()
+    #                 messages.info(self.request, "Previous grading progress cleared.")
+
+        return super().post(*args, **kwargs)
+
+    def done(self, form_list, **kwargs):
+        form_data_0 = form_list[0].cleaned_data
+
+        # 1. Safely get or create the Behaviour container
+        # (Just in case they clicked 'Submit' without grading anyone yet)
+        behaviour, created = ReportcardDormitory.objects.get_or_create(
+            academic_year=form_data_0['academic_year'],
+            period=form_data_0['period'],
+            level=form_data_0['level'],
+            is_mid=form_data_0['is_mid']
+        )
+
+        # 2. DO NOT create score=0 entries here if the individual
+        # grading view is already handling the database saves!
+        # We can just leave this empty, or use it to mark the class as "Finalized"
+        # if you have a status field on ReportcardBehaviour.
+
+        # 3. Add a success message
+
+        messages.success(self.request, "Class dormitory behavior grading has been finalized!")
+
+        # 4. Redirect to wherever you want them to go next
+        # (e.g., the main gradebook index or a specific table)
+        return redirect('dorm-rubric-entry')
+
+
+def get_kelas_dorm(request):
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
+
+    # filter by course
+    # if teacher_id:
+    #     classes = Course.objects.filter(teacher_id=teacher_id).select_related('subject')
+    # else:
+    #     classes = Course.objects.none()
+
+    # filter by hr class
+    if teacher_id:
+        classes = Class.objects.filter(teacher_id=teacher_id).select_related('teacher')
+    else:
+        classes = Class.objects.none()
+    return render(request, "partials/gradebook/gradeentry_partials/kelas.html", {
+        'kelas_list': classes,  # ← match the template's variable name
+        'selected_kelas': selected_kelas
+    })
+
+# def get_kelas_rubric(request):
+#     rubric.existing_score = existing_scores.get(rubric.id, None)
+#
+#     # Process form submission
+#
+#
+#     if request.method == 'POST':
+#         # 1. Ensure the container exists
+#         if academic_year and period and level:
+#             behaviour_obj, _ = ReportcardBehaviour.objects.get_or_create(
+#                 academic_year=academic_year,
+#                 period=period,
+#                 level=level,
+#                 is_mid=False
+#             )
+#
+#             # 2. Save each score from the radio buttons
+#             for rubric in rubrics:
+#                 score_val = request.POST.get(f'rubric_{rubric.id}')
+#                 if score_val:
+#                     StudentBehaviourReport.objects.update_or_create(
+#                         student=student,
+#                         behaviour=behaviour_obj,
+#                         rubric=rubric,
+#                         defaults={'score': int(score_val)}
+#                     )
+#
+#         # 3. Manually set wizard back to Step 1 (the table screen)
+#         wizard_key = 'wizard_rubric_entry_wizard'
+#
+#         if wizard_key in request.session:
+#             data = request.session[wizard_key]
+#             data['step'] = '1'
+#             request.session[wizard_key] = data
+#             request.session.modified = True
+#
+#             return redirect('rubric-entry')
+#
+#     context = {
+#                   'student': student,
+#     }
+
+
+@login_required
+def student_dormitory_grading(request, pk):
+    try:
+        student = Student.objects.select_related('registration_data').get(pk=pk)
+    except Student.DoesNotExist:
+        return HttpResponse("Student not found", status=404)
+
+    # NAMA KEY HARUS SAMA: Sesuai nama class Wizard (snake_case)
+    # Jika class: RubricEntryWizard -> key: wizard_rubric_entry_wizard
+    wizard_key = 'wizard_rubric_entry_wizard'
+    wizard_data = request.session.get(wizard_key, {})
+    step_data = wizard_data.get('step_data', {}).get('0', {})
+
+    # Helper buat ambil ID dari session (karena formatnya list: ['2'])
+    def get_id(field):
+        val = step_data.get(f'0-{field}')
+        return val[0] if isinstance(val, list) and val else val
+
+    ay_id = get_id('academic_year')
+    p_id = get_id('period')
+    l_id = get_id('level')
+    is_mid_raw = get_id('is_mid')
+    is_mid = str(is_mid_raw).lower() in ('true', 'on', '1')
+
+    # Ambil object untuk context template
+    academic_year = AcademicYear.objects.filter(pk=ay_id).first()
+    period = LearningPeriod.objects.filter(pk=p_id).first()
+    level = GradeLevel.objects.filter(pk=l_id).first()
+
+    # Ambil rubrik
+    rubrics = list(Rubric.objects.all())
+
+    # Ambil teks narasi
+    desc = ReportcardRubricTemplate.objects.values_list('text', flat=True)
+
+    # Ambil container Behaviour
+    behaviour, _ = ReportcardDormitory.objects.get_or_create(
+        academic_year=academic_year,
+        period=period,
+        level=level,
+        is_mid=is_mid
+    )
+
+    # LOGIC SIMPAN (POST) - Ini yang tadi kamu belum ada:
+    if request.method == 'POST':
+        for rubric in rubrics:
+            score = request.POST.get(f'rubric_{rubric.id}')
+            if score:
+                # Simpan atau update nilai per rubrik
+                StudentDormitoryReport.objects.update_or_create(
+                    student=student,
+                    behaviour=behaviour,
+                    rubric=rubric,
+                    defaults={'score': int(score)}
+                )
+
+        # Redirect balik ke wizard step 1
+        url = reverse('rubric-entry')
+        return HttpResponseRedirect(f"{url}?step=1")
+
+    # Ambil nilai yang sudah ada buat ditampilin di form
+    existing_scores = {r.rubric_id: r.score for r in
+                       StudentDormitoryReport.objects.filter(student=student, behaviour=behaviour)}
+    for rubric in rubrics:
+        rubric.existing_score = existing_scores.get(rubric.id)
+
+
+
+    context = {
+        'student': student,
+        'academic_year': academic_year,
+        'period': period,
+        'level': level,
+        'rubrics': rubrics,
+    }
+    return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
+
+
+
+@login_required
+def dorm_table(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'student':       'student__registration_data__first_name',
+        'academic_year': 'behaviour__academic_year__year',
+        'period':        'behaviour__period__period_name',
+        'is_mid':        'behaviour__is_mid',
+        'level':         'behaviour__level__grade_name',
+    }, default_sort='student')
+
+    reports = StudentDormitoryReport.objects.select_related(
+        'student__registration_data',
+        'behaviour__academic_year',
+        'behaviour__period',
+        'behaviour__level',
+    )
+
+    if teacher and not user.is_staff:
+        reports = reports.filter(
+            student__classmember__kelas__teacher=teacher,
+            student__classmember__is_active=True,
+        )
+
+    reports = apply_filters(reports, request, {
+        'year':   'behaviour__academic_year_id',
+        'period': 'behaviour__period_id',
+        'level':  'behaviour__level_id',
+    })
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        reports = reports.filter(
+            Q(student__registration_data__first_name__icontains=search_query) |
+            Q(student__registration_data__last_name__icontains=search_query) |
+            Q(student__id_number__icontains=search_query)
+        )
+
+    # Collapse to ONE row per student per behaviour session, instead of
+    # one row per individual rubric score
+    sessions = reports.values(
+        'student_id',
+        'student__id_number',
+        'student__registration_data__first_name',
+        'student__registration_data__last_name',
+        'behaviour_id',
+        'behaviour__academic_year__year',
+        'behaviour__period__period_name',
+        'behaviour__is_mid',
+        'behaviour__level__grade_name',
+    ).distinct().order_by(order_field)
+
+    pnation = Paginator(sessions, 10)
+    pnation_sessions = pnation.get_page(request.GET.get('page'))
+
+    return render(request, 'partials/gradebook/dorm_rubric_table.html', {
+        'pnation_sessions': pnation_sessions,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+                'selected': request.GET.get('period', ''),
+            },
+            {
+                'label': 'Level',
+                'param': 'level',
+                'options': GradeLevel.objects.all(),
+                'selected': request.GET.get('level', ''),
+            },
+        ],
+    })
+
+@login_required
+def dorm_edit(request, pk):
+    behaviour = get_object_or_404(
+        ReportcardDormitory.objects.select_related('academic_year', 'period', 'level'),
+        pk=pk
+    )
+
+    student_id = request.GET.get('student')
+    student = get_object_or_404(Student, pk=student_id) if student_id else None
+
+    queryset = StudentDormitoryReport.objects.filter(
+        behaviour=behaviour
+    ).select_related('student__registration_data', 'rubric').order_by('rubric__type', 'rubric__index')
+
+    student_class = ClassMember.objects.filter(
+        student=student, is_active=True
+    ).select_related('kelas').first()
+
+    if student:
+        queryset = queryset.filter(student=student)
+
+    BehaviourFormSet = modelformset_factory(
+        StudentDormitoryReport,
+        fields=('score', 'description'),
+        extra=0,
+    )
+
+    if request.method == 'POST':
+        formset = BehaviourFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, "Behaviour grades updated successfully!")
+            # redirect_url = reverse('rubric-table')
+            # return redirect(redirect_url)
+            if request.GET.get('next') == 'print' and student:
+                pdf_url = reverse('rubric-pdf', kwargs={'pk': pk})
+                return redirect(f"{pdf_url}?student={student.pk}")
+            log_activity(request.user, behaviour, 'change', "Updated student behaviour grades")
+            return redirect('rubric-table')
+    else:
+        formset = BehaviourFormSet(queryset=queryset)
+
+    rows = list(zip(formset.forms, queryset))
+
+    return render(request, 'partials/gradebook/rubric_edit.html', {
+        'formset': formset,
+        'rows': rows,
+        'behaviour': behaviour,
+        'student': student,
+        'student_class': student_class,
+        'breadcrumb_extra': str(student)
+    })
+
+@login_required
+def dorm_del(request, pk):
+    behaviour = get_object_or_404(
+        ReportcardDormitory.objects.select_related('academic_year', 'period', 'level'),
+        pk=pk
+    )
+
+    student_id = request.GET.get('student')
+    student = get_object_or_404(Student, pk=student_id) if student_id else None
+
+    reports = StudentDormitoryReport.objects.filter(behaviour=behaviour)
+    if student:
+        reports = reports.filter(student=student)
+
+    if request.method == 'POST':
+        log_activity(request.user, behaviour, 'delete', f"Deleted behaviour records for {student}")
+        reports.delete()
+        messages.success(request, "Behaviour records deleted successfully!")
+        return redirect('rubric-table')
+
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', {
+        'behaviour': behaviour,
+        'student': student,
+        'reports': reports,
+    })
+
+@login_required
+def dorm_pdf(request, pk):
+    behaviour = get_object_or_404(
+        ReportcardDormitory.objects.select_related('academic_year', 'period', 'level'),
+        pk=pk
+    )
+
+    student_id = request.GET.get('student')
+    student = get_object_or_404(
+        Student.objects.select_related('registration_data'), pk=student_id
+    )  # no longer optional — always require a student
+
+    reports = StudentDormitoryReport.objects.filter(
+        behaviour=behaviour, student=student
+    ).select_related('rubric').order_by('rubric__type', 'rubric__index')
+
+    student_class = ClassMember.objects.filter(
+        student=student, is_active=True
+    ).select_related('kelas').first()
+
+    user = request.user
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
+
+    headmaster = HeadMaster.objects.first()
+    homeroom_teacher = student_class.kelas.teacher if student_class else None
+
+    buf = io.BytesIO()
+    F4 = (21.0 * cm, 33.0 * cm)
+    # HEADER_GAP = 0.5 * cm
+    page_width, page_height = F4
+    header_height = get_pdf_header_height(page_width)
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=F4,
+        topMargin=header_height + 0.5*cm,
+        # bottomMargin=2*cm,
+        # leftMargin=2.3*cm,
+        # rightMargin=2.3*cm,
+    )
+
+    styles, table_style, reportc_table_style = get_pdf_styles()
+
+    flowables = [Spacer(1, 0.0*cm)]
+
+    flowables.append(Paragraph("LAPORAN PENILAIAN SIKAP", styles['title']))
+    # flowables.append(Paragraph(
+    #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
+    #     styles['subtitle']
+    # ))
+    sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
+    flowables.append(Paragraph(sub_title_text, styles['title2']))
+    flowables.append(Spacer(1, 0.2*cm))
+
+    acayear = int(behaviour.academic_year.year)
+
+    # kalo ada teks ditukar dengan karakter kosong (jadi nanti yg keisi cuma '1' atau '2')
+    period_number = ''.join(filter(str.isdigit, behaviour.period.period_name)) or behaviour.period.period_name
+
+    # isian kata2 untuk header; disetor dalam sebuah array
+    meta_data = [
+        ['', 'Nama', ':', f"{student.registration_data.first_name or ''} {student.registration_data.middle_name or ''} {student.registration_data.last_name or ''}".strip(),
+         'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
+        ['', 'NIS', ':', student.id_number or '-',
+         'Semester', ':', period_number],
+        ['', 'NISN', ':', student.nisn or '-',
+         'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
+    ]
+    # ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
+    # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
+
+    # isian array itu dimasukkin ke dlm tabel, sama konfigurasi jarak kiri-kanan antar kolom)
+    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
+
+    # styling tabel
+    meta_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]))
+
+    # append / catat ke flowables (kertas)
+    flowables.append(meta_table)
+    flowables.append(Spacer(0, 0.0 * cm))
+
+    RUBRIC_TYPE_PDF_LABELS = {
+        "Spiritual": "A. SIKAP SPIRITUAL DAN KARAKTER",
+        "Social": "B. SIKAP SOSIAL",
+    }
+
+    RUBRIC_TYPE_ORDER = ["Spiritual", "Social"]
+
+    grouped = {}
+    for report in reports:
+        grouped.setdefault(report.rubric.type, []).append(report)
+
+    for rubric_key in RUBRIC_TYPE_ORDER:
+        rows = grouped.get(rubric_key)
+        if not rows:
+            continue
+        # pdf_label = RUBRIC_TYPE_PDF_LABELS.get(rubric_key, rubric_key)
+        pdf_label = RUBRIC_TYPE_PDF_LABELS.get(rubric_key, rubric_key)
+        pdf_label_content = [
+            [f"{pdf_label}"]
+        ]
+        label_table = Table(pdf_label_content, colWidths=[19.8 * cm])
+        # flowables.append(Paragraph(pdf_label, styles['group']))
+        label_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow-bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ]))
+        flowables.append(label_table)
+        flowables.append(Spacer(0, 0.0 * cm))
+
+        indikator_style = ParagraphStyle(
+            'IndikatorStyle', parent=styles['content'], fontSize=8.3,
+        )
+
+        grade_style = ParagraphStyle(
+            'GradeStyle', parent=styles['content'], fontSize=8.3, alignment=TA_CENTER
+        )
+
+        table_data = [['Indikator', 'Grade', 'Deskripsi']]
+        for r in rows:
+            table_data.append([
+                # Paragraph(r.rubric.description or '-', styles['content']),
+                Paragraph(r.rubric.description or '-', indikator_style),
+                # Paragraph(str(r.score) or '-', styles['grading']),
+                # Paragraph(r.grade or '-', styles['grading']),
+                Paragraph(r.grade or '-', grade_style),
+                Paragraph(r.description or '-', styles['content']),
+            ])
+
+        # col_widths = [9 * cm] + [2.5 * cm] * len(RUBRIC_TYPE_PDF_LABELS)
+        # table = Table(table_data, colWidths=[7.5*cm, 1.2*cm, 1.2*cm, 6.6*cm])
+        table = Table(table_data, colWidths=[7.1 * cm, 1.1 * cm, 11.2 * cm])
+        deskripsi_header_size = 10.2 if rubric_key == 'Social' else 10
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, 0), 'arial-narrow'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),  # bump everything up first
+            ('FONTSIZE', (2, 1), (2, -1), 9),  # then put Deskripsi (col 2) back down
+            ('FONTSIZE', (2, 0), (2, 0), deskripsi_header_size),
+            # ('FONTSIZE', (0, 0), (-1, -1), 8),
+            # ('FONTSIZE', (0, -1), (-1, 0), 10), # table headers
+            # ('FONTSIZE', (0, 0), (-2, -1), 10),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ]))
+        # table.setStyle(table_style)
+        # table.setStyle(behav_table)
+        flowables.append(table)
+        # flowables.append(Spacer(1, 0.3*cm))
+
+    # flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
+
+    page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
+
+    # Signatures
+    sig_data = [
+        ['',f"Jakarta, {signing_date}"],
+        ['Orang Tua/Wali', 'Wali Kelas,'],
+        ['Peserta Didik,', ''],
+        ['', ''],
+        ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
+    ]
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
+    sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, -1), (-1, -1), 1),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
+    ]))
+    # flowables.append(sig_table)
+    # flowables.append(Spacer(1, 0.3*cm))
+    center_style = ParagraphStyle(
+        'CenterText', fontSize=9, fontName='arial-narrow',
+        alignment=TA_CENTER,
+    )
+    # flowables.append(Paragraph("Mengetahui,", center_style))
+    flowables.append(Spacer(1, 0.1 * cm))
+    headmaster_sig_data = [
+        ['Kepala Sekolah'],
+        [''],
+        # ['_________________________'],
+        [f"{headmaster.full_name if headmaster else '-'}"]
+    ]
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm], rowHeights=[16, 23, 30])
+    headmaster_sig_table.hAlign = 'CENTER'
+    headmaster_sig_table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
+    ]))
+
+    # semua dikumpulin jadi 1 block
+    signature_block = [
+        sig_table,
+        Spacer(1, 0.01 * cm),
+        Paragraph("Mengetahui,", center_style),
+        Spacer(1, 0.01 * cm),
+        headmaster_sig_table,
+    ]
+    flowables.append(KeepTogether(signature_block))
+
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
+    # doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
+    buf.seek(0)
+
+    filename = f"behaviour_{student.id_number if student else behaviour.pk}_{behaviour.level}_{behaviour.period.period_name}.pdf"
+    return FileResponse(buf, as_attachment=False, filename=filename)

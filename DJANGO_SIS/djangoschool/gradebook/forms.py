@@ -3390,3 +3390,151 @@ class ClassAttendanceRecap(BaseReportForm, forms.Form):
 
     def get_end_date(self):
         return self.cleaned_data["end_date"]
+
+
+class DormitoryRubricEntryForm(forms.ModelForm):
+    """Step 0: Select academic year, period, teacher, and class"""
+
+    teacher = forms.ModelChoiceField(
+        queryset=Teacher.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        # label='Nama Guru'
+    )
+
+    # filter by course
+    #     kelas = forms.ModelChoiceField(
+    #         queryset=Course.objects.none(),  # starts empty, populated by HTMX
+    #         required=True,
+    #         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+    #         label='Sub-level'
+    #     )
+
+    # filter by hr class
+    kelas = forms.ModelChoiceField(
+        queryset=Class.objects.none(),  # starts empty, populated by HTMX
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Sub-level'
+    )
+
+    class Meta:
+        model = ReportcardDormitory
+        fields = ['academic_year', 'period', 'level', 'is_mid']
+        labels = {
+            'is_mid': 'Mid?',
+        }
+        # widget = {
+        #     'is_mid': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        # }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        data = self.data
+        initial = self.initial
+
+        is_admin = user and (user.is_staff or user.is_superuser)
+
+        # Default Logic
+        if user and not self.is_bound:
+            teacher_obj = Teacher.objects.filter(user=user).first()
+            if teacher_obj:
+                self.initial['teacher'] = teacher_obj.id
+
+            # curr_ay = AcademicYear.objects.order_by('-id').first()
+            # if curr_ay:
+            #     self.initial['academic_year'] = curr_ay.id
+            #     curr_period = LearningPeriod.objects.filter(academic_year=curr_ay, period_name__icontains='semester').order_by('-id').first()
+            #     if curr_period:
+            #         self.initial['period'] = curr_period.id
+
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        level = data.get('0-level') or initial.get('level')
+        period = data.get('0-period') or initial.get('period')
+        teacher = data.get('0-teacher') or initial.get('teacher')
+        kelas = data.get('0-kelas') or initial.get('kelas')
+        is_mid = data.get('0-is_mid') or initial.get('is_mid')
+
+        # Period depends on Academic Year
+        if acayear:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear,
+                                                                           period_name__icontains='semester')
+            # if is_admin and not teacher_obj:
+            if is_admin:
+                self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
+        else:
+            self.fields['period'].queryset = LearningPeriod.objects.none()
+
+        # print(f"user: {user}, is_staff: {user.is_staff if user else 'NO USER'}")
+
+        # Teacher depends on Period
+        if period:
+            if user.is_staff == True:
+                self.fields['teacher'].queryset = Teacher.objects.all()
+            elif user:
+                self.fields['teacher'].queryset = Teacher.objects.filter(user=user)
+            else:
+                self.fields['teacher'].queryset = Teacher.objects.none()
+        else:
+            self.fields['teacher'].queryset = Teacher.objects.none()
+
+        # Kelas depends on Teacher (FK relationship in admission.models.Class)
+        # filter by course
+        # if teacher:
+        #     self.fields['kelas'].queryset = Course.objects.filter(
+        #         teacher_id=teacher
+        #     ).select_related('teacher')
+        # elif is_admin:
+        #     self.fields['kelas'].queryset = Course.objects.all().select_related('teacher')
+        # else:
+        #     self.fields['kelas'].queryset = Course.objects.none()
+
+        # filter by hr class
+        if teacher:
+            self.fields['kelas'].queryset = Class.objects.filter(
+                teacher_id=teacher
+            ).select_related('teacher')
+        elif is_admin:
+            self.fields['kelas'].queryset = Class.objects.all().select_related('teacher')
+        else:
+            self.fields['kelas'].queryset = Class.objects.none()
+
+        # HTMX Attributes for dynamic cascading
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'rubric-acayear-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-period-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-period-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['period'].widget.attrs.update({
+            'id': 'rubric-period-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-teachers-ge/',
+            'hx-trigger': 'change',
+            'hx-target': '#rubric-teacher-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'rubric-level-select',
+            'class': 'custom-select mb-4',
+        })
+
+        self.fields['teacher'].widget.attrs.update({
+            'id': 'rubric-teacher-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-courses-assignment-avg/',
+            'hx-trigger': 'change',
+            'hx-target': '#assignment-avg-course-select',
+            'hx-swap': 'innerHTML',
+        })
+
+        self.fields['kelas'].widget.attrs.update({
+            'id': 'rubric-kelas-select',
+            'class': 'custom-select mb-4',
+        })

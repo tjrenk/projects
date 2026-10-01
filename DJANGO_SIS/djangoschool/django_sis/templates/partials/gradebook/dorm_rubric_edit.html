@@ -1,0 +1,57 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Edit Student Behaviour Grades</div>
+
+    <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+        <div><strong>Student:</strong> {{ student }}</div>
+        <div><strong>Homeroom Class:</strong> {{ student_class.kelas }}</div>
+        <div><strong>Academic Year:</strong> {{ behaviour.academic_year }}</div>
+        <div><strong>Period:</strong> {{ behaviour.period }}</div>
+        <div><strong>Mid Term:</strong> {{ behaviour.is_mid|yesno:"Yes,No" }}</div>
+        <div><strong>Level:</strong> {{ behaviour.level }}</div>
+    </div>
+
+    <form method="post" id="rubric-edit-form">
+        {% csrf_token %}
+        {{ formset.management_form }}
+
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle">
+                <thead class="bg-base-200">
+                    <tr>
+                        <th>Rubric</th>
+                        <th style="width: 15%;">Score</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form, instance in rows %}
+                    <tr>
+                        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                        <td>{{ instance.rubric }}</td>
+                        <td>{{ form.score }}</td>
+                        <td>{{ form.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+</div>
+</div>
+
+<div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
+    <button type="submit" form="rubric-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">Save</button>
+    <a href="{% url 'rubric-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>
+<!--    <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple">-->
+<!--        <i class="fa fa-file-pdf"></i> Print PDF-->
+<!--    </a>-->
+    {% if student %}
+<button type="submit" form="rubric-edit-form" formaction="?next=print&student={{ student.pk }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
+    Print PDF
+</button>
+{% endif %}
+</div>
+{% endblock %}

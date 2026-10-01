@@ -260,7 +260,23 @@ class ReportcardRubricTemplate(models.Model):
         """Fill this template's pattern using a DataEntry instance's fields."""
         return self.text
 
+class ReportcardDormitory(models.Model):
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    period = models.ForeignKey(LearningPeriod, on_delete=models.CASCADE)
+    is_mid = models.BooleanField(default=False)
+    level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE, related_name="students_level_reportcard_dorm")
 
+class StudentDormitoryReport(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    behaviour = models.ForeignKey(ReportcardDormitory, on_delete=models.CASCADE)
+    rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
+    score = models.IntegerField(default=0)
+    grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
+    description = models.TextField(null=True, blank=True)
+
+    def rendered_sentence(self):
+        """Convenience method: render the linked template with this entry's data."""
+        return self.student.render(self)
 
 class ReportcardPersonalDev(models.Model):
     reporcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
