@@ -27,7 +27,7 @@
         {% sortable_header 'student' 'Student' sort_by sort_dir %}
         {% sortable_header 'academic_year' 'Academic Year' sort_by sort_dir %}
         {% sortable_header 'period' 'Period' sort_by sort_dir %}
-        {% sortable_header 'is_mid' 'Mid?' sort_by sort_dir %}
+<!--        {% comment %}{% sortable_header 'is_mid' 'Mid?' sort_by sort_dir %} {% endcomment %}-->
         {% sortable_header 'level' 'Level' sort_by sort_dir %}
         {% if user.is_staff %}
         <th>Action</th>
@@ -41,7 +41,7 @@
         <td>{{ row.student__registration_data__first_name }} {{ row.student__registration_data__last_name }}</td>
         <td>{{ row.behaviour__academic_year__year }}</td>
         <td>{{ row.behaviour__period__period_name }}</td>
-        <td>{{ row.behaviour__is_mid|yesno:"Yes,No" }}</td>
+<!--        <td>{{ row.behaviour__is_mid|yesno:"Yes,No" }}</td>-->
         <td>{{ row.behaviour__level__grade_name }}</td>
         <td>
             {% if user.is_staff %}

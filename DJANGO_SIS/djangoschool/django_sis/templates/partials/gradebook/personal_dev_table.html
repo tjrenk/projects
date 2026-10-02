@@ -39,7 +39,7 @@
                 <tr>
                     {% comment %} <th>User</th> {% endcomment %}
                     <th class="flex-1"><strong>Student</strong></th>
-                    <th class="flex-1"><strong>Mid</strong></th>
+<!--                    <th class="flex-1"><strong>Mid</strong></th>-->
                     <th class="flex-1"><strong>Academic Year</strong></th>
                     <th class="flex-1"><strong>Period</strong></th>
                     <th class="flex-1"><strong>Level</strong></th>
@@ -50,7 +50,7 @@
                 {% for strpc in pnation_srpc %}
                 <tr class="hover:bg-base-200" style="cursor: pointer;" onclick="window.location.href='{% url 'pdev-edit' strpc.id %}'">
                     <td class="flex-1">{{ strpc.reporcard.student }}</td>
-                    <td class="flex-1">{{ strpc.reporcard.is_mid }}</td>
+<!--                    <td class="flex-1">{{ strpc.reporcard.is_mid }}</td>-->
                     <td class="flex-1">{{ strpc.reporcard.academic_year }}</td>
                     <td class="flex-1">{{ strpc.reporcard.period }}</td>
                     <td class="flex-1">{{ strpc.reporcard.level }}</td>

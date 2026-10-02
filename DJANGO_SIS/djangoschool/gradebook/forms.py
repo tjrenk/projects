@@ -1448,7 +1448,7 @@ class RubricEntryForm(forms.ModelForm):
         queryset=Class.objects.none(),  # starts empty, populated by HTMX
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Sub-level'
+        label='Homeroom Class'
     )
 
 
@@ -1473,6 +1473,7 @@ class RubricEntryForm(forms.ModelForm):
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
 
         # Default Logic
         if user and not self.is_bound:
@@ -1495,13 +1496,22 @@ class RubricEntryForm(forms.ModelForm):
         is_mid = data.get('0-is_mid') or initial.get('is_mid')
         
         # Period depends on Academic Year
+        # if acayear:
+        #     self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
+        #     # if is_admin and not teacher_obj:
+        #     if is_admin:
+        #         self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
+        # else:
+        #     self.fields['period'].queryset = LearningPeriod.objects.none()
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
-            # if is_admin and not teacher_obj:
-            if is_admin:
-                self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
+            self.fields['period'].queryset = LearningPeriod.objects.filter(
+                academic_year_id=acayear,
+                period_name__icontains='semester'
+            )
+            self.fields['level'].queryset = GradeLevel.objects.all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
+            self.fields['level'].queryset = GradeLevel.objects.none()
 
         # print(f"user: {user}, is_staff: {user.is_staff if user else 'NO USER'}")
 
@@ -2729,7 +2739,7 @@ class PersonalDevSelectForm(forms.Form):
         queryset=ClassMember.objects.none(),
         # widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Student (dalam perbaikan)',
+        label='Student',
     )
 
     def __init__(self, *args, **kwargs):
@@ -2764,21 +2774,21 @@ class PersonalDevSelectForm(forms.Form):
             self.fields['level'].queryset = GradeLevel.objects.none()
 
         # dead code - will delete soon
-        # if level:
-        #     self.fields['student'].queryset = StudentReportcard.objects.all()
-        #     # self.fields['student'].label_from_instance = lambda obj: obj.student.registration_data.first_name
-        # else:
-        #     self.fields['student'].queryset = StudentReportcard.objects.none()
-
-        if is_admin:
+        if level:
             self.fields['student'].queryset = ClassMember.objects.all()
-        elif logged_in_teacher:
-            self.fields['student'].queryset = ClassMember.objects.filter(
-                kelas__teacher=logged_in_teacher,
-                is_active=True,
-            )
+            # self.fields['student'].label_from_instance = lambda obj: obj.student.registration_data.first_name
         else:
             self.fields['student'].queryset = ClassMember.objects.none()
+
+        # if is_admin:
+        #     self.fields['student'].queryset = ClassMember.objects.all()
+        # elif logged_in_teacher:
+        #     self.fields['student'].queryset = ClassMember.objects.filter(
+        #         kelas__teacher=logged_in_teacher,
+        #         is_active=True,
+        #     )
+        # else:
+        #     self.fields['student'].queryset = ClassMember.objects.none()
 
         # if kelas:
         #     self.fields['student'].queryset = StudentReportcard.objects.filter(
@@ -3432,7 +3442,7 @@ class DormitoryRubricEntryForm(forms.ModelForm):
         queryset=Class.objects.none(),  # starts empty, populated by HTMX
         required=True,
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Sub-level'
+        label='Homeroom Class'
     )
 
     class Meta:

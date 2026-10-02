@@ -193,7 +193,7 @@ def get_pdf_styles():
     table_style = TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('FONTNAME', (0, 0), (-1, 0), 'arial-narrow'),
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.transparent, colors.transparent]),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1746,8 +1746,38 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         table = Table(table_data)
         table.setStyle(table_style)
 
+        ay_id = self.request.GET.get('academic_year')
+        period_id = self.request.GET.get('period')
+        level_id = self.request.GET.get('level')
+        kelas_id = self.request.GET.get('kelas')
+        is_mid = self.request.GET.get('is_mid')
+
+        academic_year = get_object_or_404(AcademicYear, pk=ay_id) if ay_id else None
+        period = get_object_or_404(LearningPeriod, pk=period_id) if period_id else None
+        level = get_object_or_404(GradeLevel, pk=level_id) if level_id else None
+        kelas = get_object_or_404(Class, pk=kelas_id) if kelas_id else None
+
         elements.append(Paragraph("Report Card Ledger", styles['title']))
         elements.append(Spacer(1, 0.3 * cm))
+
+        acayear = int(academic_year.year) if academic_year else None
+        meta_data = [
+            ['Tahun Ajaran', ':', f"{acayear}/{acayear + 1}" if acayear else '-'],
+            ['Semester', ':', period.period_name if period else '-'],
+            ['Level', ':', str(level) if level else '-'],
+            ['Kelas', ':', str(kelas) if kelas else '-'],
+            ['Midterm', ':', 'Yes' if is_mid else 'No'],
+        ]
+        meta_table = Table(meta_data, colWidths=[2.5 * cm, 0.4 * cm, 6.3 * cm])
+        meta_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(meta_table)
+        elements.append(Spacer(0, 0.3 * cm))
         elements.append(table)
 
         doc.build(elements, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
@@ -2527,6 +2557,28 @@ def get_kelas_rubric(request):
         'selected_kelas': selected_kelas
     })
 
+def get_levels_rubric(request):
+    user = request.user
+    # Check for the variable name sent by the 'academic_year' field
+    # (Django form fields usually send '0-academic_year')
+    teacher = Teacher.objects.filter(user=user).first()
+    is_admin = user.is_staff or user.is_superuser
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+
+    if acayear_id:
+        if is_admin:
+            levels = GradeLevel.objects.all()
+        elif teacher:
+            levels = GradeLevel.objects.filter(class__teacher=teacher).distinct()
+        else:
+            levels = GradeLevel.objects.none()
+    else:
+        levels = GradeLevel.objects.none()
+
+    context = {'levels': levels}
+    # Use your existing folder structure
+    return render(request, "partials/gradebook/rubric_entry_partials/level.html", context)
+
 # def get_kelas_rubric(request):
 #     rubric.existing_score = existing_scores.get(rubric.id, None)
 #
@@ -2765,11 +2817,11 @@ def rb_edit(request, pk):
         if formset.is_valid():
             formset.save()
             messages.success(request, "Behaviour grades updated successfully!")
-            # redirect_url = reverse('rubric-table')
-            # return redirect(redirect_url)
-            if request.GET.get('next') == 'print' and student:
-                pdf_url = reverse('rubric-pdf', kwargs={'pk': pk})
-                return redirect(f"{pdf_url}?student={student.pk}")
+            redirect_url = reverse('rubric-table')
+            return redirect(redirect_url)
+            # if request.GET.get('next') == 'print' and student:
+            #     pdf_url = reverse('rubric-pdf', kwargs={'pk': pk})
+            #     return redirect(f"{pdf_url}?student={student.pk}")
             log_activity(request.user, behaviour, 'change', "Updated student behaviour grades")
             return redirect('rubric-table')
     else:
@@ -2861,8 +2913,16 @@ def rb_pdf(request, pk):
     #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
     #     styles['subtitle']
     # ))
-    sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
-    flowables.append(Paragraph(sub_title_text, styles['title2']))
+    if not behaviour.period.period_name:
+        term_label = "-"
+    elif "Semester 1" in (behaviour.period.period_name or ""):
+        term_label = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "1<sup rise='2.5' size='7.5'>ST</sup> SEMESTER REPORT CARD"
+    elif "Semester 2" in (behaviour.period.period_name or ""):
+        term_label = "2<sup rise='2.5' size='7.5'>ND</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "2<sup rise='2.5' size='7.5'>ND</sup> SEMESTER REPORT CARD"
+    else:
+        term_label = behaviour.period.period_name
+    # sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid and behaviour.period.period_name else "1<sup rise='2.5' size='7.5'>ST</sup> SEMESTER REPORT CARD"
+    flowables.append(Paragraph(term_label, styles['title2']))
     flowables.append(Spacer(1, 0.2*cm))
 
     acayear = int(behaviour.academic_year.year)
@@ -4602,28 +4662,32 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
             if not data0:
                 return kwargs  # bail out early if step 0 isn't filled yet
 
-            student = data0.get('student')
+            # student = data0.get('student')
+            classmember = data0.get('student')
             academic_year = data0.get('academic_year')
             period = data0.get('period')
+            level = data0.get('level')
             is_mid = data0.get('is_mid', False)
 
-            if not all([student, academic_year, period]):
+            # if not all([student, academic_year, period]):
+            if not all([classmember, academic_year, period]):
                 kwargs['existing_instance'] = None
                 return kwargs
 
-            # reportcard = StudentReportcard.objects.filter(
-            #     student=0,
-            #     academic_year=academic_year,
-            #     period=period,
-            #     is_mid=is_mid,
-            # ).first()
-            reportcard = ClassMember.objects.all()
+            reportcard = StudentReportcard.objects.filter(
+                student=classmember.student,
+                academic_year=academic_year,
+                level=level,
+                period=period,
+                is_mid=is_mid,
+            ).first()
+            # reportcard = ClassMember.objects.all()
 
             existing = ReportcardPersonalDev.objects.filter(
                 reporcard=reportcard,
             ).first() if reportcard else None
 
-            kwargs['existing_instance'] = existing
+            kwargs['existing_instance'] = None
 
         return kwargs
 
@@ -4661,7 +4725,8 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
     def done(self, form_list, **kwargs):
         data0 = form_list[0].cleaned_data
         data1 = form_list[1].cleaned_data
-        student = data0['student']
+        classmember = data0['student']
+        student = classmember.student
         reportcard = data0['student']
         academic_year = data0['academic_year']
         period = data0['period']
@@ -4677,6 +4742,13 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
             #     is_mid=is_mid,
             #     defaults={'level': level}
             # )
+            reportcard, _ = StudentReportcard.objects.get_or_create(
+                student=student,
+                academic_year=academic_year,
+                period=period,
+                is_mid=is_mid,
+                defaults={'level': level}
+            )
 
             # Build the grade data from the form
             grade_data = {
@@ -4715,13 +4787,20 @@ def get_period_pd(request):
 
 
 def get_levels_pd(request):
+    user = request.user
     # Check for the variable name sent by the 'academic_year' field
     # (Django form fields usually send '0-academic_year')
+    teacher = Teacher.objects.filter(user=user).first()
+    is_admin = user.is_staff or user.is_superuser
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
 
     if acayear_id:
-        # Load levels only if a year is selected
-        levels = GradeLevel.objects.all()
+        if is_admin:
+            levels = GradeLevel.objects.all()
+        elif teacher:
+            levels = GradeLevel.objects.filter(class__teacher=teacher).distinct()
+        else:
+            levels = GradeLevel.objects.none()
     else:
         levels = GradeLevel.objects.none()
 
@@ -4903,8 +4982,16 @@ def print_pdev_pdf(request, pk):
     #     f"{reportcard.academic_year} / {reportcard.period.period_name}",
     #     styles['subtitle']
     # ))
-    sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
-    flowables.append(Paragraph(sub_title_text, styles['title2']))
+    if not reportcard.period.period_name:
+        term_label = "-"
+    elif "Semester 1" in (reportcard.period.period_name or ""):
+        term_label = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "1<sup rise='2.5' size='7.5'>ST</sup> SEMESTER REPORT CARD"
+    elif "Semester 2" in (reportcard.period.period_name or ""):
+        term_label = "2<sup rise='2.5' size='7.5'>ND</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "2<sup rise='2.5' size='7.5'>ND</sup> SEMESTER REPORT CARD"
+    else:
+        term_label = reportcard.period.period_name
+    # sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
+    flowables.append(Paragraph(term_label, styles['title2']))
     flowables.append(Spacer(1, 0.2 * cm))
 
     acayear = int(reportcard.academic_year.year)
@@ -5598,6 +5685,9 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         reg = student.registration_data if student else None
 
         acayear = int(course.academic_year.year) if course else None
+
+        elements.append(Paragraph("Assignment Ledger", styles['title']))
+        elements.append(Spacer(1, 0.3 * cm))
         meta_data = [
             ['Tahun Ajaran', ':', f"{acayear}/{acayear + 1}" if acayear else '-'],
             ['Level', ':', level],
@@ -5608,8 +5698,9 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         # meta_table.hAlign = "LEFT"
         meta_table.setStyle(TableStyle([
             # ('BOX', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
-            ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
+            # ('FONTNAME', (0, 0), (0, -1), 'arial-narrow'),
+            # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -5617,9 +5708,6 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         ]))
         elements.append(meta_table)
         elements.append(Spacer(0, 0.3 * cm))
-
-        elements.append(Paragraph("Assignment Ledger", styles['title']))
-        elements.append(Spacer(1, 0.3 * cm))
         elements.append(table)
 
         doc.build(elements, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
@@ -6097,9 +6185,18 @@ def print_midterm_report(request, pk):
     flowables = [Spacer(1, 0.0*cm)]
 
     title_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
-    sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
+    if not reportcard.period.period_name:
+        term_label = "-"
+    elif "Semester 1" in (reportcard.period.period_name or ""):
+        term_label = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "1<sup rise='2.5' size='7.5'>ST</sup> SEMESTER REPORT CARD"
+    elif "Semester 2" in (reportcard.period.period_name or ""):
+        term_label = "2<sup rise='2.5' size='7.5'>ND</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "2<sup rise='2.5' size='7.5'>ND</sup> SEMESTER REPORT CARD"
+    else:
+        term_label = reportcard.period.period_name
+    # sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
     flowables.append(Paragraph(title_text, styles['title']))
-    flowables.append(Paragraph(sub_title_text, styles['title2']))
+    # flowables.append(Paragraph(sub_title_text, styles['title2']))
+    flowables.append(Paragraph(term_label, styles['title2']))
     flowables.append(Spacer(1, 0.2*cm))
 
     # convert ke integer biar bisa +1 di dalam array teksnya dibawah
@@ -7290,8 +7387,16 @@ def dorm_pdf(request, pk):
     #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
     #     styles['subtitle']
     # ))
+    if not behaviour.period.period_name:
+        term_label = "-"
+    elif "Semester 1" in (behaviour.period.period_name or ""):
+        term_label = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "1<sup rise='2.5' size='7.5'>ST</sup> SEMESTER REPORT CARD"
+    elif "Semester 2" in (behaviour.period.period_name or ""):
+        term_label = "2<sup rise='2.5' size='7.5'>ND</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "2<sup rise='2.5' size='7.5'>ND</sup> SEMESTER REPORT CARD"
+    else:
+        term_label = behaviour.period.period_name
     sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if behaviour.is_mid else "LAST TERM REPORT CARD"
-    flowables.append(Paragraph(sub_title_text, styles['title2']))
+    flowables.append(Paragraph(term_label, styles['title2']))
     flowables.append(Spacer(1, 0.2*cm))
 
     acayear = int(behaviour.academic_year.year)
