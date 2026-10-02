@@ -4611,12 +4611,13 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
                 kwargs['existing_instance'] = None
                 return kwargs
 
-            reportcard = StudentReportcard.objects.filter(
-                student=0,
-                academic_year=academic_year,
-                period=period,
-                is_mid=is_mid,
-            ).first()
+            # reportcard = StudentReportcard.objects.filter(
+            #     student=0,
+            #     academic_year=academic_year,
+            #     period=period,
+            #     is_mid=is_mid,
+            # ).first()
+            reportcard = ClassMember.objects.all()
 
             existing = ReportcardPersonalDev.objects.filter(
                 reporcard=reportcard,
@@ -4747,13 +4748,18 @@ def get_kelas_pd(request):
 
 
 def get_student_pd(request):
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
     level_id = request.GET.get('0-level') or request.GET.get('level')
     is_mid_status = request.GET.get('0-is_mid') or request.GET.get('is_mid')
     is_mid = is_mid_status in ('on', 'True', 'true', '1')
     period_id = request.GET.get('0-period') or request.GET.get('period')
 
-    student = StudentReportcard.objects.select_related('student').filter(
-        is_mid=is_mid, period_id=period_id, level_id=level_id
+    # student = StudentReportcard.objects.select_related('student').filter(
+    #     is_mid=is_mid, period_id=period_id, level_id=level_id
+    # )
+    student = ClassMember.objects.filter(
+        kelas__teacher=teacher
     )
     context = {'students': student}
     return render(request, "partials/gradebook/pdevelopment_partials/student.html", context)
@@ -7001,7 +7007,7 @@ def student_dormitory_grading(request, pk):
 
     # NAMA KEY HARUS SAMA: Sesuai nama class Wizard (snake_case)
     # Jika class: RubricEntryWizard -> key: wizard_rubric_entry_wizard
-    wizard_key = 'wizard_rubric_entry_wizard'
+    wizard_key = 'wizard_dorm_rubric_entry_wizard'
     wizard_data = request.session.get(wizard_key, {})
     step_data = wizard_data.get('step_data', {}).get('0', {})
 
@@ -7049,7 +7055,7 @@ def student_dormitory_grading(request, pk):
                 )
 
         # Redirect balik ke wizard step 1
-        url = reverse('rubric-entry')
+        url = reverse('dorm-rubric-entry')
         return HttpResponseRedirect(f"{url}?step=1")
 
     # Ambil nilai yang sudah ada buat ditampilin di form
@@ -7067,7 +7073,7 @@ def student_dormitory_grading(request, pk):
         'level': level,
         'rubrics': rubrics,
     }
-    return render(request, 'partials/gradebook/rubric_entry_behav_notes.html', context)
+    return render(request, 'partials/gradebook/dorm_rubric_entry_behav_notes.html', context)
 
 
 
@@ -7187,19 +7193,20 @@ def dorm_edit(request, pk):
         if formset.is_valid():
             formset.save()
             messages.success(request, "Behaviour grades updated successfully!")
-            # redirect_url = reverse('rubric-table')
-            # return redirect(redirect_url)
-            if request.GET.get('next') == 'print' and student:
-                pdf_url = reverse('rubric-pdf', kwargs={'pk': pk})
-                return redirect(f"{pdf_url}?student={student.pk}")
+            redirect_url = reverse('dorm-rubric-table')
+            return redirect(redirect_url)
+            # below is a part of the code to save on PDF print; the other one's on the edit template
+            # if request.GET.get('next') == 'print' and student:
+            #     pdf_url = reverse('dorm-rubric-pdf', kwargs={'pk': pk})
+            #     return redirect(f"{pdf_url}?student={student.pk}")
             log_activity(request.user, behaviour, 'change', "Updated student behaviour grades")
-            return redirect('rubric-table')
+            return redirect('dorm-rubric-table')
     else:
         formset = BehaviourFormSet(queryset=queryset)
 
     rows = list(zip(formset.forms, queryset))
 
-    return render(request, 'partials/gradebook/rubric_edit.html', {
+    return render(request, 'partials/gradebook/dorm_rubric_edit.html', {
         'formset': formset,
         'rows': rows,
         'behaviour': behaviour,
@@ -7226,7 +7233,7 @@ def dorm_del(request, pk):
         log_activity(request.user, behaviour, 'delete', f"Deleted behaviour records for {student}")
         reports.delete()
         messages.success(request, "Behaviour records deleted successfully!")
-        return redirect('rubric-table')
+        return redirect('dorm-rubric-table')
 
     return render(request, 'partials/gradebook/grade_entry_delconf.html', {
         'behaviour': behaviour,
@@ -7278,7 +7285,7 @@ def dorm_pdf(request, pk):
 
     flowables = [Spacer(1, 0.0*cm)]
 
-    flowables.append(Paragraph("LAPORAN PENILAIAN SIKAP", styles['title']))
+    flowables.append(Paragraph("LAPORAN PENILAIAN SIKAP ASRAMA", styles['title']))
     # flowables.append(Paragraph(
     #     f"{student.registration_data.first_name} {student.registration_data.last_name} — {behaviour.academic_year} / {behaviour.period.period_name} — {behaviour.level}",
     #     styles['subtitle']

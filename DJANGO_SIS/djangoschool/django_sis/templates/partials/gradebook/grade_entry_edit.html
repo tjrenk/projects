@@ -127,7 +127,12 @@
         <button type="submit" formaction="?next=print" class="btn-sm btn-secondary btn rounded-md legitRipple">
     <i class="fa-solid fa-file-pdf"></i> Print PDF
 </button>
-        <a href="{% url 'grade-entry-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>
+        <button onclick="history.back(); return false;" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</button>
+<!--        this old button below takes you to the table page, not bring you back to the previous page.-->
+<!--        this causes whatever filtering and sorting you had applied before you edit an assessment data to be reset.-->
+<!--        incase something goes wrong with this new 'Cancel' button, reenable by uncommenting the commented version below. (and comment out the new one of course so there won't be 2 Cancel buttons in the same page.)-->
+
+<!--        <a href="{% url 'grade-entry-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>-->
     </div>
     </div>
 </form>

@@ -18,7 +18,7 @@ input[name$="-student_name"] {
 
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
 
-    <div class="collapse-title text-xl font-medium">Student Behaviour</div>
+    <div class="collapse-title text-xl font-medium">Student Behaviour (Dormitory)</div>
 
     <div class="w-full flex justify-center mb-8 mt-2">
         <ul class="steps w-full max-w-2xl">
@@ -87,7 +87,7 @@ input[name$="-student_name"] {
                                     </td>
 
                                     <td>
-                                        <a href="{% url 'student-behavior-grading' pk=form.student.value %}"
+                                        <a href="{% url 'student-dormitory-grading' pk=form.student.value %}"
                                            class="btn btn-sm {% if form.initial.is_graded %}btn-outline btn-secondary{% else %}btn-outline btn-primary{% endif %}">
                                             {% if form.initial.is_graded %}Edit{% else %}Grade{% endif %}
                                         </a>
@@ -150,13 +150,13 @@ input[name$="-student_name"] {
                                     </div>
                                 </div>
 
-                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
-                                    <div class="mb-1 basis-full md:flex-1">
-                                        {{ wizard.form.is_mid.label }}
-                                        {{ wizard.form.is_mid }}
-                                        <div class="error">{{ wizard.form.is_mid.errors }}</div>
-                                    </div>
-                                </div>
+<!--                                <div class="form-row flex flex-wrap justify-start gap-4 mb-3">-->
+<!--                                    <div class="mb-1 basis-full md:flex-1">-->
+<!--                                        {% comment %} {{ wizard.form.is_mid.label }} {% endcomment %}-->
+<!--                                        {% comment %} {{ wizard.form.is_mid }} {% endcomment %}-->
+<!--                                        <div class="error">{% comment %} {{ wizard.form.is_mid.errors }} {% endcomment %}</div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
 
                             </fieldset>
                         </div>

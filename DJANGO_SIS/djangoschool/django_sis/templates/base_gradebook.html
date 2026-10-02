@@ -141,7 +141,7 @@
                     <div class="divider text-base-content/40 menu-title divider-start">Gradebook</div>
 
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name|in_list:"grade-entry,student-attendance,report-card,rubric-entry,rp-comment,extra-report,personal-dev,cpmp-create" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name|in_list:"grade-entry,student-attendance,report-card,rubric-entry,rp-comment,extra-report,personal-dev,cpmp-create,dorm-rubric-entry" %}open{% endif %}>
                             <summary><i class="fa-solid fa-keyboard"></i>Data Entry</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry' %}active{% endif %}" href="{% url 'grade-entry' %}">Student Grade</a></li>
@@ -156,6 +156,7 @@
                                 {% elif user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rubric-entry' %}active{% endif %}" href="{% url 'rubric-entry' %}">Student Behaviour</a></li>
                                 {% endif %}
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'dorm-rubric-entry' %}active{% endif %}" href="{% url 'dorm-rubric-entry' %}">Student Behaviour in Dormitory</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rp-comment' %}active{% endif %}" href="{% url 'rp-comment' %}">Academic Comments</a></li>
 <!--                                <li><a class="nav-link {% if request.resolver_match.url_name == 'extra-report' %}active{% endif %}" href="{% url 'extra-report' %}">Extracurricular Grade</a></li>-->
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'personal-dev' %}active{% endif %}" href="{% url 'personal-dev' %}">Personal Development Grade</a></li>
@@ -178,7 +179,7 @@
                     </li>
                     {% endif %}
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger,dorm-rubric-table,dorm-rubric-edit,dorm-rubric-delete" %}open{% endif %}>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry-table' or request.resolver_match.url_name == 'ge-edit' or request.resolver_match.url_name == 'ge-delete' %}active{% endif %}" href="{% url 'grade-entry-table' %}">Student Grade</a></li>
@@ -201,7 +202,7 @@
                                 {% elif user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'rubric-table' or request.resolver_match.url_name == 'rubric-edit' or request.resolver_match.url_name == 'rubric-delete' %}active{% endif %}" href="{% url 'rubric-table' %}">Student Behavior Grades Table</a></li>
                                 {% endif %}
-
+                            <li><a class="nav-link {% if request.resolver_match.url_name == 'dorm-rubric-table' or request.resolver_match.url_name == 'dorm-rubric-edit' or request.resolver_match.url_name == 'dorm-rubric-delete' %}active{% endif %}" href="{% url 'dorm-rubric-table' %}">Student Dorm Behavior Grades Table</a></li>
                             </ul>
                         </details>
                     </li>

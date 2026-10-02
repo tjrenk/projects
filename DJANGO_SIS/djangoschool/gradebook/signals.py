@@ -1,6 +1,6 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade, StudentBehaviourReport, ReportcardRubricTemplate, StudentReportExtra
+from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade, StudentBehaviourReport, ReportcardRubricTemplate, StudentReportExtra, StudentDormitoryReport
 from admission.models import AcademicYear, Registration, ClassMember, Student
 
 from django.db.models.functions import Replace
@@ -252,6 +252,13 @@ post_save.connect(set_rubric_grade, StudentBehaviourReport)
 
 pre_save.connect(set_rubric_desc, StudentBehaviourReport)
 post_save.connect(set_rubric_desc, StudentBehaviourReport)
+
+# nilai asrama
+pre_save.connect(set_rubric_grade, StudentDormitoryReport)
+post_save.connect(set_rubric_grade, StudentDormitoryReport)
+
+pre_save.connect(set_rubric_desc, StudentDormitoryReport)
+post_save.connect(set_rubric_desc, StudentDormitoryReport)
 
 pre_save.connect(set_extra_grade, StudentReportExtra)
 

@@ -2721,19 +2721,25 @@ class PersonalDevSelectForm(forms.Form):
     # )
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        # widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.HiddenInput(),
         label="Mid?"
     )
     student = forms.ModelChoiceField(
-        queryset=StudentReportcard.objects.none(),
+        queryset=ClassMember.objects.none(),
+        # widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        label='Student',
+        label='Student (dalam perbaikan)',
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        user = kwargs.pop('user', None)
         data = self.data
         initial = self.initial
+
+        is_admin = user and (user.is_staff or user.is_superuser)
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
 
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         period = data.get('0-period') or initial.get('period')
@@ -2757,11 +2763,22 @@ class PersonalDevSelectForm(forms.Form):
             self.fields['period'].queryset = LearningPeriod.objects.none()
             self.fields['level'].queryset = GradeLevel.objects.none()
 
-        if level:
-            self.fields['student'].queryset = StudentReportcard.objects.all()
-            # self.fields['student'].label_from_instance = lambda obj: obj.student.registration_data.first_name
+        # dead code - will delete soon
+        # if level:
+        #     self.fields['student'].queryset = StudentReportcard.objects.all()
+        #     # self.fields['student'].label_from_instance = lambda obj: obj.student.registration_data.first_name
+        # else:
+        #     self.fields['student'].queryset = StudentReportcard.objects.none()
+
+        if is_admin:
+            self.fields['student'].queryset = ClassMember.objects.all()
+        elif logged_in_teacher:
+            self.fields['student'].queryset = ClassMember.objects.filter(
+                kelas__teacher=logged_in_teacher,
+                is_active=True,
+            )
         else:
-            self.fields['student'].queryset = StudentReportcard.objects.none()
+            self.fields['student'].queryset = ClassMember.objects.none()
 
         # if kelas:
         #     self.fields['student'].queryset = StudentReportcard.objects.filter(

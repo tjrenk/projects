@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
-    <div class="collapse-title text-xl font-medium">Edit Student Behaviour Grades</div>
+    <div class="collapse-title text-xl font-medium">Edit Student Dorm Behaviour Grades</div>
 
     <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
         <div><strong>Student:</strong> {{ student }}</div>
@@ -13,7 +13,7 @@
         <div><strong>Level:</strong> {{ behaviour.level }}</div>
     </div>
 
-    <form method="post" id="rubric-edit-form">
+    <form method="post" id="dorm-rubric-edit-form">
         {% csrf_token %}
         {{ formset.management_form }}
 
@@ -43,15 +43,19 @@
 </div>
 
 <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
-    <button type="submit" form="rubric-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">Save</button>
-    <a href="{% url 'rubric-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>
-<!--    <a href="{% url 'rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple">-->
-<!--        <i class="fa fa-file-pdf"></i> Print PDF-->
-<!--    </a>-->
-    {% if student %}
-<button type="submit" form="rubric-edit-form" formaction="?next=print&student={{ student.pk }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
-    Print PDF
-</button>
-{% endif %}
+    <button type="submit" form="dorm-rubric-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">Save</button>
+<!--    <a href="{% url 'dorm-rubric-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>-->
+    <button onclick="history.back(); return false;" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</button>
+    <a href="{% url 'dorm-rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
+        <i class="fa fa-file-pdf"></i> Print PDF
+    </a>
+
+<!--    bonus logic buat sekalian save perubahan pas mau print PDF-->
+<!--    tidak dipake dulu-->
+    {% comment %} {% if student %} {% endcomment %}
+<!--<button type="submit" form="dorm-rubric-edit-form" formaction="?next=print&student={{ student.pk }}" class="btn-sm btn-secondary btn rounded-md legitRipple">-->
+<!--    Print PDF-->
+<!--</button>-->
+{% comment %} {% endif %} {% endcomment %}
 </div>
 {% endblock %}
