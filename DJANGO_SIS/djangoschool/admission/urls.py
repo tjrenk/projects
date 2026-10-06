@@ -14,4 +14,5 @@ urlpatterns = [
     path("assign_class/", views.AssignHomeroomAndClass.as_view(), name="assign_class"),
     path('grade-advance/', views.grade_advance, name='grade-advance'),
     path('get-source-students/', views.get_source_students, name='get-source-students'),
+    path('regist-api/', views.RegistAPI.as_view(), name='regist-api'),
     ]

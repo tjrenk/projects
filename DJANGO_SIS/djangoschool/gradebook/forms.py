@@ -1434,15 +1434,6 @@ class RubricEntryForm(forms.ModelForm):
         # label='Nama Guru'
     )
 
-
-# filter by course
-#     kelas = forms.ModelChoiceField(
-#         queryset=Course.objects.none(),  # starts empty, populated by HTMX
-#         required=True,
-#         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-#         label='Sub-level'
-#     )
-
 # filter by hr class
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.none(),  # starts empty, populated by HTMX
@@ -1450,11 +1441,6 @@ class RubricEntryForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         label='Homeroom Class'
     )
-
-
-
-
-        
     class Meta:
         model = ReportcardBehaviour
         fields = ['academic_year', 'period', 'level', 'is_mid']
@@ -1468,82 +1454,49 @@ class RubricEntryForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
         data = self.data
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
 
-        # Default Logic
-        if user and not self.is_bound:
-            teacher_obj = Teacher.objects.filter(user=user).first()
-            if teacher_obj:
-                self.initial['teacher'] = teacher_obj.id
+        # Default Logic: only the teacher gets auto-filled (non-admin, first load)
+        if user and not self.is_bound and not is_admin:
+            if logged_in_teacher:
+                self.initial['teacher'] = logged_in_teacher.id
 
-            # curr_ay = AcademicYear.objects.order_by('-id').first()
-            # if curr_ay:
-            #     self.initial['academic_year'] = curr_ay.id
-            #     curr_period = LearningPeriod.objects.filter(academic_year=curr_ay, period_name__icontains='semester').order_by('-id').first()
-            #     if curr_period:
-            #         self.initial['period'] = curr_period.id
-        
         acayear = data.get('0-academic_year') or initial.get('academic_year')
-        level = data.get('0-level') or initial.get('level')
-        period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
-        kelas = data.get('0-kelas') or initial.get('kelas')
-        is_mid = data.get('0-is_mid') or initial.get('is_mid')
-        
+        level = data.get('0-level') or initial.get('level')
+
         # Period depends on Academic Year
-        # if acayear:
-        #     self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
-        #     # if is_admin and not teacher_obj:
-        #     if is_admin:
-        #         self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
-        # else:
-        #     self.fields['period'].queryset = LearningPeriod.objects.none()
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(
-                academic_year_id=acayear,
-                period_name__icontains='semester'
-            )
-            self.fields['level'].queryset = GradeLevel.objects.all()
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
+            if is_admin:
+                self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
-            self.fields['level'].queryset = GradeLevel.objects.none()
 
-        # print(f"user: {user}, is_staff: {user.is_staff if user else 'NO USER'}")
-
-        # Teacher depends on Period
-        if period:
-            if user.is_staff==True:
-                self.fields['teacher'].queryset = Teacher.objects.all()
-            elif user:
-                self.fields['teacher'].queryset = Teacher.objects.filter(user=user)
-            else:
-                self.fields['teacher'].queryset = Teacher.objects.none()
+        # Teacher: admin picks anyone, a teacher only gets themselves
+        if is_admin:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        elif logged_in_teacher:
+            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
-        # Kelas depends on Teacher (FK relationship in admission.models.Class)
-        # filter by course
-        # if teacher:
-        #     self.fields['kelas'].queryset = Course.objects.filter(
-        #         teacher_id=teacher
-        #     ).select_related('teacher')
-        # elif is_admin:
-        #     self.fields['kelas'].queryset = Course.objects.all().select_related('teacher')
-        # else:
-        #     self.fields['kelas'].queryset = Course.objects.none()
+        # Level: admin sees all, a teacher only sees levels of their own homeroom classes
+        if is_admin:
+            self.fields['level'].queryset = GradeLevel.objects.all()
+        elif logged_in_teacher:
+            self.fields['level'].queryset = GradeLevel.objects.filter(class__teacher=logged_in_teacher).distinct()
+        else:
+            self.fields['level'].queryset = GradeLevel.objects.none()
 
-        # filter by hr class
-        if teacher:
-            self.fields['kelas'].queryset = Class.objects.filter(
-                teacher_id=teacher
-            ).select_related('teacher')
-        elif is_admin:
-            self.fields['kelas'].queryset = Class.objects.all().select_related('teacher')
+        # Homeroom Class depends on Teacher + Level
+        if teacher and level:
+            self.fields['kelas'].queryset = Class.objects.filter(teacher_id=teacher, level_id=level)
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
@@ -1566,18 +1519,28 @@ class RubricEntryForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
         })
 
-        self.fields['level'].widget.attrs.update({
-            'id': 'rubric-level-select',
-            'class': 'custom-select mb-4',
-        })
-
         self.fields['teacher'].widget.attrs.update({
             'id': 'rubric-teacher-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses-assignment-avg/',
+        })
+        # Admin changes teacher -> reload Homeroom Class
+        if is_admin:
+            self.fields['teacher'].widget.attrs.update({
+                'hx-get': '/gradebook/get-kelas-rubric/',
+                'hx-trigger': 'change',
+                'hx-target': '#rubric-kelas-select',
+                'hx-swap': 'innerHTML',
+                'hx-include': '#rubric-level-select',
+            })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'rubric-level-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-kelas-rubric/',
             'hx-trigger': 'change',
-            'hx-target': '#assignment-avg-course-select',
+            'hx-target': '#rubric-kelas-select',
             'hx-swap': 'innerHTML',
+            'hx-include': '#rubric-teacher-select',
         })
 
         self.fields['kelas'].widget.attrs.update({
@@ -3463,68 +3426,44 @@ class DormitoryRubricEntryForm(forms.ModelForm):
         initial = self.initial
 
         is_admin = user and (user.is_staff or user.is_superuser)
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
 
-        # Default Logic
-        if user and not self.is_bound:
-            teacher_obj = Teacher.objects.filter(user=user).first()
-            if teacher_obj:
-                self.initial['teacher'] = teacher_obj.id
-
-            # curr_ay = AcademicYear.objects.order_by('-id').first()
-            # if curr_ay:
-            #     self.initial['academic_year'] = curr_ay.id
-            #     curr_period = LearningPeriod.objects.filter(academic_year=curr_ay, period_name__icontains='semester').order_by('-id').first()
-            #     if curr_period:
-            #         self.initial['period'] = curr_period.id
+        # Default Logic: only the teacher gets auto-filled (non-admin, first load)
+        if user and not self.is_bound and not is_admin:
+            if logged_in_teacher:
+                self.initial['teacher'] = logged_in_teacher.id
 
         acayear = data.get('0-academic_year') or initial.get('academic_year')
-        level = data.get('0-level') or initial.get('level')
-        period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
-        kelas = data.get('0-kelas') or initial.get('kelas')
-        is_mid = data.get('0-is_mid') or initial.get('is_mid')
+        level = data.get('0-level') or initial.get('level')
 
         # Period depends on Academic Year
         if acayear:
-            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear,
-                                                                           period_name__icontains='semester')
-            # if is_admin and not teacher_obj:
+            self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year_id=acayear, period_name__icontains='semester')
             if is_admin:
                 self.fields['period'].queryset = LearningPeriod.objects.filter(period_name__icontains='semester').all()
         else:
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
-        # print(f"user: {user}, is_staff: {user.is_staff if user else 'NO USER'}")
-
-        # Teacher depends on Period
-        if period:
-            if user.is_staff == True:
-                self.fields['teacher'].queryset = Teacher.objects.all()
-            elif user:
-                self.fields['teacher'].queryset = Teacher.objects.filter(user=user)
-            else:
-                self.fields['teacher'].queryset = Teacher.objects.none()
+        # Teacher: admin picks anyone, a teacher only gets themselves
+        if is_admin:
+            self.fields['teacher'].queryset = Teacher.objects.all()
+        elif logged_in_teacher:
+            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
         else:
             self.fields['teacher'].queryset = Teacher.objects.none()
 
-        # Kelas depends on Teacher (FK relationship in admission.models.Class)
-        # filter by course
-        # if teacher:
-        #     self.fields['kelas'].queryset = Course.objects.filter(
-        #         teacher_id=teacher
-        #     ).select_related('teacher')
-        # elif is_admin:
-        #     self.fields['kelas'].queryset = Course.objects.all().select_related('teacher')
-        # else:
-        #     self.fields['kelas'].queryset = Course.objects.none()
+        # Level: admin sees all, a teacher only sees levels of their own homeroom classes
+        if is_admin:
+            self.fields['level'].queryset = GradeLevel.objects.all()
+        elif logged_in_teacher:
+            self.fields['level'].queryset = GradeLevel.objects.filter(class__teacher=logged_in_teacher).distinct()
+        else:
+            self.fields['level'].queryset = GradeLevel.objects.none()
 
-        # filter by hr class
-        if teacher:
-            self.fields['kelas'].queryset = Class.objects.filter(
-                teacher_id=teacher
-            ).select_related('teacher')
-        elif is_admin:
-            self.fields['kelas'].queryset = Class.objects.all().select_related('teacher')
+        # Homeroom Class depends on Teacher + Level
+        if teacher and level:
+            self.fields['kelas'].queryset = Class.objects.filter(teacher_id=teacher, level_id=level)
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
@@ -3547,18 +3486,28 @@ class DormitoryRubricEntryForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
         })
 
-        self.fields['level'].widget.attrs.update({
-            'id': 'rubric-level-select',
-            'class': 'custom-select mb-4',
-        })
-
         self.fields['teacher'].widget.attrs.update({
             'id': 'rubric-teacher-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses-assignment-avg/',
+        })
+        # Admin changes teacher -> reload Homeroom Class
+        if is_admin:
+            self.fields['teacher'].widget.attrs.update({
+                'hx-get': '/gradebook/get-kelas-rubric/',
+                'hx-trigger': 'change',
+                'hx-target': '#rubric-kelas-select',
+                'hx-swap': 'innerHTML',
+                'hx-include': '#rubric-level-select',
+            })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'rubric-level-select',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-kelas-rubric/',
             'hx-trigger': 'change',
-            'hx-target': '#assignment-avg-course-select',
+            'hx-target': '#rubric-kelas-select',
             'hx-swap': 'innerHTML',
+            'hx-include': '#rubric-teacher-select',
         })
 
         self.fields['kelas'].widget.attrs.update({

@@ -1721,11 +1721,11 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
 
         buffer = io.BytesIO()
         HEADER_GAP = 0.5 * cm
-        page_width, page_height = landscape(GOV_LEGAL)
+        page_width, page_height = GOV_LEGAL
         header_height = get_pdf_header_height(page_width)
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=landscape(GOV_LEGAL),
+            pagesize=GOV_LEGAL,
             topMargin=header_height + HEADER_GAP,
             bottomMargin=2 * cm,
             leftMargin=2.3 * cm,
@@ -2539,23 +2539,17 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
 
 def get_kelas_rubric(request):
     teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    level_id = request.GET.get('0-level') or request.GET.get('level')
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
-
-    # filter by course
-    # if teacher_id:
-    #     classes = Course.objects.filter(teacher_id=teacher_id).select_related('subject')
-    # else:
-    #     classes = Course.objects.none()
-
-    # filter by hr class
-    if teacher_id:
-        classes = Class.objects.filter(teacher_id=teacher_id).select_related('teacher')
+    if teacher_id and level_id:
+        classes = Class.objects.filter(teacher_id=teacher_id, level_id=level_id)
     else:
         classes = Class.objects.none()
-    return render(request, "partials/gradebook/gradeentry_partials/kelas.html", {
-        'kelas_list': classes,  # ← match the template's variable name
+    context = {
+        'kelas_list': classes,
         'selected_kelas': selected_kelas
-    })
+    }
+    return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", context)
 
 def get_levels_rubric(request):
     user = request.user
@@ -3033,7 +3027,7 @@ def rb_pdf(request, pk):
         # table.setStyle(table_style)
         # table.setStyle(behav_table)
         flowables.append(table)
-        # flowables.append(Spacer(1, 0.3*cm))
+        flowables.append(Spacer(1, 0.3*cm))
 
     # flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
@@ -5086,7 +5080,7 @@ def print_pdev_pdf(request, pk):
             ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ]))
         flowables.append(table)
-        # flowables.append(Spacer(1, 0.3 * cm))
+        flowables.append(Spacer(1, 0.3 * cm))
 
 
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
@@ -6414,7 +6408,7 @@ def print_midterm_report(request, pk):
         ('RIGHTPADDING', (0, 0), (-1, -1), 4),
     ]))
     flowables.append(catatan_table)
-    flowables.append(Spacer(1, 0.05 * cm))
+    flowables.append(Spacer(1, 0.09 * cm))
 
 
 

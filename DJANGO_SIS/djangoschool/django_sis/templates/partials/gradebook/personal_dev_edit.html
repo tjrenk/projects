@@ -7,7 +7,7 @@
     <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
         <div><strong>Student:</strong> {{ reportcard.student.registration_data.first_name }} {{ reportcard.student.registration_data.last_name }}</div>
         <div><strong>Period:</strong> {{ reportcard.period }}</div>
-        <div><strong>Mid Term:</strong> {{ reportcard.is_mid|yesno:"Yes,No" }}</div>
+<!--        {% comment %}<div><strong>Mid Term:</strong> {{ reportcard.is_mid|yesno:"Yes,No" }}</div> {% endcomment %}-->
     </div>
 
     <form method="post" id="personal-dev-edit-form">

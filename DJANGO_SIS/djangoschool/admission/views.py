@@ -30,6 +30,8 @@ from django.views.generic.edit import CreateView, FormView
 from django.urls import reverse_lazy
 from django.db import transaction
 from django.utils import timezone
+from admission.serializers import RegSerializer
+from rest_framework import generics
 
 # Create your views here.
 def index(request):
@@ -549,3 +551,7 @@ def get_source_students(request):
         ).select_related('registration_data').order_by('id_number')
 
     return render(request, 'partials/admission/source_students_list.html', {'students': students})
+
+class RegistAPI(generics.ListCreateAPIView):
+    queryset = Registration.objects.all()
+    serializer_class = RegSerializer
