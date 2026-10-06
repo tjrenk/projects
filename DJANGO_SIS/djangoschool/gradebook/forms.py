@@ -396,8 +396,40 @@ class GradeEntryForm(forms.ModelForm):
 class AttendanceForm(forms.ModelForm):
 
 
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    kelas = forms.ModelChoiceField(
+        queryset=Class.objects.none(),  # starts empty, populated by HTMX
+        required=True,
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Homeroom Class'
+    )
+
+    class Meta:
+        model = StudentAttendance
+        fields = ["attendance_date", "student", "attendance_type", "notes"]
+        widgets = {
+            'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control cally bg-base-100 border border-base-300 rounded-box'})
+        }
+
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        data = self.data
+        initial = self.initial
+
+        acayear = data.get('0-academic_year') or initial.get('academic_year')
+        period = data.get('0-period') or initial.get('period')
+        level = data.get('0-level') or initial.get('level')
+
         self.fields['student'].queryset = Student.objects.all().select_related('registration_data')
         
         if user and hasattr(user, 'teacher'):
@@ -424,23 +456,6 @@ class AttendanceForm(forms.ModelForm):
         # else:
         #     self.fields['student'].queryset = Student.objects.all()
 
-
-            
-
-
-
-    class Meta:
-        model = StudentAttendance
-        fields = ["attendance_date", "student", "attendance_type", "notes"]
-        widgets = {
-            'attendance_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control cally bg-base-100 border border-base-300 rounded-box'})
-        }
-        # labels = {
-        #     'attendance_date': 'Tanggal Absensi',
-        #     'student': 'Nama Murid',
-        #     'attendance_type': 'Tipe Absensi',
-        #     'notes': 'Catatan',
-        # }
 
 # Form Step 2
 class AssignmentHeadForm(forms.ModelForm):
@@ -1487,10 +1502,14 @@ class RubricEntryForm(forms.ModelForm):
             self.fields['teacher'].queryset = Teacher.objects.none()
 
         # Level: admin sees all, a teacher only sees levels of their own homeroom classes
-        if is_admin:
-            self.fields['level'].queryset = GradeLevel.objects.all()
-        elif logged_in_teacher:
-            self.fields['level'].queryset = GradeLevel.objects.filter(class__teacher=logged_in_teacher).distinct()
+        # if is_admin:
+        #     self.fields['level'].queryset = GradeLevel.objects.all()
+        # elif logged_in_teacher:
+        #     self.fields['level'].queryset = GradeLevel.objects.filter(class__teacher=logged_in_teacher).distinct()
+        # else:
+        #     self.fields['level'].queryset = GradeLevel.objects.none()
+        if teacher:
+            self.fields['level'].queryset = GradeLevel.objects.filter(class__teacher_id=teacher).distinct()
         else:
             self.fields['level'].queryset = GradeLevel.objects.none()
 
@@ -1526,18 +1545,17 @@ class RubricEntryForm(forms.ModelForm):
         # Admin changes teacher -> reload Homeroom Class
         if is_admin:
             self.fields['teacher'].widget.attrs.update({
-                'hx-get': '/gradebook/get-kelas-rubric/',
+                'hx-get': '/gradebook/get-level-rubric/',
                 'hx-trigger': 'change',
-                'hx-target': '#rubric-kelas-select',
+                'hx-target': '#rubric-level-select',
                 'hx-swap': 'innerHTML',
-                'hx-include': '#rubric-level-select',
             })
 
         self.fields['level'].widget.attrs.update({
             'id': 'rubric-level-select',
             'class': 'custom-select mb-4',
             'hx-get': '/gradebook/get-kelas-rubric/',
-            'hx-trigger': 'change',
+            'hx-trigger': 'change, levelsLoaded from:body',
             'hx-target': '#rubric-kelas-select',
             'hx-swap': 'innerHTML',
             'hx-include': '#rubric-teacher-select',
@@ -2665,10 +2683,10 @@ PDRPT_CHOICES = [
 
 # Easy to update — just add/remove fields here
 PERSONAL_DEV_FIELDS = {
-    'Care': ['care1', 'care2', 'care3'],
-    'Respect': ['respect1', 'respect2', 'respect3', 'respect4'],
-    'Responsibility': ['responsibility1', 'responsibility2', 'responsibility3', 'responsibility4'],
-    'Excellence': ['excellence1', 'excellence2', 'excellence3', 'excellence4'],
+    'I. CARE': ['care1', 'care2', 'care3'],
+    'II. RESPECT': ['respect1', 'respect2', 'respect3', 'respect4'],
+    'III. RESPONSIBILITY': ['responsibility1', 'responsibility2', 'responsibility3', 'responsibility4'],
+    'IV. EXCELLENCE': ['excellence1', 'excellence2', 'excellence3', 'excellence4'],
 }
 
 class PersonalDevSelectForm(forms.Form):

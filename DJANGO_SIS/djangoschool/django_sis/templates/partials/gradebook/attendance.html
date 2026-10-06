@@ -16,7 +16,8 @@
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
 
-                {% for field in teach_form %}
+
+                                {% for field in form %}
                 <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                     <div class="mb-1 basis-full md:flex-1">
                         {{ field.label }}
@@ -32,8 +33,7 @@
                     </div>
                 </div>
                 {% endfor %}
-
-                {% for field in form %}
+                {% for field in teach_form %}
                 <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
                     <div class="mb-1 basis-full md:flex-1">
                         {{ field.label }}

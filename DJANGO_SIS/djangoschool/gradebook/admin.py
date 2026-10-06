@@ -392,6 +392,9 @@ class LockDataEntryAdmin(admin.ModelAdmin):
         )
         return redirect(f'/admin/gradebook/lockdataentry/{obj.pk}/change/')
 
+class RPOrderAdmin(admin.ModelAdmin):
+    list_display = ["level", "subject", "order"]
+    list_filter = ["level", "subject", "order"]
 
 @staff_member_required
 def admin_statistics_view(request):
@@ -451,3 +454,4 @@ admin.site.register(ReportcardPersonalDev, PDRPTAdmin)
 admin.site.register(AssignmentHead, AssignmentHeadAdmin)
 admin.site.register(AssignmentDetail, AssignmentDetailAdmin)
 admin.site.register(LockDataEntry, LockDataEntryAdmin)
+admin.site.register(ReportCardOrder, RPOrderAdmin)

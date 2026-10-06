@@ -13,7 +13,7 @@ from .forms import *
 from .models import *
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min, Q
-from django.db.models import F
+from django.db.models import F, OuterRef, Subquery
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, GOV_LEGAL, landscape
 from reportlab.lib.units import inch, cm
@@ -2552,26 +2552,15 @@ def get_kelas_rubric(request):
     return render(request, "partials/gradebook/rubric_entry_partials/kelas.html", context)
 
 def get_levels_rubric(request):
-    user = request.user
-    # Check for the variable name sent by the 'academic_year' field
-    # (Django form fields usually send '0-academic_year')
-    teacher = Teacher.objects.filter(user=user).first()
-    is_admin = user.is_staff or user.is_superuser
-    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
-
-    if acayear_id:
-        if is_admin:
-            levels = GradeLevel.objects.all()
-        elif teacher:
-            levels = GradeLevel.objects.filter(class__teacher=teacher).distinct()
-        else:
-            levels = GradeLevel.objects.none()
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    if teacher_id:
+        levels = GradeLevel.objects.filter(class__teacher_id=teacher_id).distinct()
     else:
         levels = GradeLevel.objects.none()
-
     context = {'levels': levels}
-    # Use your existing folder structure
-    return render(request, "partials/gradebook/rubric_entry_partials/level.html", context)
+    response = render(request, "partials/gradebook/rubric_entry_partials/level.html", context)
+    response['HX-Trigger'] = 'levelsLoaded'
+    return response
 
 # def get_kelas_rubric(request):
 #     rubric.existing_score = existing_scores.get(rubric.id, None)
@@ -5041,20 +5030,25 @@ def print_pdev_pdf(request, pk):
 
     for group_name, field_names in PERSONAL_DEV_FIELDS.items():
         pdf_label_content = [[group_name]]
-        label_table = Table(pdf_label_content, colWidths=[19.89 * cm])
+        label_table = Table(pdf_label_content, colWidths=[19.4 * cm])
         label_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow-bold'),
+            ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow-italic'),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+            # ('TOPPADDING', (0, 0), (-1, -1), 0.1),
+            # ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5),
         ]))
         flowables.append(label_table)
-        flowables.append(Spacer(0, 0.0 * cm))
+        # flowables.append(Spacer(0, 0.0 * cm))
 
         # harus pake font lain, pake arial narrow nggak bisa
         checkmark = ParagraphStyle(
             'CheckStyle', fontName='Helvetica', fontSize=8, alignment=TA_CENTER,
         )
 
-        table_data = [['Indicator'] + choice_labels]
+        table_data = [['Indikator'] + choice_labels]
         for field_name in field_names:
             value = getattr(instance, field_name)
             row = [Paragraph(label_map.get(field_name, field_name), indicator_style)]
@@ -5080,7 +5074,7 @@ def print_pdev_pdf(request, pk):
             ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ]))
         flowables.append(table)
-        flowables.append(Spacer(1, 0.3 * cm))
+        # flowables.append(Spacer(1, 0.3 * cm))
 
 
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
@@ -6095,12 +6089,27 @@ def print_midterm_report(request, pk):
     spiritual = behaviour_reports.filter(rubric__type='Spiritual').first()
     social = behaviour_reports.filter(rubric__type='Social').first()
 
+    # print_order = ReportCardOrder.objects.all()
+
     # B. PENGETAHUAN DAN KETERAMPILAN — reiterate from ReportcardGrade (child of StudentReportcard)
+    order_subq = ReportCardOrder.objects.filter(
+        level=reportcard.level,
+        subject=OuterRef('subject')
+    ).values('order')[:1]
+
     grades = ReportcardGrade.objects.filter(
         reportcard=reportcard
     ).exclude(
         subject__is_activity=True
-    ).order_by('subject__rp_print_order').select_related('subject')
+    ).select_related('subject').annotate(
+        print_order=Subquery(order_subq)
+    ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
+    #OLD
+    # grades = ReportcardGrade.objects.filter(
+    #     reportcard=reportcard
+    # ).exclude(
+    #     subject__is_activity=True).select_related('subject')
+    # ).order_by('print_order__order').select_related('subject')
 
     # C. EXTRAKURIKULER — via StudentReportExtra, reversed through reportcard
     # OLD
