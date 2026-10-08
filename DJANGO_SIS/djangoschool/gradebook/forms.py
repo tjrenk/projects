@@ -394,8 +394,10 @@ class GradeEntryForm(forms.ModelForm):
 
 
 class AttendanceForm(forms.ModelForm):
-
-
+    field_order = [
+        'academic_year', 'level', 'kelas',
+        'attendance_date', 'student', 'attendance_type', 'notes',
+    ]
     academic_year = forms.ModelChoiceField(
         queryset=AcademicYear.objects.all(),
         widget=forms.Select(attrs={'class': 'form-select'})
@@ -429,25 +431,75 @@ class AttendanceForm(forms.ModelForm):
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         period = data.get('0-period') or initial.get('period')
         level = data.get('0-level') or initial.get('level')
+        classes = Class.objects.all()
+        students = Student.objects.none()
 
-        self.fields['student'].queryset = Student.objects.all().select_related('registration_data')
-        
-        if user and hasattr(user, 'teacher'):
-                # get current Teacher.user
-            current_teacher = Teacher.objects.get(user=user)
-                
-                # filter Class table by current Teacher.user
-                # (You only need the classes relevant to filtering students)
-            teacher_classes = Class.objects.filter(teacher=current_teacher)
-                
-                # If the teacher has classes, filter the students
-            if teacher_classes.exists():
-                student_ids = ClassMember.objects.filter(
-                    kelas__in=teacher_classes, 
-                    is_active=True
-                ).values_list('student_id', flat=True)
-                    
-                self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)
+        is_staff = user and (user.is_staff or user.is_superuser)
+
+        if not is_staff:
+            classes = classes.filter(teacher__user=user)
+
+        # self.fields['kelas'].queryset = classes
+        # if is_staff:
+        #     self.fields['level'].queryset = GradeLevel.objects.all()
+        #     self.fields['kelas'].queryset = Class.objects.all()
+        # else:
+        #     self.fields['level'].queryset = GradeLevel.objects.filter(pk__in=classes.values('level_id'))
+        # self.fields['level'].queryset = GradeLevel.objects.all()
+        # self.fields['kelas'].queryset = classes.filter(level=level)
+
+        # teachers start on their own class and level
+        home = classes.first() if not is_staff else None
+        level_id = self.data.get('level') or (home.level_id if home else None)
+        kelas_id = self.data.get('kelas') or (home.id if home else None)
+
+        if home:
+            self.fields['level'].initial = home.level_id
+            self.fields['kelas'].initial = home.id
+
+        self.fields['level'].queryset = GradeLevel.objects.all()
+        self.fields['kelas'].queryset = (
+            classes.filter(level_id=level_id) if level_id else Class.objects.none()
+        )
+
+        if kelas_id:
+            students = Student.objects.filter(
+                classmember__kelas__in=classes.filter(pk=kelas_id),
+                classmember__is_active=True,
+            ).select_related('registration_data').distinct()
+        self.fields['student'].queryset = students
+
+        #
+        # self.fields['academic_year'].widget.attrs.update({
+        #     'id': 'acayear-select-attend',  # Vital for the listener
+        #     # 'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-level-attend',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#level-select-attend', # Updates Period normally
+        #     'hx-swap': 'innerHTML',
+        # })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-attend',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-kelas-attend',
+            'hx-trigger': 'change',
+            'hx-target': '#kelas-select-attend',
+            'hx-swap': 'innerHTML',
+        })
+
+        # self.fields['kelas'].widget.attrs.update({
+        #     'id': 'kelas-select-attend',
+        #     'class': 'custom-select mb-4',
+        # })
+        self.fields['kelas'].widget.attrs.update({
+            'id': 'kelas-select-attend',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-students-attend',
+            'hx-trigger': 'change',
+            'hx-target': '#id_student',
+            'hx-swap': 'innerHTML',
+        })
         
         # ganti queryset
         # self.fields['student'].queryset = Student.objects.filter(id__in=student_ids)

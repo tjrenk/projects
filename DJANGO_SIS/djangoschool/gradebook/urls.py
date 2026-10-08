@@ -7,10 +7,15 @@ urlpatterns = [
     path("", views.gb_index, name="gb-index"),
     path("teachers", views.teacher_list, name="teacher-list"),
     path("course", views.course_list, name="course-list"),
-    path("attendance", views.attendance, name="student-attendance"),
     path("midterm_pdf", views.midterm_report, name="midterm_report"),
     path("midterm_pdf_real/<int:student_id>/", views.midterm_report_pdf, name="midterm_report_pdf"),
     path('attendance-list-homepage', views.attendance_list_admin, name='attendance-list-homepage'),
+
+    # ATTENDANCE
+    path("attendance", views.attendance, name="student-attendance"),
+    path("get-level-attend", views.get_level_attend, name="get-level-attend"),
+    path("get-kelas-attend", views.get_kelas_attend, name="get-kelas-attend"),
+    path('get-students-attend', views.get_students_attend, name='gb-get-students-attend'),
     
     # GRADE ENTRY
     path("grade-entry", views.GradeEntryForm.as_view(), name="grade-entry"),

@@ -588,6 +588,64 @@ def attendance(request):  # musti di cek ini kefilter berdasarkan guru apa kgk l
 #
 #     return render(request, 'partials/gradebook/attendance_list.html', context)
 
+def get_level_attend(request):
+    period_id = request.GET.get('period')
+    selected_level = request.GET.get('level')
+    levels = GradeLevel.objects.all() if period_id else GradeLevel.objects.none()
+
+    html = ''
+    for l in levels:
+        checked = 'checked' if selected_level == str(l.id) else ''
+        html += f'''
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="level"
+                   id="id_level_{l.id}" value="{l.id}" {checked}
+                   hx-get="/gradebook/get-kelas-attend"
+                   hx-trigger="change"
+                   hx-target="#kelas-select-attend"
+                   hx-swap="innerHTML">
+            <label class="form-check-label" for="id_level_{l.id}">
+                {l}
+            </label>
+        </div>'''
+
+    return HttpResponse(html)
+
+
+def get_kelas_attend(request):
+    user = request.user
+    level_id = request.GET.get('level')
+    selected_kelas = request.GET.get('kelas')
+    classes = Class.objects.filter(level_id=level_id) if level_id else Class.objects.none()
+    if not (user.is_staff or user.is_superuser):
+        classes = classes.filter(teacher__user=user)
+
+    html = '<option value="">---------</option>'
+    for c in classes:
+        html += f'<option value="{c.id}">{c}</option>'
+    return HttpResponse(html)
+
+@login_required
+def get_students_attend(request):
+    user = request.user
+    kelas_id = request.GET.get('kelas')
+
+    classes = Class.objects.all()
+    if not (user.is_staff or user.is_superuser):
+        classes = classes.filter(teacher__user=user)
+
+    students = Student.objects.none()
+    if kelas_id:
+        students = Student.objects.filter(
+            classmember__kelas__in=classes.filter(pk=kelas_id),
+            classmember__is_active=True,
+        ).select_related('registration_data').distinct()
+
+    html = '<option value="">---------</option>'
+    for s in students:
+        html += f'<option value="{s.id}">{s}</option>'
+    return HttpResponse(html)
+
 
 def attendance_list_admin(request):
     attendance = StudentAttendance.objects.select_related('student')
