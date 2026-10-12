@@ -62,8 +62,8 @@
                     <td class="flex-1">{{ leftj.teacher }}</td>
                     <td class="flex-1">{{ leftj.subject }}</td>
                     <td class="flex-1">{{ leftj.name }}</td>
-<td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=form_type page=None %}">{{ leftj.form_count }}x</a></td>
-<td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=summ_type page=None %}">{{ leftj.summ_count }}x</a></td>
+<td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=form_type year=request.GET.academic_year page=None %}">{{ leftj.form_count }}x</a></td>
+<td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=summ_type year=request.GET.academic_year page=None %}">{{ leftj.summ_count }}x</a></td>
                 </tr>
                 {% endfor %}
                 </tbody>

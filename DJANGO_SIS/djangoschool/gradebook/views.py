@@ -2043,6 +2043,9 @@ def ge_table(request):
         'year': 'course__academic_year_id',
         'type': 'assignment_id'
     })
+    period = LearningPeriod.objects.filter(pk=request.GET.get('period'), academic_year_id=request.GET.get('year')).first()
+    if period:
+        ah = ah.filter(date__range=(period.date_start, period.date_end))
 
     # search — BEFORE pagination
     search_query = request.GET.get('q', '')
@@ -2073,6 +2076,15 @@ def ge_table(request):
                 'param': 'year',
                 'options': AcademicYear.objects.all(),
                 'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(
+                    academic_year_id=request.GET['year'], period_name__icontains='semester'
+                ).select_related('academic_year').order_by('date_start') if request.GET.get(
+                    'year') else LearningPeriod.objects.none(),
+                'selected': request.GET.get('period', ''),
             },
             {
                 'label': 'Course',
@@ -5252,8 +5264,8 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
             academic_year = data0.get('academic_year')
             period = data0.get('period')
             level = data0.get('level')
-            # is_mid = data0.get('is_mid')
-            is_mid = False
+            is_mid = data0.get('is_mid')
+            # is_mid = False
 
             if not course or not subject:
                 return initial
@@ -5270,8 +5282,8 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
                 reportcard__student_id__in=member_student_ids,
                 reportcard__academic_year=academic_year,
                 reportcard__period=period,
-                # reportcard__is_mid=is_mid,
-                reportcard__is_mid=False,
+                reportcard__is_mid=is_mid,
+                # reportcard__is_mid=False,
                 reportcard__level=level,
             ).select_related('reportcard__student__registration_data')
 
@@ -6755,17 +6767,22 @@ def hr_monitor_table(request):
     types = dict(AssignmentType.objects.filter(short_name__in=['FORM', 'SUMM']).values_list('short_name', 'id'))
 
     if request.GET.get('academic_year'):
-        left = Course.objects.annotate(
-            form_count=Count(
-                'assignmenthead',
-                filter=Q(assignmenthead__assignment__short_name='FORM'),
-                distinct=True,
-            ),
-            summ_count=Count(
-                'assignmenthead',
-                filter=Q(assignmenthead__assignment__short_name='SUMM'),
-                distinct=True,
-            ),
+        period_id = request.GET.get('period')
+        period = LearningPeriod.objects.filter(
+            pk=period_id, academic_year_id=request.GET['academic_year']
+        ).first() if period_id else None
+        in_period = Q(assignmenthead__date__range=(period.date_start, period.date_end)) if period else Q()
+
+        left = (
+            Course.objects.filter(academic_year_id=request.GET['academic_year'])
+            .annotate(
+                form_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='FORM'),
+                                 distinct=True),
+                summ_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='SUMM'),
+                                 distinct=True),
+            )
+            .select_related('subject', 'teacher')
+            .order_by('teacher__first_name', 'subject__subject_name', 'short_name')
         )
         # if request.GET.get('academic_year'):
         #     left = left.filter(academic_year_id=request.GET.get('academic_year'))
@@ -6796,27 +6813,28 @@ def hr_monitor_pdf(request):
 
     cd = form.cleaned_data
 
+    period_id = request.GET.get('period')
+    period = LearningPeriod.objects.filter(
+        pk=period_id, academic_year_id=request.GET['academic_year']
+    ).first() if period_id else None
+    in_period = Q(assignmenthead__date__range=(period.date_start, period.date_end)) if period else Q()
+
     courses = (
-        Course.objects.filter(academic_year=cd['academic_year'])
-        .annotate(
-            form_count=Count(
-                'assignmenthead',
-                filter=Q(assignmenthead__assignment__short_name='FORM'),
-                distinct=True,
-            ),
-            summ_count=Count(
-                'assignmenthead',
-                filter=Q(assignmenthead__assignment__short_name='SUMM'),
-                distinct=True,
-            ),
+            Course.objects.filter(academic_year_id=request.GET['academic_year'])
+            .annotate(
+                form_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='FORM'),
+                                 distinct=True),
+                summ_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='SUMM'),
+                                 distinct=True),
+            )
+            .select_related('subject', 'teacher')
+            .order_by('teacher__first_name', 'subject__subject_name', 'short_name')
         )
-        .select_related('subject', 'teacher')
-        .order_by('teacher__first_name', 'subject__subject_name', 'short_name')
-    )
     if cd.get('teacher'):
         courses = courses.filter(teacher=cd['teacher'])
     if cd.get('subject'):
         courses = courses.filter(subject=cd['subject'])
+
 
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
@@ -6843,7 +6861,8 @@ def hr_monitor_pdf(request):
     flowables.append(Spacer(1, 1 * cm))
 
     meta_data = [
-        ['Tahun Ajaran', ':', str(cd['academic_year'])],
+        ['Tahun Ajaran', ':', f"{cd['academic_year'].begin_date.year}/{cd['academic_year'].end_date.year}" if cd else '-'],
+        ['Period', ':', str(cd['period']) if cd.get('period') else 'Semua'],
         ['Nama Guru', ':', str(cd['teacher']) if cd.get('teacher') else 'Semua'],
         ['Mata Pelajaran', ':', str(cd['subject']) if cd.get('subject') else 'Semua'],
     ]
@@ -6993,7 +7012,7 @@ def class_attendance_ledger_pdf(request):
     flowables.append(Spacer(1, 1 * cm))
 
     meta_data = [
-        ['Tahun Ajaran', ':', str(cd['academic_year'])],
+        ['Tahun Ajaran', ':', f"{cd['academic_year'].begin_date.year}/{cd['academic_year'].end_date.year}" if cd else '-'],
         ['Periode', ':', period.period_name],
         ['Tingkat', ':', str(cd['level'])],
         ['Kelas', ':', str(cd['kelas']) if cd.get('kelas') else 'Semua'],

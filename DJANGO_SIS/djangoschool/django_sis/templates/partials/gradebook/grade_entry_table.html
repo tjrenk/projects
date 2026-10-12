@@ -207,22 +207,29 @@
 {#            </div>#}
 
             <!-- Extra filters (table-specific) -->
-            {% for filter in extra_filters %}
-            <div class="form-control mb-2">
-                <label class="label">
-                    <span class="label-text font-bold">{{ filter.label }}</span>
-                </label>
-                <select name="{{ filter.param }}" class="select select-bordered select-sm">
-                    <option value="">All {{ filter.label }}</option>
-                    {% for opt in filter.options %}
-                    <option value="{{ opt.id }}"
-                        {% if opt.id|stringformat:"s" == filter.selected %}selected{% endif %}>
-                        {{ opt }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endfor %}
+{% for filter in extra_filters %}
+<div class="form-control mb-2" id="filter-{{ filter.param }}">
+    <label class="label">
+        <span class="label-text font-bold">{{ filter.label }}</span>
+    </label>
+    <select name="{{ filter.param }}" class="select select-bordered select-sm"
+        {% if filter.param == 'year' %}
+        hx-get="{% url 'grade-entry-table' %}"
+        hx-trigger="change"
+        hx-target="#filter-period"
+        hx-select="#filter-period"
+        hx-swap="outerHTML"
+        {% endif %}>
+        <option value="">All {{ filter.label }}</option>
+        {% for opt in filter.options %}
+        <option value="{{ opt.id }}"
+            {% if opt.id|stringformat:"s" == filter.selected %}selected{% endif %}>
+            {{ opt }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endfor %}
 
             <!-- Actions -->
             <div class="form-control mt-4 flex flex-col gap-2">
