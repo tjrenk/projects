@@ -13,6 +13,7 @@ urlpatterns = [
 
     # ATTENDANCE
     path("attendance", views.attendance, name="student-attendance"),
+    path("get-period-attend", views.get_period_attend, name="get-period-attend"),
     path("get-level-attend", views.get_level_attend, name="get-level-attend"),
     path("get-kelas-attend", views.get_kelas_attend, name="get-kelas-attend"),
     path('get-students-attend', views.get_students_attend, name='gb-get-students-attend'),
@@ -153,7 +154,7 @@ urlpatterns = [
     path('cpmp-delete-ge/<int:pk>', views.cpmp_delete_ge, name='cpmp-delete-ge'),
 
     # ATTENDANCE CROSSTAB LEDGER
-    path('class-attendance-ledger/', views.ClassAttendanceLedger.as_view(), name='class-attendance-ledger'),
+    path('class-attendance-ledger/', views.ClassAttendanceLedger, name='class-attendance-ledger'),
 
     path('assignment-monitor/', views.HomeroomAssignmentMonitor.as_view(), name='assignment_monitor'),
     path('hr-monitor-table/', views.hr_monitor_table, name='hr-monitor-table'),

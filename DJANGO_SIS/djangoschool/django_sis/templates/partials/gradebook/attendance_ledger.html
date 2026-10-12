@@ -1,0 +1,36 @@
+{% extends "base_gradebook.html" %}
+{% block content %}
+<div class="card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="text-xl font-medium mb-2">Class Attendance Recap</div>
+
+    <form method="get" class="flex flex-wrap gap-4 items-end mb-4">
+        {% for field in form %}
+        <div>
+            {{ field.label_tag }} {{ field }}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Filter</button>
+    </form>
+
+    <div class="overflow-x-auto">
+<table class="table table-zebra table-sm">
+    <thead>
+        <tr><th>Student</th><th>Sick</th><th>Permit</th><th>Absent</th></tr>
+    </thead>
+    <tbody>
+        {% for row in ledger %}
+    <tr>
+        <td>{{ row.student }}</td>
+        <td>{{ row.sick }}</td>
+        <td>{{ row.permit }}</td>
+        <td>{{ row.absent }}</td>
+    </tr>
+        {% empty %}
+        <tr><td colspan="5">No attendance records.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+    </div>
+</div>
+{% endblock %}

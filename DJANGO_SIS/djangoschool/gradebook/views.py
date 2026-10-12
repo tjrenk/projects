@@ -37,6 +37,7 @@ from django import forms, template
 from django.template.loader import render_to_string
 from django.contrib.auth import logout
 from django.db.models.functions import Ceil
+from datetime import timedelta
 from django.utils import timezone
 from django_htmx.http import retarget
 from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
@@ -587,6 +588,21 @@ def attendance(request):  # musti di cek ini kefilter berdasarkan guru apa kgk l
 #     }
 #
 #     return render(request, 'partials/gradebook/attendance_list.html', context)
+
+def get_period_attend(request):
+    acayear_id = request.GET.get('academic_year')
+    selected_period = request.GET.get('period')
+    periods = LearningPeriod.objects.filter(
+        academic_year_id=acayear_id,
+        period_name__icontains='semester'
+    ) if acayear_id else LearningPeriod.objects.none()
+
+    html = '<option value="">All</option>'
+    for p in periods:
+        selected = 'selected' if selected_period == str(p.id) else ''
+        html += f'<option value="{p.id}" {selected}>{p.period_name}</option>'
+
+    return HttpResponse(html)
 
 def get_level_attend(request):
     period_id = request.GET.get('period')
@@ -4127,132 +4143,6 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
 
     return results, term_period
 
-# def calc_student_avg_redone(academic_year, subject, level, is_mid, period):
-#     # bobot_formatif_sem_jalan = Weighting.objects.filter(
-#     #         academic_year=academic_year,
-#     #         level=level,
-#     #         subject=subject,
-#     #         period=period,
-#     #         is_mid=is_mid
-#     #     )
-#     #
-#     # bobot_sumatif_sem_akhir = Weighting.objects.filter(
-#     #     academic_year=academic_year,
-#     #     level=level,
-#     #     subject=subject,
-#     #     period=period,
-#     #     is_mid=True,
-#     #     assignment__short_name='SUMM'
-#     # )
-#     #
-#     # selected_periods = LearningPeriod.objects.filter(
-#     #     academic_year=academic_year,
-#     #     date_start__lte=period.date_end,
-#     #     date_end__gte=period.date_start
-#     # )
-#     #
-#     #
-#     # weight_map = {w.assignment_id: w.weight for w in bobot_formatif_sem_jalan}
-#     # allowed_assignment_ids = list(weight_map.keys())
-#     #
-#     # if not allowed_assignment_ids:
-#     #     return [], None
-#     #
-#     # # if not period:
-#     # #     period = semester_periods.first()
-#     #
-#     # detail_qs = AssignmentDetail.objects.filter(
-#     #     assignment_head__course__subject=subject,
-#     #     assignment_head__course__academic_year=academic_year,
-#     #     assignment_head__assignment_id__in=allowed_assignment_ids
-#     # )
-#     #
-#     # # ========================================================
-#     # # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
-#     # # ========================================================
-#     # ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
-#     #
-#     # # Ambil periode, jika kosong gunakan periode default dari 'period'
-#     # if ordered_periods.exists():
-#     #     term_period = ordered_periods.first() if is_mid else ordered_periods.last()
-#     # else:
-#     #     term_period = period
-#     #
-#     #
-#     #
-#     # totals = Weighting.objects.aggregate(
-#     #     sum1 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=is_mid)),
-#     #     sum2 = Sum('weight', filter=Q(academic_year=academic_year) & Q(level=level) & Q(subject=subject) & Q(period=period) & Q(is_mid=True) & Q(assignment__short_name='SUMM'))
-#     # )
-#     #
-#     # grand_total = (totals['sum1'] or 0) + (totals['sum2'] or 0)
-#     #
-#     # # sum = bobot_formatif_sem_jalan + bobot_sumatif_sem_akhir
-#     #
-#     # results = 1 - grand_total
-#     #
-#     from decimal import Decimal
-#     # return str(Decimal(results)), term_period
-#
-#     bobot_sem_jalan = Weighting.objects.filter(
-#         academic_year=academic_year,
-#         level=level,
-#         subject=subject,
-#         period=period,
-#         is_mid=is_mid
-#     )
-#
-#     weight_map = {w.assignment_id: w.weight for w in bobot_sem_jalan}
-#     allowed_assignment_ids = list(weight_map.keys())
-#
-#     print(weight_map)
-#
-#     if not allowed_assignment_ids:
-#         return [], None
-#
-#     # ========================================================
-#     # 2. HITUNG SISA BOBOT UNTUK MID SEMESTER (Hasilnya 30%)
-#     # ========================================================
-#     # Kita totalin bobot yang aktif saat ini (Misal: 0.50 + 0.20 = 0.70)
-#     current_total_weight = bobot_sem_jalan.aggregate(
-#         weight_map=Sum('weight')
-#     )['weight_map'] or Decimal('0.00')
-#
-#     # Cari sisanya (100% - Total Saat Ini)
-#     # Catatan: Karena db lu pakai max_digits=2 (skala 0.00 - 0.99), 100% itu ditulis '1.0'
-#     sisa_bobot = Decimal('1.0') - current_total_weight
-#
-#     # Pengaman biar nggak minus kalau kebetulan total bobotnya nyentuh/lebih dari 100%
-#     if sisa_bobot < Decimal('0.00'):
-#         sisa_bobot = Decimal('0.00')
-#
-#     # ========================================================
-#     # 3. LANJUTAN LOGIKA QUERY DETAIL & TERM
-#     # ========================================================
-#     detail_qs = AssignmentDetail.objects.filter(
-#         assignment_head__course__subject=subject,
-#         assignment_head__course__academic_year=academic_year,
-#         assignment_head__assignment_id__in=allowed_assignment_ids
-#     )
-#
-#     selected_periods = LearningPeriod.objects.filter(
-#         academic_year=academic_year,
-#         date_start__lte=period.date_end,
-#         date_end__gte=period.date_start
-#     )
-#
-#     ordered_periods = selected_periods.order_by('date_start').filter(period_name__icontains='term')
-#
-#     # FIX 2: PENCARIAN TERM (DENGAN PENGECEKAN NULL)
-#     if ordered_periods.exists():
-#         term_period = ordered_periods.first() if is_mid else ordered_periods.last()
-#     else:
-#         term_period = period
-#
-#     # Mengembalikan nilai sisa bobot (str) dan term_period
-#     return str(sisa_bobot), term_period
-
-
 class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/gradebook/assignment_avg.html"
 
@@ -6898,51 +6788,43 @@ AbsentCountField = SlickReportField.create(
 )
 
 
-class ClassAttendanceLedger(LoginRequiredMixin, ReportView):
-    template_name = "partials/gradebook/report.html"
-    report_title = "Class Attendance Recap"
+@login_required
+def ClassAttendanceLedger(request):
+    user = request.user
+    form = ClassAttendanceRecap(request.GET or None, user=user)
 
-    report_model = StudentAttendance
-    form_class = ClassAttendanceRecap
-    date_field = "attendance_date"
+    if request.GET.get('period') and form.is_valid():
+        cd = form.cleaned_data
+        period = cd['period']
 
-    group_by = "student__classmember__kelas"
+        members = ClassMember.objects.filter(kelas__academic_year=cd['academic_year'])
+        if not (user.is_staff or user.is_superuser):
+            members = members.filter(kelas__teacher__user=user)
+        if cd.get('kelas'):
+            members = members.filter(kelas=cd['kelas'])
+        elif cd.get('level'):
+            members = members.filter(kelas__level=cd['level'])
 
-    def class_name(self, obj, data):
-        return obj.get('name', '-')
-    class_name.verbose_name = "Class"
+        att = 'student__studentattendance'
+        in_period = Q(**{f'{att}__attendance_date__range': (period.date_start, period.date_end)})
 
-    columns = [
-        "class_name",
-    ]
+        ledger = (
+            members.select_related('kelas', 'student__registration_data')
+            .annotate(
+                sick=Count(att, filter=in_period & Q(**{f'{att}__attendance_type': 'S'})),
+                permit=Count(att, filter=in_period & Q(**{f'{att}__attendance_type': 'P'})),
+                absent=Count(att, filter=in_period & Q(**{f'{att}__attendance_type': 'A'})),
+                total=Count(att, filter=in_period),
+            )
+            .order_by('kelas__name', 'student__registration_data__first_name')
+        )
+    else:
+        ledger = ClassMember.objects.none()
 
-    crosstab_field = "attendance_date"
-    crosstab_columns = [AbsentCountField]
-    crosstab_compute_remainder = False
-
-    def get_crosstab_ids(self):
-        start = self.request.GET.get('start_date')
-        end = self.request.GET.get('end_date')
-
-        if start and end:
-            start = datetime.strptime(start, '%Y-%m-%d').date()
-            end = datetime.strptime(end, '%Y-%m-%d').date()
-        else:
-            # default view: last 7 days
-            end = datetime.now().date()
-            start = end - timedelta(days=6)
-
-        days = (end - start).days
-        return [start + timedelta(days=i) for i in range(days + 1)]
-
-    def get_crosstab_compute_remainder(self):
-        return False
-
-    filters = [
-        "student__id_number",
-        "student__registration_data__first_name",
-        "student__registration_data__last_name",
-    ]
+    return render(request, 'partials/gradebook/attendance_ledger.html', {
+        'form': form,
+        'ledger': ledger,
+    })
 
 # ENTRY NILAI ASRAMA
 class DormRubricEntryWizard(LoginRequiredMixin, SessionWizardView):

@@ -49,7 +49,7 @@ BREADCRUMB_MAP = {
     'rp-comment': (('Data Entry', None), ("Teacher's Comments", 'rp-comment')),
     'extra-report': (('Data Entry', None), ('Extracurricular Grade', 'extra-report')),
     'personal-dev': (('Data Entry', None), ('Personal Development Grade', 'personal-dev')),
-    'cpmp-create': (('Data Entry', None), ('Lesson Plan', 'cpmp-create')),
+    'cpmp-create': (('Data Entry', None), ('Lesson Outcome', 'cpmp-create')),
     'assignment-avg-wizard': (('Processes', None), ('Final Grade Avg', 'assignment-avg-wizard')),
     'grade-entry-table': (('Reporting', None), ('Student Grade', 'grade-entry-table')),
     'ge-edit': (('Reporting', None), ('Student Grade', 'grade-entry-table')),

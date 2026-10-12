@@ -3365,92 +3365,74 @@ CpmpFormSet = modelformset_factory(
 )
 
 
-class ClassAttendanceRecap(BaseReportForm, forms.Form):
-    start_date = forms.DateField(
-        required=False,
-        label="Start Date",
-        widget=forms.DateInput(),
-        initial=datetime.now
+class ClassAttendanceRecap(forms.Form):
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Academic Year'
     )
-    end_date = forms.DateField(required=False, label="End Date", widget=forms.DateInput(),
-                               initial=datetime.now)
-
-    # course = forms.ModelChoiceField(
-    #     queryset = Course.objects.none(),
-    #     required=False,
-    #     widget=forms.RadioSelect(attrs={
-    #         'class': 'form-control'
-    #     })
-    # )
+    period = forms.ModelChoiceField(
+        queryset=LearningPeriod.objects.none(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Period'
+    )
+    level = forms.ModelChoiceField(
+        queryset=GradeLevel.objects.none(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Grade Level'
+    )
     kelas = forms.ModelChoiceField(
-        queryset=Class.objects.none(),
+        queryset=Class.objects.all(),
         required=False,
-        widget=forms.RadioSelect(attrs={
-            'class': 'form-control'
-        })
+        label="Homeroom Class",
     )
 
-    is_mid = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(),
-        label="Mid?",
-    )
-
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["start_date"].initial = datetime.date
-        self.fields["end_date"].initial = datetime.date
+        is_staff = user and (user.is_staff or user.is_superuser)
 
-        self.fields['kelas'].queryset = Class.objects.all()
+        classes = Class.objects.all()
+        if not is_staff:
+            classes = classes.filter(teacher__user=user)
 
-        data = self.data
-        initial = self.initial
+        # teachers start on their own class and level
+        home = classes.first() if not is_staff else None
+        if home:
+            self.fields['level'].initial = home.level_id
+            self.fields['level'].disabled = True
+            self.fields['level'].widget.attrs['readonly'] = True
+            self.fields['kelas'].initial = home.id
+            self.fields['kelas'].disabled = True
+            self.fields['kelas'].widget.attrs['readonly'] = True
 
-        # no wizard prefix — this is a plain GET form
-        kelas = data.get('kelas') or initial.get('kelas')
+        year_id = self.data.get('academic_year')
+        level_id = self.data.get('level') or (home.level_id if home else None)
 
-        #Commented this out - incase Homeroom Class needs to be filtered thru the header field
-        # if level:
-        #     self.fields['kelas'].queryset = Class.objects.all()
-        # else:
-        #     # show all semesters as fallback so period is never empty
-        #     self.fields['kelas'].queryset = Class.objects.none()
+        # period options follow the academic year
+        self.fields['period'].queryset = (
+            LearningPeriod.objects.filter(academic_year_id=year_id, period_name__icontains='semester') if year_id else LearningPeriod.objects.none()
+        )
+        self.fields['level'].queryset = GradeLevel.objects.all()
+        self.fields['kelas'].queryset = (
+            classes.filter(level_id=level_id) if level_id else Class.objects.none()
+        )
 
-        # self.fields["start_date"].widget.is_hidden = True
-        # self.fields['period'].queryset = LearningPeriod.objects.all()
-
-
-        # self.fields['kelas'].widget.attrs.update({
-        #     'id': 'kelas-select-ledger',
-        #     'class': 'custom-select mb-4',
-        # })
-
-    def get_filters(self):
-        kelas = self.cleaned_data.get("kelas")
-        is_mid = self.cleaned_data.get("is_mid")
-        # return the filters to be used in the report
-        # Note: the use of Q filters and kwargs filters
-        filters = {
-            "student__classmember__is_active": True,
-        }
-        q_filters = []
-
-        if kelas:
-            filters["student__classmember__kelas"] = kelas
-
-        # For Booleans, usually we only filter if the checkbox is checked,
-        # or you can force the filter regardless:
-        if is_mid is not None:
-            filters["reportcard__is_mid"] = is_mid
-
-        return q_filters, filters
-
-    def get_start_date(self):
-        return self.cleaned_data["start_date"]
-
-    def get_end_date(self):
-        return self.cleaned_data["end_date"]
-
+        self.fields['academic_year'].widget.attrs.update({
+            'id': 'attend-acayear-select',
+            'hx-get': '/gradebook/get-period-attend',
+            'hx-trigger': 'change',
+            'hx-target': '#attend-period-select',
+            'hx-swap': 'innerHTML',
+        })
+        self.fields['period'].widget.attrs.update({'id': 'attend-period-select'})
+        self.fields['level'].widget.attrs.update({
+            'id': 'attend-level-select',
+            'hx-get': '/gradebook/get-kelas-attend',
+            'hx-trigger': 'change',
+            'hx-target': '#attend-kelas-select',
+            'hx-swap': 'innerHTML',
+        })
+        self.fields['kelas'].widget.attrs.update({'id': 'attend-kelas-select'})
 
 class DormitoryRubricEntryForm(forms.ModelForm):
     """Step 0: Select academic year, period, teacher, and class"""

@@ -210,21 +210,26 @@
 
                 {% endif %}
                     {% if user.is_superuser %}
-                    <li class="mb-2">
-                        <a href="{% url 'midterm-report-select' %}">
-                            <i class="fa fa-th"></i>(BETA) Print Report Card
-                        </a>
-                    </li>
+<!--                    <li class="mb-2">-->
+<!--                        <a href="{% url 'midterm-report-select' %}">-->
+<!--                            <i class="fa fa-th"></i>(BETA) Print Report Card-->
+<!--                        </a>-->
+<!--                    </li>-->
                     {% endif %}
                     {% if is_superuser %}
                             <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>
                                 {% elif user.is_staff %}
-                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>
+<!--                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>-->
                                 {% endif %}
                                         {% if user.is_superuser %}
                     <li class="mb-2">
                         <a href="{% url 'hr-monitor-table' %}">
                             <i class="fa fa-th"></i>(BETA) Hr Teacher Grade Monitor (Non-slick)
+                        </a>
+                    </li>
+                                        <li class="mb-2">
+                        <a href="{% url 'class-attendance-ledger' %}">
+                            <i class="fa fa-th"></i>(BETA) Homeroom Class Attendance Ledger (Non-slick)
                         </a>
                     </li>
                     {% endif %}
