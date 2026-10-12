@@ -4933,7 +4933,7 @@ def print_pdev_pdf(request, pk):
     # isian kata2 untuk header; disetor dalam sebuah array
     meta_data = [
         ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
-         'Kelas', ':', str(student_class.kelas) if student_class else '-'],
+         'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
         ['', 'NIS', ':', student.id_number or '-',
          'Semester', ':', period_number],
         ['', 'NISN', ':', student.nisn or '-',
@@ -6752,6 +6752,7 @@ def cpmp_table(request):
 @login_required
 def hr_monitor_table(request):
     form = HomeroomAssignmentMonitorForm(request.GET or None)
+    types = dict(AssignmentType.objects.filter(short_name__in=['FORM', 'SUMM']).values_list('short_name', 'id'))
 
     if request.GET.get('academic_year'):
         left = Course.objects.annotate(
@@ -6766,6 +6767,8 @@ def hr_monitor_table(request):
                 distinct=True,
             ),
         )
+        # if request.GET.get('academic_year'):
+        #     left = left.filter(academic_year_id=request.GET.get('academic_year'))
         if request.GET.get('teacher'):
             left = left.filter(teacher_id=request.GET.get('teacher'))
         if request.GET.get('subject'):
@@ -6780,7 +6783,112 @@ def hr_monitor_table(request):
     return render(request, 'partials/gradebook/hr_monitor_basic.html', {
         'form': form,
         'pnation_left': pnation_left,
+        'form_type': types.get('FORM'),
+        'summ_type': types.get('SUMM'),
     })
+
+
+@login_required
+def hr_monitor_pdf(request):
+    form = HomeroomAssignmentMonitorForm(request.GET)
+    if not form.is_valid() or not form.cleaned_data.get('academic_year'):
+        return HttpResponse("Pilih tahun ajaran terlebih dahulu.", status=400)
+
+    cd = form.cleaned_data
+
+    courses = (
+        Course.objects.filter(academic_year=cd['academic_year'])
+        .annotate(
+            form_count=Count(
+                'assignmenthead',
+                filter=Q(assignmenthead__assignment__short_name='FORM'),
+                distinct=True,
+            ),
+            summ_count=Count(
+                'assignmenthead',
+                filter=Q(assignmenthead__assignment__short_name='SUMM'),
+                distinct=True,
+            ),
+        )
+        .select_related('subject', 'teacher')
+        .order_by('teacher__first_name', 'subject__subject_name', 'short_name')
+    )
+    if cd.get('teacher'):
+        courses = courses.filter(teacher=cd['teacher'])
+    if cd.get('subject'):
+        courses = courses.filter(subject=cd['subject'])
+
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
+
+    buf = io.BytesIO()
+    page_width, page_height = GOV_LEGAL
+    header_height = get_pdf_header_height(page_width)
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=GOV_LEGAL,
+        topMargin=header_height + 0.5 * cm,
+        bottomMargin=2 * cm,
+        leftMargin=2.3 * cm,
+        rightMargin=2.3 * cm,
+    )
+
+    styles, table_style, reportc_table_style = get_pdf_styles()
+    cell_style = ParagraphStyle(
+        'CellText', parent=styles['label'],
+        fontSize=8, fontName='arial-narrow', leading=10,
+    )
+
+    flowables = []
+    flowables.append(Paragraph("Grade Entry Progress Report", styles['title']))
+    flowables.append(Spacer(1, 1 * cm))
+
+    meta_data = [
+        ['Tahun Ajaran', ':', str(cd['academic_year'])],
+        ['Nama Guru', ':', str(cd['teacher']) if cd.get('teacher') else 'Semua'],
+        ['Mata Pelajaran', ':', str(cd['subject']) if cd.get('subject') else 'Semua'],
+    ]
+    meta_table = Table(meta_data, colWidths=[4 * cm, 0.5 * cm, 10 * cm])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    flowables.append(meta_table)
+    flowables.append(Spacer(1, 0.5 * cm))
+
+    table_data = [['No', 'Nama Guru', 'Mata Pelajaran', 'Kelas', 'Formatif', 'Sumatif']]
+    for i, c in enumerate(courses, start=1):
+        table_data.append([
+            str(i),
+            Paragraph(str(c.teacher), cell_style),
+            Paragraph(str(c.subject), cell_style),
+            Paragraph(c.short_name, cell_style),
+            str(c.form_count),
+            str(c.summ_count),
+        ])
+
+    monitor_table = Table(
+        table_data,
+        colWidths=[1 * cm, 4.5 * cm, 5 * cm, 2.5 * cm, 2 * cm, 2 * cm],
+        repeatRows=1,
+    )
+    monitor_table.setStyle(TableStyle([
+        *table_style.getCommands(),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (4, 0), (-1, -1), 'CENTER'),
+    ]))
+    flowables.append(monitor_table)
+
+    page_decorator = partial(get_pdf_page_decorations, user=request.user, date=date)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
+    buf.seek(0)
+
+    filename = f"assignment_monitor_{cd['academic_year']}.pdf"
+    return FileResponse(buf, as_attachment=False, filename=filename)
 
 
 AbsentCountField = SlickReportField.create(
@@ -6825,6 +6933,119 @@ def ClassAttendanceLedger(request):
         'form': form,
         'ledger': ledger,
     })
+
+
+@login_required
+def class_attendance_ledger_pdf(request):
+    user = request.user
+    form = ClassAttendanceRecap(request.GET, user=user)
+    if not form.is_valid():
+        return HttpResponse("Filter belum lengkap.", status=400)
+
+    cd = form.cleaned_data
+    period = cd['period']
+
+    # same query as ClassAttendanceLedger
+    members = ClassMember.objects.filter(kelas__academic_year=cd['academic_year'])
+    if not (user.is_staff or user.is_superuser):
+        members = members.filter(kelas__teacher__user=user)
+    if cd.get('kelas'):
+        members = members.filter(kelas=cd['kelas'])
+    elif cd.get('level'):
+        members = members.filter(kelas__level=cd['level'])
+
+    att = 'student__studentattendance'
+    in_period = Q(**{f'{att}__attendance_date__range': (period.date_start, period.date_end)})
+
+    ledger = (
+        members.select_related('kelas', 'student__registration_data')
+        .annotate(
+            sick=Count(att, filter=in_period & Q(**{f'{att}__attendance_type': 'S'})),
+            permit=Count(att, filter=in_period & Q(**{f'{att}__attendance_type': 'P'})),
+            absent=Count(att, filter=in_period & Q(**{f'{att}__attendance_type': 'A'})),
+            total=Count(att, filter=in_period),
+        )
+        .order_by('kelas__name', 'student__registration_data__first_name')
+    )
+
+    date = datetime.now().strftime("%d %B %Y, %H:%M")
+
+    buf = io.BytesIO()
+    page_width, page_height = GOV_LEGAL
+    header_height = get_pdf_header_height(page_width)
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=GOV_LEGAL,
+        topMargin=header_height + 0.5 * cm,
+        bottomMargin=2 * cm,
+        leftMargin=2.3 * cm,
+        rightMargin=2.3 * cm,
+    )
+
+    styles, table_style, reportc_table_style = get_pdf_styles()
+    cell_style = ParagraphStyle(
+        'CellText', parent=styles['label'],
+        fontSize=8, fontName='arial-narrow', leading=10,
+    )
+
+    flowables = []
+    flowables.append(Paragraph("Rekap Ketidakhadiran Siswa", styles['title']))
+    flowables.append(Spacer(1, 1 * cm))
+
+    meta_data = [
+        ['Tahun Ajaran', ':', str(cd['academic_year'])],
+        ['Periode', ':', period.period_name],
+        ['Tingkat', ':', str(cd['level'])],
+        ['Kelas', ':', str(cd['kelas']) if cd.get('kelas') else 'Semua'],
+    ]
+    meta_table = Table(meta_data, colWidths=[4 * cm, 0.5 * cm, 10 * cm])
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    flowables.append(meta_table)
+    flowables.append(Spacer(1, 0.5 * cm))
+
+    # table_data = [['No', 'NIS', 'Peserta Didik', 'Kelas', 'Sakit', 'Izin', 'Tanpa Ket.', 'Total']]
+    table_data = [['No', 'NIS', 'Peserta Didik', 'Kelas', 'Sakit', 'Izin', 'Absen']]
+    for i, m in enumerate(ledger, start=1):
+        reg = m.student.registration_data
+        full_name = f"{reg.first_name or ''} {reg.last_name or ''}".strip()
+        table_data.append([
+            str(i),
+            m.student.id_number or '-',
+            Paragraph(full_name, cell_style),
+            Paragraph(m.kelas.short_name, cell_style),
+            str(m.sick or '-'),
+            str(m.permit or '-'),
+            str(m.absent or '-'),
+            # str(m.total or '-'),
+        ])
+
+    ledger_table = Table(
+        table_data,
+        colWidths=[1 * cm, 2.6 * cm, 5.4 * cm, 2.2 * cm, 1.4 * cm, 1.4 * cm, 1.6 * cm, 1.4 * cm],
+        repeatRows=1,
+    )
+    ledger_table.setStyle(TableStyle([
+        *table_style.getCommands(),
+        ('ALIGN', (0, 0), (1, -1), 'CENTER'),
+        ('ALIGN', (4, 0), (-1, -1), 'CENTER'),
+    ]))
+    flowables.append(ledger_table)
+
+    page_decorator = partial(get_pdf_page_decorations, user=request.user, date=date)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
+    buf.seek(0)
+
+    filename = f"attendance_ledger_{period.period_name}.pdf"
+    return FileResponse(buf, as_attachment=False, filename=filename)
+
 
 # ENTRY NILAI ASRAMA
 class DormRubricEntryWizard(LoginRequiredMixin, SessionWizardView):

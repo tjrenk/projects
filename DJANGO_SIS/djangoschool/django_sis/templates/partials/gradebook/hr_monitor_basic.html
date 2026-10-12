@@ -32,6 +32,7 @@
         </div>
         <div class="card-footer text-end">
             <input type="submit" value="Filter" class="btn btn-primary">
+                          <a href="{% url 'hr-monitor-pdf' %}?{{ request.GET.urlencode }}" class="btn btn-primary" target="_blank">Print PDF</a>
         </div>
     </form>
 </div>
@@ -61,8 +62,8 @@
                     <td class="flex-1">{{ leftj.teacher }}</td>
                     <td class="flex-1">{{ leftj.subject }}</td>
                     <td class="flex-1">{{ leftj.name }}</td>
-                    <td class="flex-1" style="cursor: pointer;" onclick="window.location.href='{% url 'grade-entry-table' %}{% querystring course=leftj.id type=3 %}'">{{ leftj.form_count }}x</td>
-                    <td class="flex-1" style="cursor: pointer;" onclick="window.location.href='{% url 'grade-entry-table' %}{% querystring course=leftj.id type=2 %}'">{{ leftj.summ_count }}x</td>
+<td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=form_type page=None %}">{{ leftj.form_count }}x</a></td>
+<td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=summ_type page=None %}">{{ leftj.summ_count }}x</a></td>
                 </tr>
                 {% endfor %}
                 </tbody>

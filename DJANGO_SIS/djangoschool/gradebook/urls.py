@@ -155,9 +155,11 @@ urlpatterns = [
 
     # ATTENDANCE CROSSTAB LEDGER
     path('class-attendance-ledger/', views.ClassAttendanceLedger, name='class-attendance-ledger'),
+    path('class-attendance-ledger-pdf/', views.class_attendance_ledger_pdf, name='class-attendance-ledger-pdf'),
 
     path('assignment-monitor/', views.HomeroomAssignmentMonitor.as_view(), name='assignment_monitor'),
     path('hr-monitor-table/', views.hr_monitor_table, name='hr-monitor-table'),
+    path('hr-monitor-pdf/', views.hr_monitor_pdf, name='hr-monitor-pdf'),
     path('get_subjects_ledger/', views.get_subjects_ledger, name='get-subjects-ledger'),
 ]
 

@@ -11,6 +11,7 @@
         </div>
         {% endfor %}
         <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{% url 'class-attendance-ledger-pdf' %}?{{ request.GET.urlencode }}" class="btn btn-primary" target="_blank">Print PDF</a>
     </form>
 
     <div class="overflow-x-auto">
