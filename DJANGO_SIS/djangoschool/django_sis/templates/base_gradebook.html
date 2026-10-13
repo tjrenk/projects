@@ -179,7 +179,7 @@
                     </li>
                     {% endif %}
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger,dorm-rubric-table,dorm-rubric-edit,dorm-rubric-delete" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger,dorm-rubric-table,dorm-rubric-edit,dorm-rubric-delete,class-attendance-ledger,hr-monitor-table" %}open{% endif %}>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry-table' or request.resolver_match.url_name == 'ge-edit' or request.resolver_match.url_name == 'ge-delete' %}active{% endif %}" href="{% url 'grade-entry-table' %}">Student Grade</a></li>
@@ -194,6 +194,9 @@
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-ledger' %}active{% endif %}" href="{% url 'assignment-ledger' %}">Assignments Ledger</a></li>
 {#                              <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>#}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'pdev-table' or request.resolver_match.url_name == 'pdev-edit' or request.resolver_match.url_name == 'pdev-del' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'class-attendance-ledger' %}active{% endif %}" href="{% url 'class-attendance-ledger' %}">Attendance Ledger</a></li>
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'hr-monitor-table' %}active{% endif %}" href="{% url 'hr-monitor-table' %}">Hr Teacher Grade Monitor</a></li>
+
 <!--                                {% if user.is_staff %}-->
 <!--                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>-->
 <!--                                {% endif %}-->
@@ -222,16 +225,7 @@
 <!--                                <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment_monitor' %}active{% endif %}" href="{% url 'assignment_monitor' %}">Hr Teacher Grade Monitor</a></li>-->
                                 {% endif %}
                                         {% if user.is_superuser %}
-                    <li class="mb-2">
-                        <a href="{% url 'hr-monitor-table' %}">
-                            <i class="fa fa-th"></i>(BETA) Hr Teacher Grade Monitor (Non-slick)
-                        </a>
-                    </li>
-                                        <li class="mb-2">
-                        <a href="{% url 'class-attendance-ledger' %}">
-                            <i class="fa fa-th"></i>(BETA) Homeroom Class Attendance Ledger (Non-slick)
-                        </a>
-                    </li>
+
                     {% endif %}
                 </ul>
             </div>

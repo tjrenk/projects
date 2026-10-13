@@ -32,7 +32,11 @@
         </div>
         <div class="card-footer text-end">
             <input type="submit" value="Filter" class="btn btn-primary">
-                          <a href="{% url 'hr-monitor-pdf' %}?{{ request.GET.urlencode }}" class="btn btn-primary" target="_blank">Print PDF</a>
+                          {% if request.GET.academic_year %}
+<a href="{% url 'hr-monitor-pdf' %}?{{ request.GET.urlencode }}" class="btn btn-primary" target="_blank">Print PDF</a>
+{% else %}
+<button type="button" class="btn btn-primary" disabled>Print PDF</button>
+{% endif %}
         </div>
     </form>
 </div>
@@ -52,8 +56,12 @@
                         <th class="flex-1"><strong>Teacher</strong></th>
                         <th class="flex-1"><strong>Subject</strong></th>
                         <th class="flex-1"><strong>Course</strong></th>
+                        {% comment %}{% if is_act %}{% endcomment %}
+<!--                        <th class="flex-1"><strong>Activity</strong></th>-->
+                        {% comment %}{% else %}{% endcomment %}
                         <th class="flex-1"><strong>Formative</strong></th>
                         <th class="flex-1"><strong>Summative</strong></th>
+                        {% comment %}{% endif %}{% endcomment %}
                     </tr>
                 </thead>
                 <tbody class="flex-1">
@@ -62,8 +70,12 @@
                     <td class="flex-1">{{ leftj.teacher }}</td>
                     <td class="flex-1">{{ leftj.subject }}</td>
                     <td class="flex-1">{{ leftj.name }}</td>
+                    {% comment %} {% if is_act %} {% endcomment %}
+{% comment %}  <td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=act_type year=request.GET.academic_year page=None %}">{{ leftj.act_count }}x</a></td> {% endcomment %}
+{% comment %} {% else %} {% endcomment %}
 <td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=form_type year=request.GET.academic_year page=None %}">{{ leftj.form_count }}x</a></td>
 <td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=summ_type year=request.GET.academic_year page=None %}">{{ leftj.summ_count }}x</a></td>
+                    {% comment %}  {% endif %} {% endcomment %}
                 </tr>
                 {% endfor %}
                 </tbody>

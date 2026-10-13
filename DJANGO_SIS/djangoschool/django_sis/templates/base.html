@@ -119,7 +119,9 @@
 <!--                        <li><a class="{% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>-->
                         <li><a class="{% if request.resolver_match.url_name == 'pdev-table' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>
                         <li><a class="{% if request.resolver_match.url_name == 'rubric-table' %}active{% endif %}" href="{% url 'rubric-table' %}">Student Behaviour Table</a></li>
-                        <li class="mb-4"><a class="{% if request.resolver_match.url_name == 'dorm-rubric-table' %}active{% endif %}" href="{% url 'dorm-rubric-table' %}">Student Dorm Behaviour Table</a></li>
+                        <li><a class="{% if request.resolver_match.url_name == 'dorm-rubric-table' %}active{% endif %}" href="{% url 'dorm-rubric-table' %}">Student Dorm Behaviour Table</a></li>
+                        <li><a class="{% if request.resolver_match.url_name == 'assignment-ledger' %}active{% endif %}" href="{% url 'assignment-ledger' %}">Assignments Ledger</a></li>
+                        <li class="mb-4"><a class="{% if request.resolver_match.url_name == 'hr-monitor-table' %}active{% endif %}" href="{% url 'hr-monitor-table' %}">Hr Teacher Grade Monitor</a></li>
                         <li class="menu-title">Processes</li>
                         <li><a class="{% if request.resolver_match.url_name == 'assignment-avg-wizard' %}active{% endif %}" href="{% url 'assignment-avg-wizard' %}">Final Grade Calc</a></li>
                         <li><a class="{% if request.resolver_match.url_name == 'midterm-report-select' %}active{% endif %}" href="{% url 'midterm-report-select' %}">Print Report Card</a></li>

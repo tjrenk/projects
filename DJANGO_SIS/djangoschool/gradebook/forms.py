@@ -3063,10 +3063,10 @@ class CpmpCreateForm(forms.ModelForm):
         })
 
 class GetRPCAcademicComments(forms.ModelForm):
-    # is_mid = forms.BooleanField(
-    #     required=False,
-    #     widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-    # )
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
 
     class Meta:
         model = GradeEntry

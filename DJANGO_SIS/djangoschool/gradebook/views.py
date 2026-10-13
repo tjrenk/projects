@@ -5264,7 +5264,8 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
             academic_year = data0.get('academic_year')
             period = data0.get('period')
             level = data0.get('level')
-            is_mid = data0.get('is_mid')
+            # is_mid = bool(data0.get('is_mid'))
+            # is_mid = data0.get('is_mid')
             # is_mid = False
 
             if not course or not subject:
@@ -5277,13 +5278,14 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
 
             # Only students who already have a ReportcardGrade for this subject/period —
             # ungraded students simply don't appear
+
             grades = ReportcardGrade.objects.filter(
                 subject=subject,
                 reportcard__student_id__in=member_student_ids,
                 reportcard__academic_year=academic_year,
                 reportcard__period=period,
-                reportcard__is_mid=is_mid,
-                # reportcard__is_mid=False,
+                # reportcard__is_mid=is_mid,
+                reportcard__is_mid=False,
                 reportcard__level=level,
             ).select_related('reportcard__student__registration_data')
 
@@ -6772,6 +6774,8 @@ def hr_monitor_table(request):
             pk=period_id, academic_year_id=request.GET['academic_year']
         ).first() if period_id else None
         in_period = Q(assignmenthead__date__range=(period.date_start, period.date_end)) if period else Q()
+        subject_id = request.GET.get('subject')
+        is_act = Subject.objects.filter(pk=subject_id, is_activity=True).exists() if subject_id else False
 
         left = (
             Course.objects.filter(academic_year_id=request.GET['academic_year'])
@@ -6780,6 +6784,8 @@ def hr_monitor_table(request):
                                  distinct=True),
                 summ_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='SUMM'),
                                  distinct=True),
+                act_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='ACT'),
+                                distinct=True),
             )
             .select_related('subject', 'teacher')
             .order_by('teacher__first_name', 'subject__subject_name', 'short_name')
@@ -6802,6 +6808,8 @@ def hr_monitor_table(request):
         'pnation_left': pnation_left,
         'form_type': types.get('FORM'),
         'summ_type': types.get('SUMM'),
+        # 'is_act': is_act,
+        'act_type': types.get('ACT'),
     })
 
 

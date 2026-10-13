@@ -46,7 +46,8 @@ BREADCRUMB_MAP = {
     'student-attendance': (('Data Entry', None), ('Student Attendance', 'student-attendance')),
     'report-card': (('Data Entry', None), ("Hr Teacher's Comments", 'report-card')),
     'rubric-entry': (('Data Entry', None), ('Student Behaviour', 'rubric-entry')),
-    'rp-comment': (('Data Entry', None), ("Teacher's Comments", 'rp-comment')),
+    'rp-comment': (('Data Entry', None), ("Academic Comments", 'rp-comment')),
+    'dorm-rubric-entry': (('Data Entry', None), ("Student Behaviour in Dormitory", 'dorm-rubric-entry')),
     'extra-report': (('Data Entry', None), ('Extracurricular Grade', 'extra-report')),
     'personal-dev': (('Data Entry', None), ('Personal Development Grade', 'personal-dev')),
     'cpmp-create': (('Data Entry', None), ('Lesson Outcome', 'cpmp-create')),
@@ -71,6 +72,8 @@ BREADCRUMB_MAP = {
     'rubric-table': (('Reporting', None), ('Student Behavior Grades Table', 'rubric-table')),
     'rubric-edit': (('Reporting', None), ('Student Behavior Grades Table', 'rubric-table')),
     'rubric-delete': (('Reporting', None), ('Student Behavior Grade Delete', None)),
+    'class-attendance-ledger': (('Reporting', None), ('Attendance Ledger', 'class-attendance-ledger')),
+    'hr-monitor-table': (('Reporting', None), ('Hr Teacher Grade Monitor', 'hr-monitor-table')),
 }
 
 @register.simple_tag(takes_context=True)
