@@ -195,8 +195,9 @@
 {#                              <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>#}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'pdev-table' or request.resolver_match.url_name == 'pdev-edit' or request.resolver_match.url_name == 'pdev-del' %}active{% endif %}" href="{% url 'pdev-table' %}">Personal Development Table</a></li>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'class-attendance-ledger' %}active{% endif %}" href="{% url 'class-attendance-ledger' %}">Attendance Ledger</a></li>
+                                {% if is_homeroom or user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'hr-monitor-table' %}active{% endif %}" href="{% url 'hr-monitor-table' %}">Hr Teacher Grade Monitor</a></li>
-
+                                {% endif %}
 <!--                                {% if user.is_staff %}-->
 <!--                                <li><a href="{% url 'assignment-avg-wizard' %}">Hitung Nilai Akhir</a></li>-->
 <!--                                {% endif %}-->

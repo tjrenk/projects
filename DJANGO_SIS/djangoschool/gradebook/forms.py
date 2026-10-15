@@ -1377,8 +1377,8 @@ class HomeroomAssignmentMonitorForm(BaseReportForm, forms.Form):
         ) if acayear else LearningPeriod.objects.none()
 
         self.fields['subject'].queryset = Subject.objects.filter(
-            course__teacher_id=teacher_id
-        ).distinct() if teacher_id else Subject.objects.all()
+            course__teacher_id=teacher_id, is_activity=False
+        ).distinct() if teacher_id else Subject.objects.filter(is_activity=False).all()
 
         self.fields['academic_year'].widget.attrs.update({
             'id': 'acayear-select-homeroom-monitor',

@@ -769,15 +769,6 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
 
         return context
 
-    # Grade Entry Form lock
-    # pengecekan doang ini, claude ngescam ih ckckckck
-    # def is_grade_entry_locked():
-    #     lock = LockDataEntry.objects.first()
-    #     if not lock or not lock.lock_start or not lock.lock_end:
-    #         return False
-    #     today = timezone.now().date()
-    #     return lock.lock_start <= today <= lock.lock_end
-
     def post(self, *args, **kwargs):
         wizard_goto_step = self.request.POST.get('wizard_goto_step')
         if wizard_goto_step:
@@ -1987,8 +1978,8 @@ def get_subjects_ledger(request):
     teacher_id = request.GET.get('teacher')
     selected_subject = request.GET.get('subject')
     subjects = Subject.objects.filter(
-        course__teacher_id=teacher_id
-    ).distinct() if teacher_id else Subject.objects.all()
+        course__teacher_id=teacher_id, is_activity=False
+    ).distinct() if teacher_id else Subject.objects.filter(is_activity=False).all()
 
     html = '<option value="">All</option>'
     for s in subjects:
@@ -6784,6 +6775,8 @@ def hr_monitor_table(request):
                                  distinct=True),
                 summ_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='SUMM'),
                                  distinct=True),
+                # buat matpel ekskul, dikeep aja buat jaga2, gabakal kepake kecuali ada ditrigger di template
+                # kalo misalnya loading page lama karena tambahan query dibawah boleh di comment out (jgn lupa contextnya dibawah dibuang jg)
                 act_count=Count('assignmenthead', filter=in_period & Q(assignmenthead__assignment__short_name='ACT'),
                                 distinct=True),
             )
