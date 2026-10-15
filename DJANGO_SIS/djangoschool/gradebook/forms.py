@@ -199,6 +199,11 @@ class GradeEntryForm(forms.ModelForm):
         else:
             self.fields['assignment_category'].choices = [('', '---------')]
 
+        if is_activity:
+            self.fields['assignment_type'].required = False
+            self.fields['assignment_category'].required = False
+            self.fields['cpmp_target'].required = False
+
         # --- HTMX Attributes ---
         # Update Academic Year to trigger Period update
         self.fields['academic_year'].widget.attrs.update({

@@ -687,8 +687,6 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         ("2", AssignmentDetailFormSet),
     ]
 
-
-
     def _get_homeroom_class(self):
         return Class.objects.filter(
             teacher__user=self.request.user,
@@ -747,18 +745,35 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         step0_data = self.get_cleaned_data_for_step('0')
         if step0_data:
             cpmp_targets = step0_data.get('cpmp_target')
-            context.update({
-                'selected_academic_year': step0_data.get('academic_year'),
-                'selected_period':        step0_data.get('period'),
-                'selected_level':         step0_data.get('level'),
-                'selected_subject':       step0_data.get('subject'),
-                'selected_teacher':       step0_data.get('teacher'),
-                'selected_course':       step0_data.get('course'),
-                'selected_is_mid':        step0_data.get('is_mid'),
-                'selected_assignment_type': step0_data.get('assignment_type'),
-                'selected_assignment_category': dict(ASSIGNMENT_CAT_CHOICES).get(step0_data.get('assignment_category')),
-                'selected_cpmp_target': [t.text for t in cpmp_targets] if cpmp_targets else [],
-            })
+            is_activity = step0_data.get('is_activity')
+            if is_activity:
+                context.update({
+                    'selected_academic_year': step0_data.get('academic_year'),
+                    'selected_period': step0_data.get('period'),
+                    'selected_level': step0_data.get('level'),
+                    'selected_subject': step0_data.get('subject'),
+                    'selected_teacher': step0_data.get('teacher'),
+                    'selected_course': step0_data.get('course'),
+                    'selected_is_mid': step0_data.get('is_mid'),
+                    'selected_assignment_type': 'ACT' if is_activity else step0_data.get('assignment_type'),
+                    'selected_assignment_category': 'Activity' if is_activity else dict(ASSIGNMENT_CAT_CHOICES).get(
+                        step0_data.get('assignment_category')),
+                    'selected_cpmp_target': ['Activity'] if is_activity else (
+                        [t.text for t in cpmp_targets] if cpmp_targets else []),
+                })
+            else:
+                context.update({
+                    'selected_academic_year': step0_data.get('academic_year'),
+                    'selected_period':        step0_data.get('period'),
+                    'selected_level':         step0_data.get('level'),
+                    'selected_subject':       step0_data.get('subject'),
+                    'selected_teacher':       step0_data.get('teacher'),
+                    'selected_course':       step0_data.get('course'),
+                    'selected_is_mid':        step0_data.get('is_mid'),
+                    'selected_assignment_type': step0_data.get('assignment_type'),
+                    'selected_assignment_category': dict(ASSIGNMENT_CAT_CHOICES).get(step0_data.get('assignment_category')),
+                    'selected_cpmp_target': [t.text for t in cpmp_targets] if cpmp_targets else [],
+                })
 
         step1_data = self.get_cleaned_data_for_step('1')
         if step1_data:
@@ -781,16 +796,41 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         data1 = form_list[1].cleaned_data
         formset = form_list[2]
 
+        if data0.get('is_activity'):
+            root, _ = CapaianPemelajaranLulusan.objects.get_or_create(text="-")
+            # outcome, _ = CapaianPemelajaranMataPelajaran.objects.get_or_create(
+            #     academic_year=data0['academic_year'], level=data0['level'],
+            #     subject=data0['subject'], text="Activity",
+            #     defaults={'cpl_root': root},
+            # )
+            outcome = CapaianPemelajaranMataPelajaran.objects.filter(
+                academic_year=data0['academic_year'], level=data0['level'],
+                subject=data0['subject'], text="Activity",
+            ).order_by('id').first() or CapaianPemelajaranMataPelajaran.objects.create(
+                academic_year=data0['academic_year'], level=data0['level'],
+                subject=data0['subject'], text="Activity", cpl_root=root,
+            )
+            assignment_type = AssignmentType.objects.get(short_name='ACT')
+            category = 'AC'
+            outcomes = [outcome]
+        else:
+            assignment_type = data0['assignment_type']
+            category = data0['assignment_category']
+            outcomes = data0['cpmp_target']
+
         assignment_head = AssignmentHead(
-            assignment=data0['assignment_type'],
-            category=data0['assignment_category'],
+            # assignment=data0['assignment_type'],
+            # category=data0['assignment_category'],
+            assignment=assignment_type,
+            category=category,
             course=data0['course'],
             date=data1['date'],
             topic=data1['topic'],
             max_score=data1['max_score'],
         )
         assignment_head.save()
-        assignment_head.cpmp_target.set(data0['cpmp_target'])
+        # assignment_head.cpmp_target.set(data0['cpmp_target'])
+        assignment_head.cpmp_target.set(outcomes)
 
         max_score = assignment_head.max_score
         details_to_create = []

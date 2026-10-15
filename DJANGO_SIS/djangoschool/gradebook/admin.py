@@ -377,6 +377,21 @@ class PDRPTAdmin(admin.ModelAdmin):
     list_filter = ["reporcard", ]
     form = PDRPTAdminForm
 
+class StudentDormitoryInLine(admin.TabularInline):
+    model = StudentDormitoryReport
+    fields = ("score", "rubric", "student", "description", "grade")
+    extra = 1
+    form = StudentListForm
+
+class ReportcardDormitoryAdmin(admin.ModelAdmin):
+    list_display = ("academic_year", "period", "is_mid", "level")
+    list_filter = ["academic_year", "period", "is_mid", "level"]
+    inline = [StudentDormitoryInLine]
+
+class StudentDormitoryReportAdmin(admin.ModelAdmin):
+    list_display = ("score", "rubric", "student", "description", "grade")
+    list_filter = ["score", "rubric", "student", "description", "grade"]
+
 
 class LockDataEntryAdmin(admin.ModelAdmin):
     list_display = ["lock_start", "lock_end"]
@@ -457,3 +472,5 @@ admin.site.register(AssignmentHead, AssignmentHeadAdmin)
 admin.site.register(AssignmentDetail, AssignmentDetailAdmin)
 admin.site.register(LockDataEntry, LockDataEntryAdmin)
 admin.site.register(ReportCardOrder, RPOrderAdmin)
+admin.site.register(ReportcardDormitory, ReportcardDormitoryAdmin)
+admin.site.register(StudentDormitoryReport, StudentDormitoryReportAdmin)

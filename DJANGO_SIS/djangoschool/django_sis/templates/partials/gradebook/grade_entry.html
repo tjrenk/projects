@@ -42,7 +42,7 @@
             </div>
             {% endif %}
 
-            <form id="grade-entry-form" action="" method="post">
+            <form id="grade-entry-form" action="" method="post" novalidate>
                 {% csrf_token %}
                 {{ wizard.management_form }}
 

@@ -73,8 +73,13 @@
                     {% comment %} {% if is_act %} {% endcomment %}
 {% comment %}  <td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=act_type year=request.GET.academic_year page=None %}">{{ leftj.act_count }}x</a></td> {% endcomment %}
 {% comment %} {% else %} {% endcomment %}
+                    {% if user.is_staff %}
 <td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=form_type year=request.GET.academic_year page=None %}">{{ leftj.form_count }}x</a></td>
 <td><a href="{% url 'grade-entry-table' %}{% querystring course=leftj.id type=summ_type year=request.GET.academic_year page=None %}">{{ leftj.summ_count }}x</a></td>
+                    {% else %}
+                    <td>{{ leftj.form_count }}x</td>
+                    <td>{{ leftj.summ_count }}x</td>
+                    {% endif %}
                     {% comment %}  {% endif %} {% endcomment %}
                 </tr>
                 {% endfor %}
