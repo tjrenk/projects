@@ -242,6 +242,7 @@ post_save.connect(new_grade_entry, GradeEntry)
 
 #konversi nilai raport ke huruf
 pre_save.connect(set_final_grade, ReportcardGrade)
+post_save.connect(set_final_grade, ReportcardGrade)
 
 #buat record rubrik untuk tiap 1 nilai raport
 # post_save.connect(tambah_record_rubriksiswa, ReportcardGrade)

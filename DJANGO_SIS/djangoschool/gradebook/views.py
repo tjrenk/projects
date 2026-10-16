@@ -11,6 +11,7 @@ import re
 from formtools.wizard.views import SessionWizardView
 from .forms import *
 from .models import *
+from .signals import calc_letter_grade
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min, Q
 from django.db.models import F, OuterRef, Subquery
@@ -48,6 +49,7 @@ from django.conf import settings
 from reportlab.pdfgen import canvas as pdfcanvas
 from functools import partial
 from collections import defaultdict
+import math
 
 
 
@@ -1500,6 +1502,7 @@ def get_courses_ge(request):
 def get_assignment_types_ge(request):
     # Check for the course ID
     course_id = request.GET.get('0-course') or request.GET.get('course')
+    is_activity = request.GET.get('0-is_activity') or request.GET.get('is_activity')
 
     if course_id:
         # Get the subject from the course
@@ -1513,7 +1516,7 @@ def get_assignment_types_ge(request):
     else:
         types = AssignmentType.objects.none()
 
-    context = {'assignment_types': types}  # Make sure this key matches your template loop
+    context = {'assignment_types': types, 'is_activity': is_activity}  # Make sure this key matches your template loop
     return render(request, "partials/gradebook/gradeentry_partials/assignment_type.html", context)
 
 
@@ -3972,219 +3975,188 @@ import json
 from django.core.serializers.json import DjangoJSONEncoder
 
 # KALKULASI NILAI AKHIR (UTS & UAS)
+# CATATAN: SELURUH KODINGAN PERHITUNGAN SUDAH DIREVAMP BIAR LEBIH SIMPLE DAN OPTIMIZED (niatnya sih gitu ya)
+# KALO ADA MASALAH BOLEH DI RESTORE DARI FILE VIEWS.PY DALAM REPO GITHUB SEBELUM TANGGAL 16 OKT 2026
 def get_effective_weightings(academic_year, level, period, is_mid, subject):
     """
-    Returns the Weighting queryset that should apply for this subject.
-    Prefers subject-specific rows; falls back to subject=None (global) rows
-    if none exist for this specific academic_year/level/period/is_mid/subject.
+    Weighting rows for this subject. Uses the subject-specific rows if any exist,
+    otherwise falls back to the global rows (subject=None).
     """
-    subject_specific = Weighting.objects.filter(
-        academic_year=academic_year, level=level, period=period,
-        is_mid=is_mid, subject=subject,
+    base = Weighting.objects.filter(
+        academic_year=academic_year, level=level, period=period, is_mid=is_mid,
     ).select_related('assignment')
-
-    if subject_specific.exists():
-        return subject_specific
-
-    return Weighting.objects.filter(
-        academic_year=academic_year, level=level, period=period,
-        is_mid=is_mid, subject__isnull=True,
-    ).select_related('assignment')
+    # `or` evaluates the first queryset once; if it's empty we use the fallback.
+    return base.filter(subject=subject) or base.filter(subject__isnull=True)
 
 
-def weighting_exists_for(academic_year, level, period, is_mid, subject):
-    """Existence check respecting the same fallback rule."""
-    return get_effective_weightings(academic_year, level, period, is_mid, subject).exists()
-
-
-# def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period, course=None):
 def calculate_student_averages_optimized(academic_year, subject, level, is_mid, period):
     weightings = get_effective_weightings(academic_year, level, period, is_mid, subject)
-    # OLD
-    # weight_map = {w.assignment_id: float(w.weight) for w in weightings}
-    weight_map = {}
-    for w in weightings:
-        weight = float(w.weight)
-        if w.assignment.short_name == 'ACT' and w.subject_id is None:
-            weight += 0.01
-        weight_map[w.assignment_id] = weight
-
-    assign_type_map = {
-        at.id: at
-        for at in AssignmentType.objects.filter(id__in=weight_map.keys())
-    }
-
-    if not weight_map:
+    if not weightings:
         return [], None
 
-    terms = LearningPeriod.objects.filter(
-        academic_year=academic_year, date_start__lte=period.date_end,
-        date_end__gte=period.date_start, period_name__icontains='term'
-    ).order_by('date_start')
+    # {assignment_type_id: weight} and {assignment_type_id: short_name}
+    weight_map, label_map = {}, {}
+    for w in weightings:
+        name = w.assignment.short_name
+        weight = float(w.weight)
+        if name == 'ACT' and w.subject_id is None:
+            weight += 0.01  # kept from the old code
+        weight_map[w.assignment_id] = weight
+        label_map[w.assignment_id] = name
 
-    term_period = terms.first() if is_mid else terms.last()
-    term_period = term_period or period
-    all_terms = list(terms)
+    # Which "term" do the scores come from? UTS -> first term, UAS -> last term.
+    all_terms = list(LearningPeriod.objects.filter(
+        academic_year=academic_year,
+        date_start__lte=period.date_end, date_end__gte=period.date_start,
+        period_name__icontains='term',
+    ).order_by('date_start'))
 
-    grades_data = AssignmentDetail.objects.filter(
+    if all_terms:
+        term_period = all_terms[0] if is_mid else all_terms[-1]
+    else:
+        term_period = period
+
+    scores = AssignmentDetail.objects.filter(
         assignment_head__course__subject=subject,
         assignment_head__course__level=level,
         assignment_head__course__academic_year=academic_year,
         assignment_head__assignment_id__in=weight_map.keys(),
-        assignment_head__date__range=(term_period.date_start, term_period.date_end)
     )
-    # if course:
-    #     grades_data = grades_data.filter(assignment_head__course=course)
-    grades_data = grades_data.values('student_id', 'assignment_head__assignment_id').annotate(avg_score=Avg('score'))
 
-    all_individual_scores = AssignmentDetail.objects.filter(
-        assignment_head__course__subject=subject,
-        assignment_head__course__level=level,
-        assignment_head__course__academic_year=academic_year,
-        assignment_head__assignment_id__in=weight_map.keys(),
-        assignment_head__date__range=(term_period.date_start, term_period.date_end)
-    )
-    # if course:
-    #     all_individual_scores = all_individual_scores.filter(assignment_head__course=course)
-    all_individual_scores = all_individual_scores.select_related(
-        'assignment_head__assignment', 'assignment_head'
-    ).values('student_id', 'score', 'assignment_head__topic', 'assignment_head__date',
-              'assignment_head__assignment__short_name', 'assignment_head__assignment__name')
+    # Per-type averages for EVERY student, one query per term:
+    # {term_id: {student_id: {assignment_type_id: avg}}}
+    avgs = {}
+    for term in all_terms or [term_period]:
+        rows = (scores
+                .filter(assignment_head__date__range=(term.date_start, term.date_end))
+                .values('student_id', 'assignment_head__assignment_id')
+                .annotate(avg=Avg('score')))
+        avgs[term.id] = defaultdict(dict)
+        for r in rows:
+            avgs[term.id][r['student_id']][r['assignment_head__assignment_id']] = float(r['avg'])
+    current = avgs[term_period.id]  # the term that decides the final score
 
+    # Individual scores for the detail view (DB does the sorting)
     scores_by_student = defaultdict(list)
-    for row in all_individual_scores:
-        scores_by_student[row['student_id']].append({
-            'topic': row['assignment_head__topic'],
-            'date': row['assignment_head__date'],
-            'type': row['assignment_head__assignment__short_name'],
-            'type_name': row['assignment_head__assignment__name'],
-            'score': float(row['score']),
+    detail_rows = (scores
+                   .filter(assignment_head__date__range=(term_period.date_start, term_period.date_end))
+                   .order_by('assignment_head__assignment__short_name', 'assignment_head__date')
+                   .values('student_id', 'score', 'assignment_head__topic', 'assignment_head__date',
+                           'assignment_head__assignment__short_name', 'assignment_head__assignment__name'))
+    for r in detail_rows:
+        scores_by_student[r['student_id']].append({
+            'topic': r['assignment_head__topic'],
+            'date': r['assignment_head__date'],
+            'type': r['assignment_head__assignment__short_name'],
+            'type_name': r['assignment_head__assignment__name'],
+            'score': float(r['score']),
         })
 
-    uts_scores = {}
-    uts_weight = 0.0
-
+    # UAS also counts the saved UTS score
+    uts_weight, uts_scores = 0.0, {}
     if not is_mid:
-        uts_weightings = get_effective_weightings(academic_year, level, period, True, subject)
-        uts_w_obj = uts_weightings.filter(assignment__short_name='SUMM').first()
-        if uts_w_obj:
-            uts_weight = float(uts_w_obj.weight) / 100.0 if float(uts_w_obj.weight) > 1 else float(uts_w_obj.weight)
+        uts_row = next(
+            (w for w in get_effective_weightings(academic_year, level, period, True, subject)
+             if w.assignment.short_name == 'SUMM'),
+            None,
+        )
+        if uts_row:
+            uts_weight = float(uts_row.weight)
 
         uts_grades = ReportcardGrade.objects.filter(
             reportcard__academic_year=academic_year, reportcard__period=period,
-            reportcard__is_mid=True, subject=subject
-        )
-        uts_scores = {g.reportcard.student_id: float(g.final_score) for g in uts_grades}
+            reportcard__is_mid=True, subject=subject,
+        ).values_list('reportcard__student_id', 'final_score')
+        uts_scores = {student_id: float(score) for student_id, score in uts_grades}
 
-    student_records = {}
-    for row in grades_data:
-        s_id = row['student_id']
-        score = float(row['avg_score'] or 0)
-        weight = weight_map.get(row['assignment_head__assignment_id'], 0)
-
-        if s_id not in student_records:
-            student_records[s_id] = {'raw_sum': 0, 'count': 0, 'weighted_sum': 0.0}
-
-        student_records[s_id]['raw_sum'] += score
-        student_records[s_id]['count'] += 1
-        student_records[s_id]['weighted_sum'] += (score * weight)
-
-    results = []
-    student_courses = {
+    students = Student.objects.in_bulk(list(current))
+    courses = {
         cm.student_id: cm.course
         for cm in CourseMember.objects.filter(
-            student_id__in=student_records.keys(),
-            course__subject=subject,
-            course__level=level,
-            course__academic_year=academic_year,
+            student_id__in=current.keys(),
+            course__subject=subject, course__level=level, course__academic_year=academic_year,
             is_active=True,
         ).select_related('course')
     }
-    students = {s.id: s for s in Student.objects.filter(id__in=student_records.keys())}
 
-    for s_id, record in student_records.items():
-        student_obj = students.get(s_id)
-        if not student_obj:
+    results = []
+    for s_id, type_avgs in current.items():
+        student = students.get(s_id)
+        if not student:
             continue
 
-        raw_avg = record['raw_sum'] / record['count'] if record['count'] > 0 else 0
-        final_score = record['weighted_sum']
-
-        if not is_mid:
-            final_score += (uts_scores.get(s_id, 0.0) * uts_weight)
+        uts_score = uts_scores.get(s_id, 0.0)  # stays 0.0 on UTS runs (uts_scores is empty)
+        weighted_avg = sum(avg * weight_map[t] for t, avg in type_avgs.items()) + uts_score * uts_weight
 
         breakdown = []
-        for assign_id, weight in weight_map.items():
-            assign_type = assign_type_map.get(assign_id)
-            type_avg = next(
-                (float(r['avg_score']) for r in grades_data
-                 if r['student_id'] == s_id
-                 and r['assignment_head__assignment_id'] == assign_id),
-                0.0
-            )
+        for t, weight in weight_map.items():
+            avg = type_avgs.get(t, 0.0)
             breakdown.append({
-                'label': assign_type.short_name if assign_type else str(assign_id),
-                'avg': round(type_avg, 2),
+                'label': label_map[t],
+                'avg': round(avg, 2),
                 'weight': weight,
-                'weighted': round(type_avg * weight, 2),
+                'weighted': round(avg * weight, 2),
             })
 
-        term_breakdown = []
-        for term in all_terms:
-            term_grades = AssignmentDetail.objects.filter(
-                assignment_head__course__subject=subject,
-                assignment_head__course__level=level,
-                assignment_head__course__academic_year=academic_year,
-                assignment_head__assignment_id__in=weight_map.keys(),
-                assignment_head__date__range=(term.date_start, term.date_end),
-                student_id=s_id,
-            )
-            # if course:
-            #     term_grades = term_grades.filter(assignment_head__course=course)
-            term_grades = term_grades.values('assignment_head__assignment_id').annotate(avg_score=Avg('score'))
-
-            term_rows = []
-            for row in term_grades:
-                assign_type = assign_type_map.get(row['assignment_head__assignment_id'])
-                term_rows.append({
-                    'label': assign_type.short_name if assign_type else '-',
-                    'avg': round(float(row['avg_score'] or 0), 2),
-                })
-
-            term_breakdown.append({
+        term_breakdown = [
+            {
                 'term_name': term.period_name,
-                'rows': term_rows,
-            })
-
-        uts_breakdown = None
-        if not is_mid and uts_scores.get(s_id):
-            uts_breakdown = {
-                'score': uts_scores.get(s_id, 0.0),
-                'weight': uts_weight,
-                'weighted': round(uts_scores.get(s_id, 0.0) * uts_weight, 2),
+                'rows': [{'label': label_map[t], 'avg': round(avg, 2)}
+                         for t, avg in avgs[term.id].get(s_id, {}).items()],
             }
+            for term in all_terms
+        ]
 
         results.append({
-            'student_obj': student_obj,
-            'student_name': str(student_obj),
-            'nisn': getattr(student_obj, 'nisn', '-'),
+            'student_obj': student,
+            'student_name': str(student),
+            'nisn': getattr(student, 'nisn', '-'),
             'subject': subject,
-            'course': student_courses.get(s_id),
+            'course': courses.get(s_id),
             'level': level,
-            'raw_avg': raw_avg,
-            'weighted_avg': final_score,
-            'final_score_preview': round(final_score),
+            'raw_avg': sum(type_avgs.values()) / len(type_avgs),
+            'weighted_avg': weighted_avg,
+            'final_score_preview': min(100, math.ceil(round(weighted_avg, 2))),  # round UP, capped at 100
             'period': period,
             'breakdown': breakdown,
             'term_breakdown': term_breakdown,
-            'uts_breakdown': uts_breakdown,
-            'individual_scores': sorted(
-                scores_by_student.get(s_id, []),
-                key=lambda x: (x['type'], x['date'])
-            ),
+            'uts_breakdown': {
+                'score': uts_score,
+                'weight': uts_weight,
+                'weighted': round(uts_score * uts_weight, 2),
+            } if uts_score else None,
+            'individual_scores': scores_by_student.get(s_id, []),
         })
 
     return results, term_period
+
+def calculate_for_subjects(academic_year, level, period, is_mid, subject=None):
+    """
+    One subject if given, otherwise every subject that has a course at this
+    level in this academic year.
+    Returns (rows, names of subjects that produced no rows).
+    """
+    if subject:
+        subjects = [subject]
+    else:
+        subjects = Subject.objects.filter(
+            course__academic_year=academic_year, course__level=level,
+        ).distinct().order_by('subject_name')
+
+    results, empty = [], []
+    for s in subjects:
+        rows, _ = calculate_student_averages_optimized(
+            academic_year=academic_year, subject=s, level=level,
+            is_mid=is_mid, period=period,
+        )
+        if rows:
+            results.extend(rows)
+        else:
+            empty.append(s.subject_name)
+
+    results.sort(key=lambda r: (r['student_name'], r['subject'].subject_name))
+    return results, empty
+
 
 class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
     template_name = "partials/gradebook/assignment_avg.html"
@@ -4204,7 +4176,6 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         academic_year = form_data.get('academic_year')
         level = form_data.get('level')
         subject = form_data.get('subject')
-        # course = form_data.get('course')
         is_mid = form_data.get('is_mid')
         period = form_data.get('period')
 
@@ -4213,36 +4184,21 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
                 academic_year=academic_year, period_name__icontains='Semester'
             ).order_by('date_start').first()
 
-        weighting_exists = Weighting.objects.filter(
-            academic_year=academic_year, level=level, subject=subject,
-            period=period, is_mid=is_mid
-        ).exists()
-
-
-        # pengecekan jika ada data Weighting
-        # if not weighting_exists:
-        #     messages.error(
-        #         self.request,
-        #         f"No grading weights have been set up for {subject} "
-        #         f"({level}, {period}, {'Mid Term' if is_mid else 'Final Term'}). "
-        #         f"Please add a Weighting entry in the admin panel before calculating."
-        #     )
-        #     return redirect('assignment-avg-wizard')
-
-        # student_results, decided_period = calculate_student_averages_optimized(
+        # old, before using the bulk + mass
+        # student_results, _ = calculate_student_averages_optimized(
         #     academic_year=academic_year, subject=subject, level=level,
-        #     is_mid=is_mid, period=period, course=course
+        #     is_mid=is_mid, period=period,
         # )
-        student_results, decided_period = calculate_student_averages_optimized(
-            academic_year=academic_year, subject=subject, level=level,
-            is_mid=is_mid, period=period
+        student_results, empty = calculate_for_subjects(
+            academic_year, level, period, is_mid, subject,
         )
+        if empty:
+            messages.warning(self.request, "No weightings or scores for: " + ", ".join(empty))
 
         context = {
             'student_results': student_results,
             'selected_academic_year': academic_year,
             'selected_subject': subject,
-            # 'selected_course': course,
             'selected_level': level,
             'selected_period': period,
             'is_mid': is_mid,
@@ -4250,59 +4206,154 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
 
 
+@login_required
 @require_POST
 def save_assignment_results(request):
-    ay_id = request.POST.get('academic_year_id')
-    sub_id = request.POST.get('subject_id')
-    lvl_id = request.POST.get('level_id')
     period_id = request.POST.get('period_id')
-    # course_id = request.POST.get('course_id')
-    is_mid = request.POST.get('is_mid', 'False').lower() == 'true'
-
     if not period_id:
         messages.error(request, "Gagal. ID Periode tidak ditemukan dari template.")
         return redirect('assignment-avg-wizard')
 
-    academic_year = AcademicYear.objects.get(id=ay_id)
-    subject = Subject.objects.get(id=sub_id)
-    level = GradeLevel.objects.get(id=lvl_id)
-    period = LearningPeriod.objects.get(id=period_id)
-    # course = Course.objects.filter(id=course_id).first() if course_id else None
+    academic_year = get_object_or_404(AcademicYear, id=request.POST.get('academic_year_id'))
+    subject = get_object_or_404(Subject, id=request.POST.get('subject_id'))
+    level = get_object_or_404(GradeLevel, id=request.POST.get('level_id'))
+    period = get_object_or_404(LearningPeriod, id=period_id)
+    is_mid = request.POST.get('is_mid', 'False').lower() == 'true'
 
-    # calculated_data = calculate_student_averages_optimized(
-    #     academic_year=academic_year, subject=subject, level=level,
-    #     is_mid=is_mid, period=period, course=course
-    # )[0]
-    calculated_data = calculate_student_averages_optimized(
+    # Recalculate on the server instead of trusting scores posted from the page.
+    calculated_data, _ = calculate_student_averages_optimized(
         academic_year=academic_year, subject=subject, level=level,
-        is_mid=is_mid, period=period
-    )[0]
+        is_mid=is_mid, period=period,
+    )
 
-    # --- THE DUMP (Save to DB) ---
     with transaction.atomic():
         for data in calculated_data:
-            student = data['student_obj']
-            final_score_int = data['final_score_preview']
-
             reportcard, _ = StudentReportcard.objects.update_or_create(
-                student=student,
-                academic_year=academic_year,
-                period=period,
-                is_mid=is_mid,
-                defaults={'level': level}
+                student=data['student_obj'], academic_year=academic_year,
+                period=period, is_mid=is_mid,
+                defaults={'level': level},
             )
-
+            # lookup = WHO the row is; defaults = WHAT we overwrite
             ReportcardGrade.objects.update_or_create(
-                reportcard=reportcard,
-                subject=subject,
-                # defaults={
-                #     'final_score': final_score_int,
-                # }
-                final_score=final_score_int
+                reportcard=reportcard, subject=subject,
+                # terakhir kali defaults={} dibawah ada buat masalah makanya di comment out
+                # uncomment karena mau percobaan fitur mass calc (belum dulu sih)
+                # kalo ada masalah boleh direstore dari github repo sblm tgl 16 Okt 2026
+                defaults={'final_score': data['final_score_preview']},
             )
 
     messages.success(request, f"Successfully saved grades for {subject.subject_name} ({period.period_name})!")
     return redirect('assignment-avg-wizard')
+
+
+# BULK version of the save step -- compare with save_assignment_results() in
+# mass_calculation.py (that file is NOT modified). Both need calculate_for_subjects()
+# from mass_calculation.py. While comparing, give this view its own URL name,
+# e.g. path('.../save-bulk/', save_assignment_results_bulk, name='save-assignment-results-bulk').
+#
+# STAFF-ONLY GUARD for "all subjects" mode. This view has it built in. Also add it to:
+#   - AssignmentAvgWizard.done(), right after `subject = form_data.get('subject')`:
+#
+#         if not subject and not (self.request.user.is_staff or self.request.user.is_superuser):
+#             messages.error(self.request, "Only admins can calculate all subjects at once.")
+#             return redirect('assignment-avg-wizard')
+#
+#   - the update_or_create version of save_assignment_results(), right after `is_mid = ...`:
+#
+#         if not subject and not (request.user.is_staff or request.user.is_superuser):
+#             messages.error(request, "Only admins can save all subjects at once.")
+#             return redirect('assignment-avg-wizard')
+
+
+
+@login_required
+@require_POST
+def save_assignment_results_bulk(request):
+    period_id = request.POST.get('period_id')
+    if not period_id:
+        messages.error(request, "Gagal. ID Periode tidak ditemukan dari template.")
+        return redirect('assignment-avg-wizard')
+
+    academic_year = get_object_or_404(AcademicYear, id=request.POST.get('academic_year_id'))
+    level = get_object_or_404(GradeLevel, id=request.POST.get('level_id'))
+    period = get_object_or_404(LearningPeriod, id=period_id)
+    sub_id = request.POST.get('subject_id')
+    subject = get_object_or_404(Subject, id=sub_id) if sub_id else None  # empty = all subjects
+    is_mid = request.POST.get('is_mid', 'False').lower() == 'true'
+
+    if not subject and not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Only admins can save all subjects at once.")
+        return redirect('assignment-avg-wizard')
+
+    calculated_data, _ = calculate_for_subjects(academic_year, level, period, is_mid, subject)
+    if not calculated_data:
+        messages.warning(request, "Nothing to save.")
+        return redirect('assignment-avg-wizard')
+
+    student_ids = {d['student_obj'].id for d in calculated_data}
+    subject_ids = {d['subject'].id for d in calculated_data}
+
+    # replaces the old `sub_id = ...` / `subject = get_object_or_404(...)` lines
+    # uncomment below if you want to use multiselect checkboxes for subjects
+    # sub_ids = set(request.POST.getlist('subject_id'))  # none = all subjects
+    # subjects = list(Subject.objects.filter(id__in=sub_ids))
+    # if len(subjects) != len(sub_ids):  # a stale id must never become "all subjects"
+    #     raise Http404("Unknown subject")
+    #
+    # if len(subjects) != 1 and not (request.user.is_staff or request.user.is_superuser):
+    #     messages.error(request, "Only admins can save several subjects at once.")
+    #     return redirect('assignment-avg-wizard')
+    #
+    # calculated_data, _ = calculate_for_subjects(academic_year, level, period, is_mid,
+    #                                             subjects)  # <- subjects, not subject
+    # if not calculated_data:
+    #     messages.warning(request, "Nothing to save.")
+    #     return redirect('assignment-avg-wizard')
+    #
+    # student_ids = {d['student_obj'].id for d in calculated_data}
+    # subject_ids = {d['subject'].id for d in calculated_data}
+
+    with transaction.atomic():
+        # 1) Report cards: create the missing ones in one INSERT, keep level in sync
+        reportcards = StudentReportcard.objects.filter(
+            academic_year=academic_year, period=period, is_mid=is_mid, student_id__in=student_ids,
+        )
+        have_reportcard = set(reportcards.values_list('student_id', flat=True))
+        StudentReportcard.objects.bulk_create([
+            StudentReportcard(student_id=sid, academic_year=academic_year,
+                              period=period, is_mid=is_mid, level=level)
+            for sid in student_ids - have_reportcard
+        ])
+        reportcards.update(level=level)  # same as the old defaults={'level': level}
+        reportcard_ids = dict(reportcards.values_list('student_id', 'id'))  # {student_id: reportcard_id}
+
+        # 2) Grades: load what already exists, then split into "update" and "create"
+        existing = {
+            (g.reportcard_id, g.subject_id): g
+            for g in ReportcardGrade.objects.filter(
+                reportcard_id__in=list(reportcard_ids.values()), subject_id__in=subject_ids,
+            )
+        }
+        to_create, to_update = [], []
+        for d in calculated_data:
+            key = (reportcard_ids[d['student_obj'].id], d['subject'].id)
+            score = d['final_score_preview']
+            grade = existing.get(key)
+            letter = calc_letter_grade(score)
+            if grade is None:
+                to_create.append(ReportcardGrade(reportcard_id=key[0], subject=d['subject'], final_score=score, final_grade=letter))
+            elif (grade.final_score, grade.final_grade) != (score, letter):  # unchanged rows are not rewritten
+                grade.final_score = score
+                grade.final_grade = letter
+                to_update.append(grade)
+
+        ReportcardGrade.objects.bulk_create(to_create)
+        ReportcardGrade.objects.bulk_update(to_update, ['final_score', 'final_grade'])
+
+    label = subject.subject_name if subject else "all subjects"
+    messages.success(request, f"Successfully saved grades for {label} ({period.period_name})!")
+    return redirect('assignment-avg-wizard')
+
 
 
 class GradesWizard(LoginRequiredMixin, SessionWizardView):

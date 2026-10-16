@@ -5,7 +5,7 @@
     <div class="card-body px-3 py-1 w-full">
         <h1 class="text-2xl font-bold mb-4">Calculate Final Grade</h1>
 
-        <form method="post" class="space-y-4">
+        <form method="post" class="space-y-4" novalidate>
             {% csrf_token %}
             {{ wizard.management_form }}
 

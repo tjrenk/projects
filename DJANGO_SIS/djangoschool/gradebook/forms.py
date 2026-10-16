@@ -2657,6 +2657,7 @@ class AssignmentAvgForm(forms.Form):
     )
     subject = forms.ModelChoiceField(
         queryset=Subject.objects.none(),
+        required=False,
         widget=forms.Select(attrs={
             'id': 'assignment-avg-subject-select',
             'class': 'custom-select mb-4',
@@ -3388,6 +3389,7 @@ class ClassAttendanceRecap(forms.Form):
     )
     kelas = forms.ModelChoiceField(
         queryset=Class.objects.all(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         required=False,
         label="Homeroom Class",
     )

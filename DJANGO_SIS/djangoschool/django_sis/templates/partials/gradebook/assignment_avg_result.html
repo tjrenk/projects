@@ -133,7 +133,7 @@
 <!--            <a href="{% url 'save_grade_avg' %}" class="btn btn-secondary">Save to Database</a>-->
             <div class="mt-8 flex items-center gap-2">
     <!-- This form sends the POST request required by the view -->
-    <form method="POST" action="{% url 'save_grade_avg' %}" style="display: inline;">
+    <form method="POST" action="{% url 'save_grade_avg_bulkmass' %}" style="display: inline;">
         {% csrf_token %}
 
         <!-- These hidden inputs tell the 'save' view what to process -->

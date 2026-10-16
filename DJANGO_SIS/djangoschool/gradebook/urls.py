@@ -136,6 +136,8 @@ urlpatterns = [
     path('get-subjects-assignment-avg/', views.get_subjects_assignment_avg, name='get-subjects-assignment-avg'),
     path('get-courses-assignment-avg/', views.get_courses_assignment_avg, name='get-courses-assignment-avg'),
     path('save_grade_avg/', views.save_assignment_results, name='save_grade_avg'),
+    # bulk + mass version below
+    path('save_grade_avg_bulkmass/', views.save_assignment_results_bulk, name='save_grade_avg_bulkmass'),
 
     # REPORT CARD
     path('midterm-report-pdf/<int:pk>', views.print_midterm_report, name='midterm-report-pdf'),
