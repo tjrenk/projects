@@ -147,10 +147,11 @@
                             <summary><i class="fa-solid fa-keyboard"></i>Data Entry</summary>
                             <ul>
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'grade-entry' %}active{% endif %}" href="{% url 'grade-entry' %}">Student Grade</a></li>
-                                <li><a class="nav-link {% if request.resolver_match.url_name == 'student-attendance' %}active{% endif %}" href="{% url 'student-attendance' %}">Student Attendance</a></li>
                                 {% if is_homeroom %}
+                                    <li><a class="nav-link {% if request.resolver_match.url_name == 'student-attendance' %}active{% endif %}" href="{% url 'student-attendance' %}">Student Attendance</a></li>
                                     <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card' %}active{% endif %}" href="{% url 'report-card' %}">Hr Teacher's Comments</a></li>
                                 {% elif user.is_staff %}
+                                    <li><a class="nav-link {% if request.resolver_match.url_name == 'student-attendance' %}active{% endif %}" href="{% url 'student-attendance' %}">Student Attendance</a></li>
                                     <li><a class="nav-link {% if request.resolver_match.url_name == 'report-card' %}active{% endif %}" href="{% url 'report-card' %}">Hr Teacher's Comments</a></li>
                                 {% endif %}
                                 {% if is_homeroom %}
@@ -200,7 +201,9 @@
                                 {% endif %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'teacher-notes-table' or request.resolver_match.url_name == 'teacher-notes-edit' or request.resolver_match.url_name == 'teacher-notes-del' %}active{% endif %}" href="{% url 'teacher-notes-table' %}">Academic Comments</a></li>
 <!--                                <li><a class="nav-link {% if request.resolver_match.url_name == 'report-extra-table' or request.resolver_match.url_name == 'report-extra-edit' or request.resolver_match.url_name == 'report-extra-del' %}active{% endif %}" href="{% url 'report-extra-table' %}">Extracurricular Grades</a></li>-->
-                                <li><a class="nav-link {% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
+                                {% if is_homeroom or user.is_staff %}
+                                    <li><a class="nav-link {% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
+                                {% endif %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-ledger' %}active{% endif %}" href="{% url 'assignment-ledger' %}">Assignments Ledger</a></li>
 {#                              <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>#}
                                 {% if counselor or user.is_staff %}
@@ -208,7 +211,9 @@
                                 {% else %}
 
                                 {% endif %}
+                                {% if is_homeroom or user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'class-attendance-ledger' %}active{% endif %}" href="{% url 'class-attendance-ledger' %}">Attendance Ledger</a></li>
+                                {% endif %}
                                 {% if is_homeroom or user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'hr-monitor-table' %}active{% endif %}" href="{% url 'hr-monitor-table' %}">Hr Teacher Grade Monitor</a></li>
                                 {% endif %}

@@ -201,8 +201,11 @@ class GradeEntryForm(forms.ModelForm):
 
         if is_activity:
             self.fields['assignment_type'].required = False
+            self.fields['assignment_type'].disabled = True
             self.fields['assignment_category'].required = False
+            self.fields['assignment_category'].disabled = True
             self.fields['cpmp_target'].required = False
+            self.fields['cpmp_target'].disabled = True
 
         # --- HTMX Attributes ---
         # Update Academic Year to trigger Period update
@@ -1530,6 +1533,7 @@ class RubricEntryForm(forms.ModelForm):
         data = self.data
         initial = self.initial
 
+        is_staff = user.is_staff
         is_admin = user and (user.is_staff or user.is_superuser)
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
 
@@ -1572,7 +1576,12 @@ class RubricEntryForm(forms.ModelForm):
 
         # Homeroom Class depends on Teacher + Level
         if teacher and level:
-            self.fields['kelas'].queryset = Class.objects.filter(teacher_id=teacher, level_id=level)
+            if is_staff:
+                self.fields['kelas'].queryset = Class.objects.filter(teacher_id=teacher, level_id=level)
+            else:
+                self.fields['kelas'].queryset = Class.objects.filter(teacher_id=teacher, level_id=level)
+                self.fields['kelas'].disabled = True
+                self.fields['kelas'].widget.attrs['readonly'] = True
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
@@ -2668,6 +2677,20 @@ class AssignmentAvgForm(forms.Form):
             'hx-include': '#assignment-avg-acayear-select',
         }),
     )
+
+    # multiple select version; feel free to uncomment when the backend (views.py) part of the stuff is done
+    # subject = forms.ModelMultipleChoiceField(
+    #     queryset=Subject.objects.none(),
+    #     required=False,
+    #     widget=forms.SelectMultiple(attrs={
+    #         'id': 'assignment-avg-subject-select',
+    #         'class': 'custom-select mb-4',
+    #         'hx-get': '/gradebook/get-courses-assignment-avg/',
+    #         'hx-trigger': 'change',
+    #         'hx-target': '#assignment-avg-course-select',
+    #         'hx-swap': 'innerHTML',
+    #         'hx-include': '#assignment-avg-acayear-select',
+    #     }),
     course = forms.ModelChoiceField(
         queryset=Course.objects.none(),
         required=False,
@@ -2947,6 +2970,7 @@ class PersonalDevGradeForm(forms.ModelForm):
 
 class CpmpCreateForm(forms.ModelForm):
     # BACKUP, takutnya dibutuhkan
+
     # teacher = forms.ModelChoiceField(
     #     queryset=Teacher.objects.all(),
     #     required=True,
@@ -2963,10 +2987,13 @@ class CpmpCreateForm(forms.ModelForm):
         label='Learning Targets (one per line)'
     )
 
-    is_activity = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-    )
+    # skrg kalo mau input data nilai ekskul, skip buat data LO (Learning Objective) baru
+    # tapi ini dicomment out buat keperluan debugging / siapa tahu perlu
+
+    # is_activity = forms.BooleanField(
+    #     required=False,
+    #     widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    # )
 
     class Meta:
         model = CapaianPemelajaranMataPelajaran
@@ -3043,15 +3070,15 @@ class CpmpCreateForm(forms.ModelForm):
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
-        self.fields['is_activity'].widget.attrs.update({
-            'id': 'is-activity-checkbox-cpmp',
-            'class': 'form-check-input',
-            'hx-get': '/gradebook/get-subjects-cpmp/',
-            'hx-trigger': 'change',
-            'hx-target': '#subject-select-cpmp',
-            'hx-swap': 'innerHTML',
-            'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
-        })
+        # self.fields['is_activity'].widget.attrs.update({
+        #     'id': 'is-activity-checkbox-cpmp',
+        #     'class': 'form-check-input',
+        #     'hx-get': '/gradebook/get-subjects-cpmp/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#subject-select-cpmp',
+        #     'hx-swap': 'innerHTML',
+        #     'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
+        # })
 
         self.fields['level'].widget.attrs.update({
             'id': 'level-select-cpmp',
@@ -3071,7 +3098,10 @@ class CpmpCreateForm(forms.ModelForm):
 class GetRPCAcademicComments(forms.ModelForm):
     is_mid = forms.BooleanField(
         required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        # uncomment below to debug
+        # widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.HiddenInput(),
+        label=''
     )
 
     class Meta:

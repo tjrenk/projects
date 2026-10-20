@@ -2196,6 +2196,7 @@ def ge_edit(request, pk):
             formset.save()
             if request.GET.get('next') == 'print':
                 return redirect('print-grade-list', pk=parent_head.pk)
+            # kalo bisa ini detect apa yg diedit dan didisplay editannya apa; buat later consideration aja
             log_activity(request.user, parent_head, 'change', "Updated via Grade Entry form")
             messages.success(request, "Grade record edited!")
             return redirect('grade-entry-table')
@@ -5338,6 +5339,7 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
 
         if step == '1':
             data0 = self.get_cleaned_data_for_step('0')
+            # kalo mau debug step 0 (mau cek parameter value yg didapet bener apa kgk) kasih breakpoint di line di bawah comment ini (if not data0:)
             if not data0:
                 return initial
 
@@ -5347,7 +5349,7 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
             period = data0.get('period')
             level = data0.get('level')
             # is_mid = bool(data0.get('is_mid'))
-            # is_mid = data0.get('is_mid')
+            is_mid = data0.get('is_mid')
             # is_mid = False
 
             if not course or not subject:
@@ -6089,6 +6091,7 @@ def midterm_reportcard_pdf(request, pk):
     return FileResponse(buf, as_attachment=False, filename=filename)
 
 
+# DISCLAIMER: nggak cuma buat mid doang sih ini, final juga
 @login_required
 def print_midterm_report(request, pk):
     reportcard = get_object_or_404(
@@ -6330,7 +6333,7 @@ def print_midterm_report(request, pk):
         grade_data.append(row)
 
     if show_notes:
-        col_widths = [1.1 * cm, 4.6 * cm, 2.3 * cm, 2.3 * cm, 9.1 * cm]
+        col_widths = [1.1 * cm, 6.7 * cm, 2.4 * cm, 2.4 * cm, 6.8 * cm]
     else:
         col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm, 4.4 * cm]
 

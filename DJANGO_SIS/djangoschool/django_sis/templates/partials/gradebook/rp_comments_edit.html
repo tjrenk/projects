@@ -1,9 +1,11 @@
 {% extends "base_gradebook.html" %}
 
 {% block content %}
+<!--title-->
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
     <div class="collapse-title text-xl font-medium">Edit Teacher Notes</div>
 
+<!--    header-->
     <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
         <div><strong>Student:</strong> {{ student }}</div>
         <div><strong>Homeroom Class:</strong> {{ student_class.kelas }}</div>
@@ -15,19 +17,35 @@
     <form method="post" id="teacher-notes-edit-form">
         {% csrf_token %}
 
+<!--        changed both final score and grade to a text (uneditable) to avoid errors and desyncs between score and grading-->
+<!--        uncomment if you wanna keep it editable-->
+
+<!--        <div class="form-row flex flex-wrap justify-start gap-4 mb-3">-->
+<!--            <div class="mb-1 basis-full md:flex-1">-->
+<!--                {% comment %} {{ form.final_score.label_tag }} {% endcomment %}-->
+<!--                {% comment %} {{ form.final_score }} {% endcomment %}-->
+<!--                <div class="error text-error text-sm">{{ form.final_score.errors }}</div>-->
+<!--            </div>-->
+<!--            <div class="mb-1 basis-full md:flex-1">-->
+<!--                {% comment %} {{ form.final_grade.label_tag }} {% endcomment %}-->
+<!--                {% comment %} {{ form.final_grade }} {% endcomment %}-->
+<!--                <div class="error text-error text-sm">{% comment %} {{ form.final_grade.errors }} {% endcomment %}</div>-->
+<!--            </div>-->
+<!--        </div>-->
+
+<!--        text version-->
         <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
             <div class="mb-1 basis-full md:flex-1">
-                {{ form.final_score.label_tag }}
-                {{ form.final_score }}
-                <div class="error text-error text-sm">{{ form.final_score.errors }}</div>
+                <h1><strong>Final Score:</strong></h1>
+                <p>{{ grade.final_score }}</p>
             </div>
             <div class="mb-1 basis-full md:flex-1">
-                {{ form.final_grade.label_tag }}
-                {{ form.final_grade }}
-                <div class="error text-error text-sm">{{ form.final_grade.errors }}</div>
+                <h1><strong>Final Grade:</strong></h1>
+                <p>{{ grade.final_grade }}</p>
             </div>
         </div>
 
+<!--        teacher's comment text field-->
         <div class="form-row flex flex-wrap justify-start gap-4 mb-3">
             <div class="mb-1 basis-full">
                 {{ form.teacher_notes.label_tag }}
@@ -39,9 +57,13 @@
 </div>
 </div>
 
+<!--footer buttons-->
 <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
-    <button type="submit" form="teacher-notes-edit-form" class="btn btn-primary">Save</button>
+    <button type="submit" form="teacher-notes-edit-form" class="btn btn-sm btn-primary">Save</button>
     <button onclick="history.back(); return false;" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</button>
+<!--    the Cancel button below will take you back to the table view instead of going back to previous page-->
+<!--    doing this will undo any sort of query / filter you have applied in any table view beforehand-->
+<!--    hence why i disabled / commented it out-->
 <!--    <a href="{% url 'teacher-notes-table' %}" class="btn btn-secondary">Cancel</a>-->
 </div>
 {% endblock %}

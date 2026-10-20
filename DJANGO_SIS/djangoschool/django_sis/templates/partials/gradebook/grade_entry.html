@@ -54,19 +54,19 @@
                     <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
                         <div>
                             <p class="text-gray-600 text-sm"><strong>Topic:</strong></p>
-                            <p class="text-lg font-semibold">{{ selected_topic }}</p>
+                            <p class="text-md font-semibold">{{ selected_topic }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm"><strong>Date:</strong></p>
-                            <p class="text-lg font-semibold">{{ selected_date }}</p>
+                            <p class="text-md font-semibold">{{ selected_date }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm"><strong>Type:</strong></p>
-                            <p class="text-lg font-semibold">{{ selected_assignment_type.name }}: {{ selected_assignment_category }}</p>
+                            <p class="text-md font-semibold">{{ selected_assignment_type.name }}: {{ selected_assignment_category }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm"><strong>Learning Targets:</strong></p>
-                            <ul class="list-disc list-inside text-lg font-semibold">
+                            <ul class="list-disc list-inside text-md font-semibold">
                                 {% for target in selected_cpmp_target %}
                                 <li>{{ target }}</li>
                                 {% endfor %}
