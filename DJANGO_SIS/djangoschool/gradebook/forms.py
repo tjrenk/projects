@@ -812,9 +812,14 @@ class StudentReportcardForm(forms.ModelForm):
         homeroom_class = None
         if not is_staff and user:
             homeroom_class = Class.objects.filter(teacher__user=user).first()
+            # if homeroom_class:
+            #     self.fields['kelas'].initial = homeroom_class.id
+            #     self.fields['kelas'].required = False
             if homeroom_class:
-                self.fields['kelas'].initial = homeroom_class.id
-                self.fields['kelas'].required = False
+                kelas_field = self.fields['kelas']
+                kelas_field.queryset = Class.objects.filter(pk=homeroom_class.pk)  # only their class
+                kelas_field.initial = homeroom_class.pk
+                kelas_field.disabled = True
 
         if acayear:
             self.fields['period'].queryset = LearningPeriod.objects.filter(academic_year=acayear)
@@ -1556,7 +1561,9 @@ class RubricEntryForm(forms.ModelForm):
 
         # Teacher: admin picks anyone, a teacher only gets themselves
         if is_admin:
-            self.fields['teacher'].queryset = Teacher.objects.all()
+            self.fields['teacher'].queryset = Teacher.objects.filter(
+                pk__in=Class.objects.values('teacher_id')
+            )
         elif logged_in_teacher:
             self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
         else:
@@ -1585,6 +1592,25 @@ class RubricEntryForm(forms.ModelForm):
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
+        # some optional workaround idk
+        homeroom_class = None
+        if not is_admin and logged_in_teacher:
+            homeroom_class = Class.objects.filter(teacher=logged_in_teacher).first()
+
+        if is_admin:
+            # admin: normal cascading via HTMX
+            if teacher and level:
+                self.fields['kelas'].queryset = Class.objects.filter(teacher_id=teacher, level_id=level)
+        elif homeroom_class:
+            # homeroom teacher: locked to their own class (and its level)
+            kelas_field = self.fields['kelas']
+            kelas_field.queryset = Class.objects.filter(pk=homeroom_class.pk)
+            kelas_field.initial = homeroom_class.pk
+            kelas_field.disabled = True
+
+            self.fields['level'].queryset = GradeLevel.objects.filter(pk=homeroom_class.level_id)
+            self.fields['level'].initial = homeroom_class.level_id
+
         # HTMX Attributes for dynamic cascading
         self.fields['academic_year'].widget.attrs.update({
             'id': 'rubric-acayear-select',
@@ -1598,7 +1624,9 @@ class RubricEntryForm(forms.ModelForm):
         self.fields['period'].widget.attrs.update({
             'id': 'rubric-period-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-teachers-ge/',
+            # reuses GE's Teachers field partial
+            # 'hx-get': '/gradebook/get-teachers-ge/',
+            'hx-get': '/gradebook/get-teachers-rubric/',
             'hx-trigger': 'change',
             'hx-target': '#rubric-teacher-select',
             'hx-swap': 'innerHTML',
@@ -3474,12 +3502,13 @@ class ClassAttendanceRecap(forms.Form):
 class DormitoryRubricEntryForm(forms.ModelForm):
     """Step 0: Select academic year, period, teacher, and class"""
 
-    teacher = forms.ModelChoiceField(
-        queryset=Teacher.objects.all(),
-        required=True,
-        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-        # label='Nama Guru'
-    )
+    # commented out; diuncomment kalo ada mentor asrama yang juga guru (atau kalo mau direuse)
+    # teacher = forms.ModelChoiceField(
+    #     queryset=Teacher.objects.all(),
+    #     required=True,
+    #     widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+    #     # label='Nama Guru'
+    # )
 
     # filter by course
     #     kelas = forms.ModelChoiceField(
@@ -3535,12 +3564,12 @@ class DormitoryRubricEntryForm(forms.ModelForm):
             self.fields['period'].queryset = LearningPeriod.objects.none()
 
         # Teacher: admin picks anyone, a teacher only gets themselves
-        if is_admin:
-            self.fields['teacher'].queryset = Teacher.objects.all()
-        elif logged_in_teacher:
-            self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
-        else:
-            self.fields['teacher'].queryset = Teacher.objects.none()
+        # if is_admin:
+        #     self.fields['teacher'].queryset = Teacher.objects.all()
+        # elif logged_in_teacher:
+        #     self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
+        # else:
+        #     self.fields['teacher'].queryset = Teacher.objects.none()
 
         # Level: admin sees all, a teacher only sees levels of their own homeroom classes
         if is_admin:
@@ -3551,8 +3580,8 @@ class DormitoryRubricEntryForm(forms.ModelForm):
             self.fields['level'].queryset = GradeLevel.objects.none()
 
         # Homeroom Class depends on Teacher + Level
-        if teacher and level:
-            self.fields['kelas'].queryset = Class.objects.filter(teacher_id=teacher, level_id=level)
+        if level:
+            self.fields['kelas'].queryset = Class.objects.filter(level_id=level)
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
@@ -3575,19 +3604,19 @@ class DormitoryRubricEntryForm(forms.ModelForm):
             'hx-swap': 'innerHTML',
         })
 
-        self.fields['teacher'].widget.attrs.update({
-            'id': 'rubric-teacher-select',
-            'class': 'custom-select mb-4',
-        })
+        # self.fields['teacher'].widget.attrs.update({
+        #     'id': 'rubric-teacher-select',
+        #     'class': 'custom-select mb-4',
+        # })
         # Admin changes teacher -> reload Homeroom Class
-        if is_admin:
-            self.fields['teacher'].widget.attrs.update({
-                'hx-get': '/gradebook/get-kelas-rubric/',
-                'hx-trigger': 'change',
-                'hx-target': '#rubric-kelas-select',
-                'hx-swap': 'innerHTML',
-                'hx-include': '#rubric-level-select',
-            })
+        # if is_admin:
+        #     self.fields['teacher'].widget.attrs.update({
+        #         'hx-get': '/gradebook/get-kelas-rubric/',
+        #         'hx-trigger': 'change',
+        #         'hx-target': '#rubric-kelas-select',
+        #         'hx-swap': 'innerHTML',
+        #         'hx-include': '#rubric-level-select',
+        #     })
 
         self.fields['level'].widget.attrs.update({
             'id': 'rubric-level-select',
@@ -3596,7 +3625,7 @@ class DormitoryRubricEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#rubric-kelas-select',
             'hx-swap': 'innerHTML',
-            'hx-include': '#rubric-teacher-select',
+            # 'hx-include': '#rubric-teacher-select',
         })
 
         self.fields['kelas'].widget.attrs.update({

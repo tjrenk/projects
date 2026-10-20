@@ -1177,8 +1177,8 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             period = data0.get('period')
             is_mid = data0.get('is_mid')
             #OLD
-            # kelas = data0.get('kelas')
-            # level = kelas.level
+            kelas = data0.get('kelas')
+            level = kelas.level
             #
             #
             # # admin/staff uses kelas from step 0
@@ -2641,7 +2641,7 @@ class RubricEntryWizard(LoginRequiredMixin, SessionWizardView):
             academic_year=form_data_0['academic_year'],
             period=form_data_0['period'],
             level=form_data_0['level'],
-            is_mid=form_data_0['is_mid']
+            is_mid=form_data_0['is_mid'],
         )
 
         # 2. DO NOT create score=0 entries here if the individual
@@ -2682,6 +2682,27 @@ def get_levels_rubric(request):
     response = render(request, "partials/gradebook/rubric_entry_partials/level.html", context)
     response['HX-Trigger'] = 'levelsLoaded'
     return response
+
+def get_teachers_rubric(request):
+    period_id = request.GET.get('0-period') or request.GET.get('period')
+    selected_teacher = request.GET.get('0-teacher') or request.GET.get('teacher')
+    user = request.user
+
+    if not period_id:
+        teachers = Teacher.objects.none()
+    elif user.is_staff or user.is_superuser:
+        teachers = Teacher.objects.filter(pk__in=Class.objects.values('teacher_id'))
+    else:
+        teachers = Teacher.objects.filter(user=user)
+        if teachers.count() == 1:
+            selected_teacher = str(teachers[0].id)
+
+    html = '<option value="">All</option>'
+    for t in teachers:
+        selected = 'selected' if selected_teacher == str(t.id) else ''
+        html += f'<option value="{t.id}" {selected}>{t}</option>'
+
+    return HttpResponse(html)
 
 # def get_kelas_rubric(request):
 #     rubric.existing_score = existing_scores.get(rubric.id, None)
@@ -4818,6 +4839,7 @@ def get_levels_pd(request):
     # (Django form fields usually send '0-academic_year')
     teacher = Teacher.objects.filter(user=user).first()
     is_admin = user.is_staff or user.is_superuser
+    counselor = user.groups.filter(name="Counselor").exists()
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
 
     if acayear_id:
@@ -4825,6 +4847,8 @@ def get_levels_pd(request):
             levels = GradeLevel.objects.all()
         elif teacher:
             levels = GradeLevel.objects.filter(class__teacher=teacher).distinct()
+        elif counselor:
+            levels = GradeLevel.objects.all()
         else:
             levels = GradeLevel.objects.none()
     else:
@@ -4859,12 +4883,22 @@ def get_student_pd(request):
     is_mid_status = request.GET.get('0-is_mid') or request.GET.get('is_mid')
     is_mid = is_mid_status in ('on', 'True', 'true', '1')
     period_id = request.GET.get('0-period') or request.GET.get('period')
+    counselor = user.groups.filter(name="Counselor").exists()
 
+    # gets StudentReportcard data which gets filtered by other params
     # student = StudentReportcard.objects.select_related('student').filter(
     #     is_mid=is_mid, period_id=period_id, level_id=level_id
     # )
-    student = ClassMember.objects.filter(
-        kelas__teacher=teacher
+
+    # checks ClassMember data by logged in teacher's homeroom class
+    # student = ClassMember.objects.filter(
+    #     kelas__teacher=teacher
+    # )
+
+
+    student = (
+        ClassMember.objects.filter(kelas__level_id=level_id)
+        if level_id else ClassMember.objects.none()
     )
     context = {'students': student}
     return render(request, "partials/gradebook/pdevelopment_partials/student.html", context)

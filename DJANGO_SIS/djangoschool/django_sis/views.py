@@ -15,13 +15,15 @@ def home(request):
         return render(request, 'index_new.html')
 
     is_teacher = user.groups.filter(name="Teachers").exists()
+    dorm_mentor = user.groups.filter(name="Dorm Mentor").exists()
+    counselor = user.groups.filter(name="Counselor").exists()
 
     # Teacher AND staff/admin → general dashboard
     if is_teacher and user.is_staff:
         return render(request, 'index_new.html')
 
     # Teacher only (not staff) → gradebook dashboard
-    if is_teacher:
+    if is_teacher or dorm_mentor or counselor:
         return redirect('gb-index')
 
     # everyone else (non-teacher, including plain staff/admin) → general dashboard
