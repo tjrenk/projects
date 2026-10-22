@@ -32,6 +32,11 @@ ASSIGNMENT_CAT_CHOICES = [
     ("AC", "ACTIVITY"),
 ]
 
+TEMPLATE_TYPE_CHOICES = [
+    ("B", "Behaviour"),
+    ("D", "Dormitory")
+]
+
 class Subject(models.Model):
     subject_name = models.CharField(max_length=100, unique=True)
     short_name = models.CharField(max_length=5, blank=True, null=True)
@@ -253,6 +258,7 @@ class ReportcardRubricTemplate(models.Model):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
     rubric = models.ForeignKey(Rubric, on_delete=models.CASCADE)
     lookup_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
+    type = models.CharField(max_length=1, default="B", choices=TEMPLATE_TYPE_CHOICES)
     text = models.TextField(null=True, blank=True)
 
     def render(self, data_entry):

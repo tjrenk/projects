@@ -59,6 +59,24 @@ input[name$="-student_name"] {
                     {{ wizard.form.management_form }}
 
                     {% if wizard.form.forms %}
+                                    <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
+                        <div>
+                            <p class="text-gray-600 text-sm"><strong>Academic Year:</strong></p>
+                            <p class="text-md font-semibold">{{ selected_academic_year }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 text-sm"><strong>Period:</strong></p>
+                            <p class="text-md font-semibold">{{ selected_period }}</p>
+                        </div>
+                                        <div>
+                            <p class="text-gray-600 text-sm"><strong>Level:</strong></p>
+                            <p class="text-md font-semibold">{{ selected_level }}</p>
+                        </div>
+                                        <div>
+                            <p class="text-gray-600 text-sm"><strong>Class:</strong></p>
+                            <p class="text-md font-semibold">{{ selected_kelas }}</p>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover table-bordered align-middle">
                             <thead class="bg-base-200 rounded-md">

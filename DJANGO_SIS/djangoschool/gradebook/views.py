@@ -4076,7 +4076,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
 
     # UAS also counts the saved UTS score
     uts_weight, uts_scores = 0.0, {}
-    if not is_mid:
+    if not is_mid and not subject.is_activity:
         uts_row = next(
             (w for w in get_effective_weightings(academic_year, level, period, True, subject)
              if w.assignment.short_name == 'SUMM'),
@@ -4152,7 +4152,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
 
     return results, term_period
 
-def calculate_for_subjects(academic_year, level, period, is_mid, subject=None):
+def calculate_for_subjects(academic_year, level, period, is_mid, subjects=None):
     # """
     # One subject if given, otherwise every subject that has a course at this
     # level in this academic year.
@@ -4166,11 +4166,11 @@ def calculate_for_subjects(academic_year, level, period, is_mid, subject=None):
     #     ).distinct().order_by('subject_name')
 
     """One Subject, a list/queryset of them, or None/empty = every subject at this level."""
-    if isinstance(subject, Subject):
-        subjects = [subject]
-    subjects = list(subject) if subject else None
+    if isinstance(subjects, Subject):
+        subjects = [subjects]
+    subjects = list(subjects) if subjects else None
 
-    if not subject:
+    if not subjects:
         subjects = Subject.objects.filter(
             course__academic_year=academic_year, course__level=level,
         ).distinct().order_by('subject_name')
@@ -4207,14 +4207,14 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         form_data = form_list[0].cleaned_data
         academic_year = form_data.get('academic_year')
         level = form_data.get('level')
-        subject = form_data.get('subject')
+        subjects = form_data.get('subject')
         is_mid = form_data.get('is_mid')
         period = form_data.get('period')
         # pengecekan user
-        # user = self.request.user
-        # if len(subjects) != 1 and not (user.is_staff or user.is_superuser):
-        #     messages.error(self.request, "Only admins can calculate several subjects at once.")
-        #     return redirect('assignment-avg-wizard')
+        user = self.request.user
+        if len(subjects) != 1 and not (user.is_staff or user.is_superuser):
+            messages.error(self.request, "Only admins can calculate several subjects at once.")
+            return redirect('assignment-avg-wizard')
 
         if period is None:
             period = LearningPeriod.objects.filter(
@@ -4227,7 +4227,7 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         #     is_mid=is_mid, period=period,
         # )
         student_results, empty = calculate_for_subjects(
-            academic_year, level, period, is_mid, subject,
+            academic_year, level, period, is_mid, subjects,
         )
         if empty:
             messages.warning(self.request, "No weightings or scores for: " + ", ".join(empty))
@@ -4235,7 +4235,7 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         context = {
             'student_results': student_results,
             'selected_academic_year': academic_year,
-            'selected_subject': subject,
+            'selected_subject': subjects,
             'selected_level': level,
             'selected_period': period,
             'is_mid': is_mid,
@@ -4314,15 +4314,26 @@ def save_assignment_results_bulk(request):
     academic_year = get_object_or_404(AcademicYear, id=request.POST.get('academic_year_id'))
     level = get_object_or_404(GradeLevel, id=request.POST.get('level_id'))
     period = get_object_or_404(LearningPeriod, id=period_id)
-    sub_id = request.POST.get('subject_id')
-    subject = get_object_or_404(Subject, id=sub_id) if sub_id else None  # empty = all subjects
+    # sub_id = request.POST.get('subject_id')
+    # subject = get_object_or_404(Subject, id=sub_id) if sub_id else None  # empty = all subjects
     is_mid = request.POST.get('is_mid', 'False').lower() == 'true'
+    #
+    # if not subject and not (request.user.is_staff or request.user.is_superuser):
+    #     messages.error(request, "Only admins can save all subjects at once.")
+    #     return redirect('assignment-avg-wizard')
+    #
+    # calculated_data, _ = calculate_for_subjects(academic_year, level, period, is_mid, subject)
+    sub_ids = {i for i in request.POST.getlist('subject_id') if i.isdigit()}  # none = all subjects
+    subjects = list(Subject.objects.filter(id__in=sub_ids))
+    if len(subjects) != len(sub_ids):
+        raise Http404("Unknown subject")  # a stale id must never become "all subjects"
 
-    if not subject and not (request.user.is_staff or request.user.is_superuser):
-        messages.error(request, "Only admins can save all subjects at once.")
+    if len(subjects) != 1 and not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Only admins can save several subjects at once.")
         return redirect('assignment-avg-wizard')
 
-    calculated_data, _ = calculate_for_subjects(academic_year, level, period, is_mid, subject)
+    calculated_data, _ = calculate_for_subjects(academic_year, level, period, is_mid, subjects)
+
     if not calculated_data:
         messages.warning(request, "Nothing to save.")
         return redirect('assignment-avg-wizard')
@@ -4388,7 +4399,7 @@ def save_assignment_results_bulk(request):
         ReportcardGrade.objects.bulk_update(to_update, ['final_score', 'final_grade'])
 
     # label = subject.subject_name if subject else "all subjects"
-    label = ", ".join(s.subject_name for s in subject) if subject else "all subjects"
+    label = ", ".join(s.subject_name for s in subjects) if subjects else "all subjects"
     messages.success(request, f"Successfully saved grades for {label} ({period.period_name})!")
     return redirect('assignment-avg-wizard')
 
@@ -4585,12 +4596,12 @@ def get_subjects_assignment_avg(request):
 
 
 def get_courses_assignment_avg(request):
-    subject_id = request.GET.get('0-subject') or request.GET.get('subject')
+    subject_ids = request.GET.getlist('0-subject') or request.GET.getlist('subject')
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
     selected_course = request.GET.get('0-course') or request.GET.get('course')
 
-    if subject_id:
-        courses = Course.objects.filter(subject_id=subject_id)
+    if subject_ids:
+        courses = Course.objects.filter(subject_id__in=subject_ids)
         if acayear_id:
             courses = courses.filter(academic_year_id=acayear_id)
         courses = courses.select_related('subject', 'teacher')
@@ -4599,7 +4610,7 @@ def get_courses_assignment_avg(request):
 
     html = render_to_string("partials/gradebook/assignment_avg_partials/course.html", {
         'courses': courses,
-        'selected_course': selected_course
+        'selected_course': selected_course,
     })
     return HttpResponse(html)
 
@@ -4764,6 +4775,7 @@ class PersonalDevWizard(LoginRequiredMixin, SessionWizardView):
             context['selected_period'] = data0.get('period')
             context['selected_level'] = data0.get('level')
             context['selected_is_mid'] = data0.get('is_mid')
+            # contect['selected_kelas'] = data0.get('kelas')
 
         if self.steps.current == '1':
             context['field_groups'] = {
@@ -5631,7 +5643,7 @@ def teacher_notes_edit(request, pk):
 
     TeacherNotesForm = modelform_factory(
         ReportcardGrade,
-        fields=('final_score', 'final_grade', 'teacher_notes'),
+        fields=('teacher_notes',),
     )
 
     if request.method == 'POST':
@@ -6625,7 +6637,11 @@ def print_midterm_report(request, pk):
     doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
     buf.seek(0)
 
-    filename = f"midterm_{student.id_number}_{reportcard.period.period_name}.pdf"
+    if show_notes:
+        filename = f"finals_{student.id_number}_{reportcard.period.period_name}.pdf"
+    else:
+        filename = f"midsem_{student.id_number}_{reportcard.period.period_name}.pdf"
+
     return FileResponse(buf, as_attachment=False, filename=filename)
 
 
@@ -7350,6 +7366,9 @@ class DormRubricEntryWizard(LoginRequiredMixin, SessionWizardView):
             data_step0 = self.get_cleaned_data_for_step('0')
             if data_step0:
                 context['selected_kelas'] = data_step0.get('kelas')  # actual selected Course instance
+                context['selected_academic_year'] = data_step0.get('academic_year')
+                context['selected_period'] = data_step0.get('period')
+                context['selected_level'] = data_step0.get('level')
 
         if self.steps.current == '0':
             context['selected_acayear'] = AcademicYear.objects.all()
@@ -7594,7 +7613,6 @@ def dorm_table(request):
 
     if teacher and not user.is_staff:
         reports = reports.filter(
-            student__classmember__kelas__teacher=teacher,
             student__classmember__is_active=True,
         )
 

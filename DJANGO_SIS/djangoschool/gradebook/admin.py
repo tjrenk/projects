@@ -309,8 +309,8 @@ class StudentReportExtraAdmin(admin.ModelAdmin):
 
 
 class ReportcardRubricTemplateAdmin(admin.ModelAdmin):
-    list_display = ("academic_year", "rubric", "lookup_grade", "text")
-    list_filter = ["academic_year", "rubric", "lookup_grade", "text"]
+    list_display = ("academic_year", "rubric", "lookup_grade", "text", "type")
+    list_filter = ["academic_year", "rubric", "lookup_grade", "text", "type"]
 
 class AttendanceAdmin(admin.ModelAdmin):
     list_display = ["attendance_date", "attendance_type", "notes", "student"]
