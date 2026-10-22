@@ -1,11 +1,9 @@
 {% extends "base_gradebook.html" %}
+{% load gradebook_tags %}
 
 {% block content %}
+
 <style>
-.wide {
-    width: 100%;
-    height: 450px;
-}
 .smol {
     margin-top: -10px;
     margin-bottom: -10px;
@@ -15,7 +13,7 @@
     height: 0.5rem;
 }
 </style>
-{% comment %} a {% endcomment %}
+
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
 
 <div class="navbar">
@@ -26,43 +24,37 @@
     <h1 style="font-size: 30px">Personal Development Table</h1>
 </div>
 <div class="navbar-end">
-<!--    <a href="{% url 'grade-entry' %}" class="btn primary-content btn-sm btn-primary "><i class="fa fa-plus"></i>Add Grade Entry</a>-->
     <hr>
 </div>
 </div>
 
-
+<div class="flex" id="grade-table-container">
 <div class="card-body px-3 py-1 w-full">
     <div class="overflow-auto max-h-[60vh]">
         <table class="table table-sm table-hover table-pin-rows border border-base-200 table-auto">
-            <thead class="bg-base-300 text-gray-950">
-                <tr>
-                    {% comment %} <th>User</th> {% endcomment %}
-                    <th class="flex-1"><strong>Student</strong></th>
-<!--                    <th class="flex-1"><strong>Mid</strong></th>-->
-                    <th class="flex-1"><strong>Academic Year</strong></th>
-                    <th class="flex-1"><strong>Period</strong></th>
-                    <th class="flex-1"><strong>Level</strong></th>
-<!--                    <th class="flex-1"></th>-->
-                </tr>
-            </thead>
+
+<thead>
+    <tr>
+        {% sortable_header 'student' 'Student' sort_by sort_dir %}
+        {% sortable_header 'academic_year' 'Academic Year' sort_by sort_dir %}
+        {% sortable_header 'period' 'Period' sort_by sort_dir %}
+        {% sortable_header 'level' 'Level' sort_by sort_dir %}
+        <th></th>
+    </tr>
+</thead>
             <tbody class="flex-1">
                 {% for strpc in pnation_srpc %}
-                <tr class="hover:bg-base-200" style="cursor: pointer;" onclick="window.location.href='{% url 'pdev-edit' strpc.id %}'">
-                    <td class="flex-1">{{ strpc.reporcard.student }}</td>
-<!--                    <td class="flex-1">{{ strpc.reporcard.is_mid }}</td>-->
+                <tr class="hover:bg-base-200" onclick="window.location.href='{% url 'pdev-edit' strpc.id %}'" style="cursor: pointer;">
+                    <td class="flex-1"><strong>{{ strpc.reporcard.student }}</strong></td>
                     <td class="flex-1">{{ strpc.reporcard.academic_year }}</td>
                     <td class="flex-1">{{ strpc.reporcard.period }}</td>
                     <td class="flex-1">{{ strpc.reporcard.level }}</td>
-                    {% comment %} <td class="flex-1"><a href="/" class="flex-1 smol smol-btn" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="flex-1 bi bi-pencil-square" viewBox="0 0 16 16">
-  <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-  <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
-</svg></a>&nbsp {% endcomment %}
-                                        {% if user.is_staff %}
+                    {% if user.is_staff %}
 <td class="flex-1">
     <a href="{% url 'pdev-del' strpc.id %}"
        title="Delete"
-       class="flex-1 smol smol-btn group">
+       class="flex-1 smol smol-btn group"
+       onclick="event.stopPropagation()">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
              fill="#ad0123"
              class="flex-1 bi bi-trash transition-colors group-hover:fill-red-700"
@@ -76,46 +68,62 @@
                     <td></td>
                     {% endif %}
                 </tr>
-            {% endfor %}
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-6">No records match these filters.</td></tr>
+                {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
 
-        </div>
+<div class="mt-3 lg:ms-2 card-bordered z-10 h-full">
+    <div class="card-body p-3 bg-base-100 w-80 h-full">
 
-        </div>
+        <form method="GET" action="{% url 'pdev-table' %}">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <input type="hidden" name="dir" value="{{ sort_dir }}">
 
-        </div>
+            <!-- Search -->
+            <div class="form-control flex flex-row items-center rounded-sm border border-base-content/20 ps-3 w-full mb-3">
+                <label class="flex items-center">
+                    <i class="fa fa-search text-gray-400"></i>
+                </label>
+                <input type="text"
+                       name="q"
+                       value="{{ search_query }}"
+                       placeholder="Search"
+                       class="input w-full border-0 focus:outline-0 input-sm" />
+            </div>
 
+            <!-- Extra filters (table-specific) -->
+            {% for filter in extra_filters %}
+            <div class="form-control mb-2" id="filter-{{ filter.param }}">
+                <label class="label">
+                    <span class="label-text font-bold">{{ filter.label }}</span>
+                </label>
+                <select name="{{ filter.param }}" class="select select-bordered select-sm">
+                    <option value="">All {{ filter.label }}</option>
+                    {% for opt in filter.options %}
+                    <option value="{{ opt.id }}"
+                        {% if opt.id|stringformat:"s" == filter.selected %}selected{% endif %}>
+                        {{ opt }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
 
+            <!-- Actions -->
+            <div class="form-control mt-4 flex flex-col gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                <a href="{% url 'pdev-table' %}" class="btn btn-sm btn-ghost">Reset</a>
+            </div>
+        </form>
 
-                <div class="card-actions justify-center" style="margin-center: 10px;">
-        <table>
-        <div class="join">
-        <tr>
-        <td>
-        {% if pnation_ah.has_previous %}
-        <a class="join-item btn" href="?page=1"><<</a>
-        <a class="join-item btn" href="?page={{ pnation_ah.previous_page_number }}"><</a>
-        {% endif %}
-        </td>
-        <td>
-        <h4>Page {{ pnation_ah.number }} of {{ pnation_ah.paginator.num_pages }}</h4>
-        </td>
+    </div>
+</div>
+</div>
 
-        <td>
-        {% if pnation_ah.has_next %}
-        <a class="join-item btn" href="?page={{ pnation_ah.next_page_number }}">></a>
-
-        <a class="join-item btn" href="?page={{ pnation_ah.paginator.num_pages }}">>></a>
-        {% endif %}
-        </td>
-        </tr>
-
-       </div>
-       </table>
-
-       </div>
-
-
+</div>
 
 {% endblock %}

@@ -11,7 +11,7 @@
 <div><strong>Level:</strong>&nbsp;{{ selected_level }}</div>
 <div><strong>Period:</strong>&nbsp;{{ selected_period }}</div>
 <div><strong>Mid Terms:</strong>&nbsp;{% if is_mid %}Yes{% else %}No{% endif %}</div>
-<div><strong>Subject:</strong>&nbsp;{{ selected_subject }}</div>
+<div><strong>Subject:</strong>&nbsp;{% if selected_subject %} {{ selected_subject|join:", " }} {% else %} All {% endif %}</div>
 <!--<div><strong>Course:</strong>&nbsp;{{ selected_course }}</div>-->
         </div>
 

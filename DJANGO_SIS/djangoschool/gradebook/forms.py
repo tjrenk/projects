@@ -202,6 +202,7 @@ class GradeEntryForm(forms.ModelForm):
         if is_activity:
             self.fields['assignment_type'].required = False
             self.fields['assignment_type'].disabled = True
+            self.fields['assignment_type'].widget.attrs['readonly'] = True
             self.fields['assignment_category'].required = False
             self.fields['assignment_category'].disabled = True
             self.fields['cpmp_target'].required = False
@@ -292,7 +293,7 @@ class GradeEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#assignment-category-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #course-select-ge, #subject-select-ge, #level-select-ge',
+            'hx-include': '#acayear-select-ge, #course-select-ge, #subject-select-ge, #level-select-ge,  #is-activity-checkbox-ge',
         })
 
         self.fields['assignment_category'].widget.attrs.update({
@@ -550,7 +551,7 @@ class AssignmentHeadEditForm(forms.ModelForm):
             'assignment': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'category': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'course': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
-            'cpmp_target': forms.SelectMultiple(attrs={'class': 'select select-bordered select-sm w-full h-24'}),
+            'cpmp_target': forms.SelectMultiple(attrs={'class': 'select select-bordered select-sm w-full h-24', 'style': 'height: 10rem; min-height: 6rem; resize: vertical;'}),
             'topic': forms.TextInput(attrs={'class': 'input input-ghost'}),
         }
 
@@ -2692,25 +2693,11 @@ class AssignmentAvgForm(forms.Form):
             'hx-swap': 'innerHTML',
         }),
     )
-    subject = forms.ModelChoiceField(
-        queryset=Subject.objects.none(),
-        required=False,
-        widget=forms.Select(attrs={
-            'id': 'assignment-avg-subject-select',
-            'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses-assignment-avg/',
-            'hx-trigger': 'change',
-            'hx-target': '#assignment-avg-course-select',
-            'hx-swap': 'innerHTML',
-            'hx-include': '#assignment-avg-acayear-select',
-        }),
-    )
 
-    # multiple select version; feel free to uncomment when the backend (views.py) part of the stuff is done
-    # subject = forms.ModelMultipleChoiceField(
+    # subject = forms.ModelChoiceField(
     #     queryset=Subject.objects.none(),
     #     required=False,
-    #     widget=forms.SelectMultiple(attrs={
+    #     widget=forms.Select(attrs={
     #         'id': 'assignment-avg-subject-select',
     #         'class': 'custom-select mb-4',
     #         'hx-get': '/gradebook/get-courses-assignment-avg/',
@@ -2719,6 +2706,23 @@ class AssignmentAvgForm(forms.Form):
     #         'hx-swap': 'innerHTML',
     #         'hx-include': '#assignment-avg-acayear-select',
     #     }),
+    # )
+
+    # multiple select version; feel free to uncomment when the backend (views.py) part of the stuff is done
+    subject = forms.ModelMultipleChoiceField(
+        queryset=Subject.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            'id': 'assignment-avg-subject-select',
+            'class': 'custom-select mb-4',
+            'style': 'height: 16rem; min-height: 6rem; resize: vertical;',
+            'hx-get': '/gradebook/get-courses-assignment-avg/',
+            'hx-trigger': 'change',
+            'hx-target': '#assignment-avg-course-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#assignment-avg-acayear-select',
+        }),
+    )
     course = forms.ModelChoiceField(
         queryset=Course.objects.none(),
         required=False,
@@ -2814,11 +2818,11 @@ class PersonalDevSelectForm(forms.Form):
         widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
         label='Grade Level'
     )
-    # kelas = forms.ModelChoiceField(
-    #     queryset=Class.objects.none(),
-    #     widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
-    #     label='Class'
-    # )
+    kelas = forms.ModelChoiceField(
+        queryset=Class.objects.none(),
+        widget=forms.Select(attrs={'class': 'custom-select mb-4'}),
+        label='Class'
+    )
     is_mid = forms.BooleanField(
         required=False,
         # widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -2840,6 +2844,7 @@ class PersonalDevSelectForm(forms.Form):
 
         is_admin = user and (user.is_staff or user.is_superuser)
         logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+        # counselor = User.groups.filter(name="Counselor").exists()
 
         acayear = data.get('0-academic_year') or initial.get('academic_year')
         period = data.get('0-period') or initial.get('period')
@@ -2865,20 +2870,29 @@ class PersonalDevSelectForm(forms.Form):
 
         # dead code - will delete soon
         if level:
-            self.fields['student'].queryset = ClassMember.objects.all()
+            self.fields['kelas'].queryset = Class.objects.filter(level=level)
             # self.fields['student'].label_from_instance = lambda obj: obj.student.registration_data.first_name
         else:
-            self.fields['student'].queryset = ClassMember.objects.none()
+            self.fields['kelas'].queryset = Class.objects.none()
 
-        # if is_admin:
-        #     self.fields['student'].queryset = ClassMember.objects.all()
+        if is_admin:
+            self.fields['student'].queryset = ClassMember.objects.all()
         # elif logged_in_teacher:
         #     self.fields['student'].queryset = ClassMember.objects.filter(
         #         kelas__teacher=logged_in_teacher,
         #         is_active=True,
         #     )
-        # else:
-        #     self.fields['student'].queryset = ClassMember.objects.none()
+        # elif user == counselor:
+        #     self.fields['student'].queryset = ClassMember.objects.filter(
+        #         kelas=kelas,
+        #         is_active=True,
+        #     )
+        else:
+            # self.fields['student'].queryset = ClassMember.objects.none()
+            self.fields['student'].queryset = ClassMember.objects.filter(
+                kelas=kelas,
+                is_active=True,
+            )
 
         # if kelas:
         #     self.fields['student'].queryset = StudentReportcard.objects.filter(
@@ -2911,20 +2925,20 @@ class PersonalDevSelectForm(forms.Form):
         self.fields['level'].widget.attrs.update({
             'id': 'pd-level-select',
             'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-kelas-pd/',
+            'hx-trigger': 'change',
+            'hx-target': '#pd-kelas-select',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#pd-acayear-select',
+        })
+        self.fields['kelas'].widget.attrs.update({
+            'id': 'pd-kelas-select',
             'hx-get': '/gradebook/get-student-pd/',
             'hx-trigger': 'change',
             'hx-target': '#pd-student-select',
             'hx-swap': 'innerHTML',
-            'hx-include': '#pd-acayear-select',
+            'hx-include': '#pd-acayear-select, #pd-level-select',
         })
-        # self.fields['kelas'].widget.attrs.update({
-        #     'id': 'pd-kelas-select',
-        #     'hx-get': '/gradebook/get-student-pd/',
-        #     'hx-trigger': 'change',
-        #     'hx-target': '#pd-student-select',
-        #     'hx-swap': 'innerHTML',
-        #     'hx-include': '#pd-acayear-select',
-        # })
 
         self.fields['is_mid'].widget.attrs.update({
             'id': 'pd-is-mid',
@@ -3310,15 +3324,15 @@ class RPCAcademicComments(forms.Form):  # plain Form, not ModelForm
     reportcard_grade_id = forms.IntegerField(widget=forms.HiddenInput())
     student_name = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True, 'style': 'border: none;'})
     )
     final_score = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True, 'style': 'border: none;'})
     )
     final_grade = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True, 'style': 'border: none;'})
     )
     teacher_notes = forms.CharField(
         required=False,
@@ -3552,6 +3566,7 @@ class DormitoryRubricEntryForm(forms.ModelForm):
                 self.initial['teacher'] = logged_in_teacher.id
 
         acayear = data.get('0-academic_year') or initial.get('academic_year')
+        period = data.get('0-period') or initial.get('period')
         teacher = data.get('0-teacher') or initial.get('teacher')
         level = data.get('0-level') or initial.get('level')
 
@@ -3572,16 +3587,14 @@ class DormitoryRubricEntryForm(forms.ModelForm):
         #     self.fields['teacher'].queryset = Teacher.objects.none()
 
         # Level: admin sees all, a teacher only sees levels of their own homeroom classes
-        if is_admin:
+        if period:
             self.fields['level'].queryset = GradeLevel.objects.all()
-        elif logged_in_teacher:
-            self.fields['level'].queryset = GradeLevel.objects.filter(class__teacher=logged_in_teacher).distinct()
         else:
             self.fields['level'].queryset = GradeLevel.objects.none()
 
         # Homeroom Class depends on Teacher + Level
         if level:
-            self.fields['kelas'].queryset = Class.objects.filter(level_id=level)
+            self.fields['kelas'].queryset = Class.objects.filter(level=level)
         else:
             self.fields['kelas'].queryset = Class.objects.none()
 
@@ -3598,9 +3611,9 @@ class DormitoryRubricEntryForm(forms.ModelForm):
         self.fields['period'].widget.attrs.update({
             'id': 'rubric-period-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-teachers-ge/',
+            'hx-get': '/gradebook/get-levels-dorm/',
             'hx-trigger': 'change',
-            'hx-target': '#rubric-teacher-select',
+            'hx-target': '#rubric-level-select',
             'hx-swap': 'innerHTML',
         })
 
@@ -3621,7 +3634,7 @@ class DormitoryRubricEntryForm(forms.ModelForm):
         self.fields['level'].widget.attrs.update({
             'id': 'rubric-level-select',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-kelas-rubric/',
+            'hx-get': '/gradebook/get-kelas-dorm/',
             'hx-trigger': 'change',
             'hx-target': '#rubric-kelas-select',
             'hx-swap': 'innerHTML',

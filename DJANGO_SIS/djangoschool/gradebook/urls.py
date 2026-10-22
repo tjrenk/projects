@@ -67,6 +67,7 @@ urlpatterns = [
     path('dorm-rubric-entry/', views.DormRubricEntryWizard.as_view(), name="dorm-rubric-entry"),
     path('student-dormitory-grading/<int:pk>', views.student_dormitory_grading, name='student-dormitory-grading'),
     path('get-kelas-dorm/', views.get_kelas_dorm, name='get-kelas-dorm'),
+    path('get-levels-dorm/', views.get_levels_dorm, name='get-levels-dorm'),
     path('dorm-rubric-table/', views.dorm_table, name='dorm-rubric-table'),
     path('dorm-rubric-edit/<int:pk>', views.dorm_edit, name='dorm-rubric-edit'),
     path('dorm-rubric-delete/<int:pk>', views.dorm_del, name='dorm-rubric-delete'),

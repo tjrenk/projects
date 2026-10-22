@@ -312,6 +312,10 @@ class ReportcardRubricTemplateAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "rubric", "lookup_grade", "text")
     list_filter = ["academic_year", "rubric", "lookup_grade", "text"]
 
+class AttendanceAdmin(admin.ModelAdmin):
+    list_display = ["attendance_date", "attendance_type", "notes", "student"]
+    list_filter = ["attendance_date", "attendance_type", "notes", "student"]
+
 class StudentBehaviourInLine(admin.TabularInline):
     model = StudentBehaviourReport
     fields = ("score", "rubric", "student", "description", "grade")
@@ -474,3 +478,4 @@ admin.site.register(LockDataEntry, LockDataEntryAdmin)
 admin.site.register(ReportCardOrder, RPOrderAdmin)
 admin.site.register(ReportcardDormitory, ReportcardDormitoryAdmin)
 admin.site.register(StudentDormitoryReport, StudentDormitoryReportAdmin)
+admin.site.register(StudentAttendance, AttendanceAdmin)

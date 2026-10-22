@@ -4153,14 +4153,24 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
     return results, term_period
 
 def calculate_for_subjects(academic_year, level, period, is_mid, subject=None):
-    """
-    One subject if given, otherwise every subject that has a course at this
-    level in this academic year.
-    Returns (rows, names of subjects that produced no rows).
-    """
-    if subject:
+    # """
+    # One subject if given, otherwise every subject that has a course at this
+    # level in this academic year.
+    # Returns (rows, names of subjects that produced no rows).
+    # """
+    # if subject:
+    #     subjects = [subject]
+    # else:
+    #     subjects = Subject.objects.filter(
+    #         course__academic_year=academic_year, course__level=level,
+    #     ).distinct().order_by('subject_name')
+
+    """One Subject, a list/queryset of them, or None/empty = every subject at this level."""
+    if isinstance(subject, Subject):
         subjects = [subject]
-    else:
+    subjects = list(subject) if subject else None
+
+    if not subject:
         subjects = Subject.objects.filter(
             course__academic_year=academic_year, course__level=level,
         ).distinct().order_by('subject_name')
@@ -4200,6 +4210,11 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         subject = form_data.get('subject')
         is_mid = form_data.get('is_mid')
         period = form_data.get('period')
+        # pengecekan user
+        # user = self.request.user
+        # if len(subjects) != 1 and not (user.is_staff or user.is_superuser):
+        #     messages.error(self.request, "Only admins can calculate several subjects at once.")
+        #     return redirect('assignment-avg-wizard')
 
         if period is None:
             period = LearningPeriod.objects.filter(
@@ -4372,7 +4387,8 @@ def save_assignment_results_bulk(request):
         ReportcardGrade.objects.bulk_create(to_create)
         ReportcardGrade.objects.bulk_update(to_update, ['final_score', 'final_grade'])
 
-    label = subject.subject_name if subject else "all subjects"
+    # label = subject.subject_name if subject else "all subjects"
+    label = ", ".join(s.subject_name for s in subject) if subject else "all subjects"
     messages.success(request, f"Successfully saved grades for {label} ({period.period_name})!")
     return redirect('assignment-avg-wizard')
 
@@ -4643,7 +4659,7 @@ def print_grade_list(request, pk):
         ['Tanggal',        ':', str(parent_head.date or '-')],
         ['Nilai Max',   ':', str(parent_head.max_score)],
         ['Tipe Tugas',  ':', str(parent_head.assignment.name)],
-        ['Tujuan Pembelajaran', ':', Paragraph(cpmp_trg)],
+        ['Tujuan Pembelajaran', ':', Paragraph(f'<font size="9">{cpmp_trg}</font>', styles['label'])],
     ]
     meta_table = Table(meta_data, colWidths=[4*cm, 0.5*cm, 10*cm])
     meta_table.setStyle(TableStyle([
@@ -4843,12 +4859,10 @@ def get_levels_pd(request):
     acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
 
     if acayear_id:
-        if is_admin:
+        if is_admin or counselor:
             levels = GradeLevel.objects.all()
         elif teacher:
             levels = GradeLevel.objects.filter(class__teacher=teacher).distinct()
-        elif counselor:
-            levels = GradeLevel.objects.all()
         else:
             levels = GradeLevel.objects.none()
     else:
@@ -4866,7 +4880,7 @@ def get_kelas_pd(request):
     if level_id:
         # Filter classes where the teacher is the homeroom teacher
         # classes = Class.objects.filter(teacher__id=teacher_id, is_home_class=True).distinct()
-        classes = Class.objects.filter(teacher_id=user).distinct()
+        classes = Class.objects.filter(level_id=level_id).distinct()
     else:
         classes = Class.objects.none()
     context = {
@@ -4880,6 +4894,7 @@ def get_student_pd(request):
     user = request.user
     teacher = Teacher.objects.filter(user=user).first()
     level_id = request.GET.get('0-level') or request.GET.get('level')
+    kelas_id = request.GET.get('0-kelas') or request.GET.get('kelas')
     is_mid_status = request.GET.get('0-is_mid') or request.GET.get('is_mid')
     is_mid = is_mid_status in ('on', 'True', 'true', '1')
     period_id = request.GET.get('0-period') or request.GET.get('period')
@@ -4897,22 +4912,72 @@ def get_student_pd(request):
 
 
     student = (
-        ClassMember.objects.filter(kelas__level_id=level_id)
-        if level_id else ClassMember.objects.none()
+        ClassMember.objects.filter(kelas_id=kelas_id)
+        if kelas_id else ClassMember.objects.none()
     )
     context = {'students': student}
     return render(request, "partials/gradebook/pdevelopment_partials/student.html", context)
 
 @login_required
 def pdev_table(request):
-    srpc = ReportcardPersonalDev.objects.select_related('reporcard')
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'student':       'reporcard__student__registration_data__first_name',
+        'academic_year': 'reporcard__academic_year__year',
+        'period':        'reporcard__period__period_name',
+        'is_mid':        'reporcard__is_mid',
+        'level':         'reporcard__level__grade_name',
+    }, default_sort='student')
 
-    pnation = Paginator(srpc, 9)
-    pnation_srpc = pnation.get_page(request.GET.get('page'))
+    srpc = ReportcardPersonalDev.objects.select_related(
+        'reporcard__student__registration_data',
+        'reporcard__academic_year',
+        'reporcard__period',
+        'reporcard__level',
+    )
+
+    srpc = apply_filters(srpc, request, {
+        'year':   'reporcard__academic_year_id',
+        'period': 'reporcard__period_id',
+        'level':  'reporcard__level_id',
+    })
+
+    search_query = request.GET.get('q', '')
+    if search_query:
+        srpc = srpc.filter(
+            Q(reporcard__student__registration_data__first_name__icontains=search_query) |
+            Q(reporcard__student__registration_data__last_name__icontains=search_query) |
+            Q(reporcard__student__id_number__icontains=search_query)
+        )
+
+    srpc = srpc.order_by(order_field)
+
+    pnation_srpc = Paginator(srpc, 9).get_page(request.GET.get('page'))
 
     return render(request, 'partials/gradebook/personal_dev_table.html', {
-        'srpc': srpc,
         'pnation_srpc': pnation_srpc,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Academic Year',
+                'param': 'year',
+                'options': AcademicYear.objects.all(),
+                'selected': request.GET.get('year', ''),
+            },
+            {
+                'label': 'Period',
+                'param': 'period',
+                'options': LearningPeriod.objects.filter(period_name__icontains='semester'),
+                'selected': request.GET.get('period', ''),
+            },
+            {
+                'label': 'Level',
+                'param': 'level',
+                'options': GradeLevel.objects.all(),
+                'selected': request.GET.get('level', ''),
+            },
+        ],
     })
 
 
@@ -6346,7 +6411,7 @@ def print_midterm_report(request, pk):
 
 
     if show_notes:
-        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai Akhir', 'Catatan']]
+        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Catatan']]
     else:
         grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Predikat']]
 
@@ -6367,7 +6432,7 @@ def print_midterm_report(request, pk):
         grade_data.append(row)
 
     if show_notes:
-        col_widths = [1.1 * cm, 6.7 * cm, 2.4 * cm, 2.4 * cm, 6.8 * cm]
+        col_widths = [1.1 * cm, 6.3 * cm, 1.4 * cm, 1.4 * cm, 9.2 * cm]
     else:
         col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm, 4.4 * cm]
 
@@ -6394,6 +6459,8 @@ def print_midterm_report(request, pk):
     if show_notes:
         # Catatan (comments) column — reset body rows only, keep header at 10
         grade_table_style.add('FONTSIZE', (4, 1), (4, -1), 8)
+        grade_table_style.add('SPACEAFTER', (4, 1), (4, -1), 1)
+        grade_table_style.add('SPACEBEFORE', (4, 1), (4, -1), 1)
 
     grade_table.setStyle(grade_table_style)
     flowables.append(grade_table)
@@ -7343,26 +7410,45 @@ class DormRubricEntryWizard(LoginRequiredMixin, SessionWizardView):
         # (e.g., the main gradebook index or a specific table)
         return redirect('dorm-rubric-entry')
 
+def get_levels_dorm(request):
+    user = request.user
+
+    is_admin = user.is_staff or user.is_superuser
+    dorm_mentor = user.groups.filter(name="Dorm Mentor").exists()
+    period_id = request.GET.get('0-period') or request.GET.get('period')
+    selected_level = request.GET.get('0-level') or request.GET.get('level')
+
+    if period_id:
+        if is_admin or dorm_mentor:
+            levels = GradeLevel.objects.all()
+        else:
+            levels = GradeLevel.objects.none()
+    else:
+        levels = GradeLevel.objects.none()
+
+    context = {'levels': levels}
+    response = render(request, "partials/gradebook/rubric_entry_partials/level.html", context)
+    response['HX-Trigger'] = 'levelsLoaded'
+    return response
+
 
 def get_kelas_dorm(request):
-    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+    user = request.user
+    teacher = Teacher.objects.filter(user=user).first()
+    level_id = request.GET.get('0-level') or request.GET.get('level')
     selected_kelas = request.GET.get('0-kelas') or request.GET.get('kelas')
-
-    # filter by course
-    # if teacher_id:
-    #     classes = Course.objects.filter(teacher_id=teacher_id).select_related('subject')
-    # else:
-    #     classes = Course.objects.none()
-
-    # filter by hr class
-    if teacher_id:
-        classes = Class.objects.filter(teacher_id=teacher_id).select_related('teacher')
+    if level_id:
+        # Filter classes where the teacher is the homeroom teacher
+        # classes = Class.objects.filter(teacher__id=teacher_id, is_home_class=True).distinct()
+        classes = Class.objects.filter(level_id=level_id).distinct()
     else:
         classes = Class.objects.none()
-    return render(request, "partials/gradebook/gradeentry_partials/kelas.html", {
-        'kelas_list': classes,  # ← match the template's variable name
+    context = {
+        'classes': classes,
         'selected_kelas': selected_kelas
-    })
+    }
+    return render(request, "partials/gradebook/pdevelopment_partials/kelas.html", context)
+
 
 # def get_kelas_rubric(request):
 #     rubric.existing_score = existing_scores.get(rubric.id, None)
