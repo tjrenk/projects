@@ -88,10 +88,6 @@ def log_activity(user, obj, action, message=""):
         change_message=message or f"{action.capitalize()}d via frontend",
     )
 
-# BUAT PENGECEKAN KUNCI
-# def locked():
-
-
 # BUAT SORTING TABEL
 def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
     sort_by = request.GET.get('sort', default_sort)
@@ -4582,9 +4578,10 @@ def get_subjects_assignment_avg(request):
     level_id = request.GET.get('0-level') or request.GET.get('level')
     selected_subject = request.GET.get('0-subject') or request.GET.get('subject')
 
-    # 3. Only search if a level is picked AND this person is actually a teacher
+    # isi subject nurut level (perlu diingat: ada yang kedisplay 2 kali (lebih keliatan di grade 11 & 12) karena dibuat untuk I & II)
     if level_id:
-        subjects = Subject.objects.all()
+        # subjects = Subject.objects.all()
+        subjects = Subject.objects.filter(course__level=level_id)
     else:
         subjects = Subject.objects.none()
 
@@ -6435,10 +6432,11 @@ def print_midterm_report(request, pk):
     #     grade_data.append(row)
 
     #NEW
+    notes_style = ParagraphStyle('label_notes', parent=styles['label'], fontSize=7, leading=10)
     for i, g in enumerate(grades, start=1):
         if show_notes:
             row = [str(i), g.subject.subject_name, '82', str(g.final_score)]
-            row.append(Paragraph(g.teacher_notes or '-', styles['label']))
+            row.append(Paragraph(g.teacher_notes or '-', notes_style))
         else:
             row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
         grade_data.append(row)
@@ -6449,17 +6447,6 @@ def print_midterm_report(request, pk):
         col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm, 4.4 * cm]
 
     grade_table = Table(grade_data, colWidths=col_widths)
-    # grade_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
-    #     ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-    #     ('FONTSIZE', (0, 0), (-1, -1), 10),
-    #     ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-    #     ('ALIGN', (2, 0), (2, -1), 'CENTER'),
-    #     ('ALIGN', (3, 0), (3, -1), 'CENTER'),
-    #     ('ALIGN', (4, 0), (4, -1), 'CENTER')
-    # ]))
-    # if show_notes:
-    #     # Catatan (comments) column — reset body rows only, keep header at 10
-    #     grade_table_style.add('FONTSIZE', (4, 1), (4, -1), 8)
     grade_table_style = TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -6470,9 +6457,12 @@ def print_midterm_report(request, pk):
     ])
     if show_notes:
         # Catatan (comments) column — reset body rows only, keep header at 10
-        grade_table_style.add('FONTSIZE', (4, 1), (4, -1), 8)
-        grade_table_style.add('SPACEAFTER', (4, 1), (4, -1), 1)
-        grade_table_style.add('SPACEBEFORE', (4, 1), (4, -1), 1)
+        # grade_table_style.add('FONTSIZE', (4, 1), (4, -1), 8)
+        # grade_table_style.add('LEADING', (4, 1), (4, -1), 100)
+        grade_table_style.add('TOPPADDING', (4, 1), (4, -1), 0.5)
+        grade_table_style.add('BOTTOMPADDING', (4, 1), (4, -1), 0.3)
+        grade_table_style.add('LEFTPADDING', (4, 1), (4, -1), 2)
+
 
     grade_table.setStyle(grade_table_style)
     flowables.append(grade_table)
@@ -7984,5 +7974,5 @@ def dorm_pdf(request, pk):
     # doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
     buf.seek(0)
 
-    filename = f"behaviour_{student.id_number if student else behaviour.pk}_{behaviour.level}_{behaviour.period.period_name}.pdf"
+    filename = f"dorm_{student.id_number if student else behaviour.pk}_{behaviour.level}_{behaviour.period.period_name}.pdf"
     return FileResponse(buf, as_attachment=False, filename=filename)

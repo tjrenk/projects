@@ -134,7 +134,38 @@ def set_rubric_desc(sender, instance, **kwargs):
     def render_template_text(grade):
         template_text = ReportcardRubricTemplate.objects.filter(
             lookup_grade=grade,
-            rubric=instance.rubric
+            rubric=instance.rubric,
+            type='B'
+        ).values_list('text', flat=True).first()
+        if not template_text:
+            return None
+        student_name = f"{instance.student.registration_data.first_name} {instance.student.registration_data.last_name}"
+        return template_text.replace("[Nama Siswa]", student_name)
+
+    old = sender.objects.filter(pk=instance.pk).only('description', 'grade').first() if instance.pk else None
+
+    if old is None:
+        if not instance.description:
+            instance.description = render_template_text(instance.grade)
+        return
+
+    if instance.description != old.description:
+        return
+
+    was_template_generated = not old.description or old.description == render_template_text(old.grade)
+
+    if was_template_generated:
+        new_text = render_template_text(instance.grade)
+        if new_text:
+            instance.description = new_text
+
+
+def set_dorm_desc(sender, instance, **kwargs):
+    def render_template_text(grade):
+        template_text = ReportcardRubricTemplate.objects.filter(
+            lookup_grade=grade,
+            rubric=instance.rubric,
+            type='D'
         ).values_list('text', flat=True).first()
         if not template_text:
             return None
@@ -258,8 +289,8 @@ post_save.connect(set_rubric_desc, StudentBehaviourReport)
 pre_save.connect(set_rubric_grade, StudentDormitoryReport)
 post_save.connect(set_rubric_grade, StudentDormitoryReport)
 
-pre_save.connect(set_rubric_desc, StudentDormitoryReport)
-post_save.connect(set_rubric_desc, StudentDormitoryReport)
+pre_save.connect(set_dorm_desc, StudentDormitoryReport)
+post_save.connect(set_dorm_desc, StudentDormitoryReport)
 
 pre_save.connect(set_extra_grade, StudentReportExtra)
 

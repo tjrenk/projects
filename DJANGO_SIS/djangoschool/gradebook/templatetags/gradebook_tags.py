@@ -92,6 +92,18 @@ def all_students_stats(context):
 
 
 @register.simple_tag(takes_context=True)
+def is_teacher(context):
+    request = context['request']
+
+    if not request.user.is_authenticated:
+        return False
+
+
+    # this one seems risky - but by all means go ahead if you wanna try
+    # return Teacher.objects.filter(user=user).first() or request.user.groups.filter(name='Teachers').exists()
+    return request.user.groups.filter(name='Teachers').exists()
+
+@register.simple_tag(takes_context=True)
 def is_homeroom_teacher(context):
     request = context['request']
 
