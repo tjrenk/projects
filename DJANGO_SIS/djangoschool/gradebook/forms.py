@@ -3230,12 +3230,22 @@ class GetRPCAcademicComments(forms.ModelForm):
             self.fields['level'].queryset = GradeLevel.objects.none()
 
         # 4. Logic: Subject depends on Teacher + Level
+        # if teacher and level:
+        #     self.fields['subject'].queryset = Subject.objects.filter(
+        #         course__teacher__id=teacher, course__level_id=level, is_activity=False
+        #     ).distinct()
+        #     if is_admin:
+        #         self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
+        # else:
+        #     self.fields['subject'].queryset = Subject.objects.none()
+
+        # this one's not dependent by is_activity anymore
         if teacher and level:
             self.fields['subject'].queryset = Subject.objects.filter(
-                course__teacher__id=teacher, course__level_id=level, is_activity=False
+                course__teacher__id=teacher, course__level_id=level
             ).distinct()
             if is_admin:
-                self.fields['subject'].queryset = Subject.objects.filter(is_activity=False).all()
+                self.fields['subject'].queryset = Subject.objects.all()
         else:
             self.fields['subject'].queryset = Subject.objects.none()
 
@@ -3278,7 +3288,7 @@ class GetRPCAcademicComments(forms.ModelForm):
         self.fields['subject'].widget.attrs.update({
             'id': 'subject-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-courses-ge/',
+            'hx-get': '/gradebook/get-courses-rpc/',
             'hx-trigger': 'change',
             'hx-target': '#course-select-ge',
             'hx-swap': 'innerHTML',
@@ -3288,7 +3298,7 @@ class GetRPCAcademicComments(forms.ModelForm):
         self.fields['level'].widget.attrs.update({
             'id': 'level-select-ge',
             'class': 'custom-select mb-4',
-            'hx-get': '/gradebook/get-subjects-ge/',
+            'hx-get': '/gradebook/get-subjects-rpc/',
             'hx-trigger': 'change',
             'hx-target': '#subject-select-ge',
             'hx-swap': 'innerHTML',

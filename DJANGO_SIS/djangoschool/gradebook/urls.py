@@ -48,6 +48,8 @@ urlpatterns = [
     path('teacher-notes-table', views.teacher_notes_table, name='teacher-notes-table'),
     path('teacher-notes-edit/<int:pk>', views.teacher_notes_edit, name='teacher-notes-edit'),
     path('teacher-notes-del/<int:pk>', views.teacher_notes_del, name='teacher-notes-del'),
+    path("get-subjects-rpc/", views.get_subjects_rpc, name="get-subjects-rpc"),
+    path("get-courses-rpc/", views.get_courses_rpc, name="get-courses-rpc"),
 
 
     path('toggle-na-reason/', views.toggle_na_reason, name='toggle_na_reason'),

@@ -734,7 +734,7 @@ class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
         locked = LockDataEntry.objects.filter(lock_start__lte=now, lock_end__gte=now)
         context['locked'] = locked
         if locked:
-            messages.warning(self.request, "Grade entry is now currently locked by admin.")
+            messages.error(self.request, "Grade entry is now currently locked by admin.")
 
         # only query homeroom once and only on steps that need it
         if self.steps.current in ('0', '1'):
@@ -5086,6 +5086,16 @@ def print_pdev_pdf(request, pk):
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
+    # get counselor teacher
+    # remove / disable if it weighs on performance too much
+    counselor = (Teacher.objects
+                 .filter(user__groups__name="Counselor")
+                 .select_related('user')
+                 .distinct()
+                 .first())
+
+
+
 
     student_class = ClassMember.objects.filter(
         student=student, is_active=True
@@ -5233,10 +5243,10 @@ def print_pdev_pdf(request, pk):
     # Signatures
     sig_data = [
         ['',f"Jakarta, {signing_date}"],
-        ['Orang Tua/Wali', 'Wali Kelas,'],
+        ['Orang Tua/Wali', 'Guru Bimbingan Konseling,'], #<---- INI PLACEHOLDER
         ['Peserta Didik,', ''],
         ['', ''],
-        ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
+        ['_________________________', f"{counselor.fullname_wtitle if counselor else '-'}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
     sig_table.setStyle(TableStyle([
@@ -5532,6 +5542,49 @@ class RPCCommentsForm(LoginRequiredMixin, SessionWizardView):
 
         messages.success(self.request, f"Saved comments for {updated_count} student(s).")
         return redirect('rp-comment')
+
+def get_subjects_rpc(request):
+    user = request.user
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('1-teacher') or request.GET.get('teacher')
+    level_id = request.GET.get('0-level') or request.GET.get('1-level') or request.GET.get('level')
+    selected_subject = request.GET.get('0-subject') or request.GET.get('1-subject') or request.GET.get('subject')
+
+    if teacher_id and level_id:
+        subjects = Subject.objects.filter(
+            course__teacher__id=teacher_id, course__level_id=level_id
+        ).distinct()
+    else:
+        subjects = Subject.objects.none()
+    context = {
+        'subjects': subjects,
+        'selected_subject': selected_subject
+    }
+    # template still reuses GE's
+    return render(request, "partials/gradebook/gradeentry_partials/subject.html", context)
+
+def get_courses_rpc(request):
+    acayear_id = request.GET.get('0-academic_year') or request.GET.get('academic_year')
+    subject_id = request.GET.get('0-subject') or request.GET.get('subject')
+    selected_course = request.GET.get('0-course') or request.GET.get('course')
+    level_id = request.GET.get('0-level') or request.GET.get('level')
+    teacher_id = request.GET.get('0-teacher') or request.GET.get('teacher')
+
+    if subject_id and level_id and teacher_id:
+        courses = Course.objects.filter(
+            subject_id=subject_id, level_id=level_id, teacher_id=teacher_id
+        )
+        if acayear_id:
+            courses = courses.filter(academic_year_id=acayear_id)
+    else:
+        courses = Course.objects.none()
+
+    context = {
+        'courses': courses,
+        'selected_course': selected_course
+    }
+    return render(request, "partials/gradebook/gradeentry_partials/course.html", context)
+
+
 
 @login_required
 def teacher_notes_table(request):
@@ -6470,22 +6523,30 @@ def print_midterm_report(request, pk):
 
     # C. EXTRAKURIKULER
     flowables.append(section_header("B. EKSTRAKURIKULER"))
-    extra_data = [['No', 'Mata Pelajaran', 'Nilai', 'Predikat']]
+    extra_data = [['No', 'Mata Pelajaran', 'Predikat', 'Deskripsi']]
     #OLD
     # for i, row in enumerate(extracurricular_rows, start=1):
     #     extra_data.append([str(i), row['course_name'], str(row['score']), row['grade']])
 
     #NEW
     for i, g in enumerate(activity_courses, start=1):
-        row = [str(i), g.subject.subject_name, str(g.final_score), g.final_grade]
+        # row = [str(i), g.subject.subject_name, g.final_grade, str(g.final_score)]
+        # row = [str(i), g.subject.subject_name, g.final_grade, g.teacher_notes]
+        row = [str(i), g.subject.subject_name, g.final_grade]
+        row.append(Paragraph(g.teacher_notes or '-', notes_style))
         extra_data.append(row)
-    extra_table = Table(extra_data, colWidths=[1.1 * cm, 9.1 * cm, 2.4 * cm, 6.8 * cm])
+    # extra_table = Table(extra_data, colWidths=[1.1 * cm, 9.1 * cm, 2.4 * cm, 6.8 * cm])
+    extra_table = Table(extra_data, colWidths=[1.1 * cm, 7.7 * cm, 1.4 * cm, 9.2 * cm])
     extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
         ('ALIGN', (3, 0), (3, -1), 'CENTER'),
+        ('ALIGN', (4, 0), (4, -1), 'CENTER'),
+        ('TOPPADDING', (4, 1), (4, -1), 0.5),
+        ('BOTTOMPADDING', (4, 1), (4, -1), 0.3),
+        ('LEFTPADDING', (4, 1), (4, -1), 2),
     ]))
     flowables.append(extra_table)
     # flowables.append(Spacer(1, 0.4 * cm))
