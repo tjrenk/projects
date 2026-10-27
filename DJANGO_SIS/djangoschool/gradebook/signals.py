@@ -76,15 +76,27 @@ def new_grade_entry(sender, instance, created, **kwargs):
         except GradeEntry.DoesNotExist:
             print (f"GradeEntry for {idnya} does not exist")
 
+# def set_final_grade(sender, instance, **kwargs):
+#     if not instance.final_grade:
+#         if (instance.final_score > 92):
+#             instance.final_grade = "A"
+#         elif (instance.final_score > 85 and instance.final_score < 93):
+#             instance.final_grade = "B"
+#         elif (instance.final_score > 81 and instance.final_score < 86):
+#             instance.final_grade = "C"
+#         elif (instance.final_score > 69 and instance.final_score < 82):
+#             instance.final_grade = "D"
+#         else:
+#             instance.final_grade = "E"
 def set_final_grade(sender, instance, **kwargs):
     if not instance.final_grade:
-        if (instance.final_score > 92 and instance.final_score < 101):
+        if (instance.final_score > 92):
             instance.final_grade = "A"
-        elif (instance.final_score > 85 and instance.final_score < 93):
+        elif (85 < instance.final_score < 93):
             instance.final_grade = "B"
-        elif (instance.final_score > 81 and instance.final_score < 86):
+        elif (81 < instance.final_score < 86):
             instance.final_grade = "C"
-        elif (instance.final_score > 69 and instance.final_score < 82):
+        elif (69 < instance.final_score < 82):
             instance.final_grade = "D"
         else:
             instance.final_grade = "E"
@@ -92,14 +104,19 @@ def set_final_grade(sender, instance, **kwargs):
 def calc_letter_grade(score):
     if score is None:
         return None
-    if 92 < score < 101:
+    # 93-100
+    if 92 < score:
         return "A"
+    # 86 - 92
     elif 85 < score < 93:
         return "B"
+    # 82 - 85
     elif 81 < score < 86:
         return "C"
+    # 70 - 81
     elif 69 < score < 82:
         return "D"
+    # 0 - 69
     else:
         return "E"
 

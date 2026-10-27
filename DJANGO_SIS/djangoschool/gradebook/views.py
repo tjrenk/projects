@@ -231,11 +231,13 @@ def section_header(text):
 
 
 # konten kop surat
-def build_pdf_header_table():
+# def build_pdf_header_table():
+def build_pdf_header_table(overrides=None):
     """
     Pure builder — constructs and returns the header Table object without
     drawing anything. Used both for measuring height and for drawing.
     """
+    overrides = overrides or {}
     LOGO_PATH = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_ecs1.png')
     register_pdf_fonts()
 
@@ -247,7 +249,7 @@ def build_pdf_header_table():
     }
 
     if os.path.exists(LOGO_PATH):
-        logo = Image(LOGO_PATH, width=4.0 * cm, height=1.9 * cm)
+        logo = Image(LOGO_PATH, width=4.0 * cm, height=2.0 * cm)
     else:
         logo = Paragraph(
             "LOGO",
@@ -297,9 +299,9 @@ def build_pdf_header_table():
     ]))
 
     info_block = [
-        Paragraph("YAYASAN REHOBOT JAKARTA", header_text_styles['line1']),
-        Paragraph("SMAK EKUMENE", header_text_styles['line2']),
-        Paragraph("NPSN: 700040251", header_text_styles['line1']),
+        Paragraph(overrides.get('foundation', "YAYASAN REHOBOT JAKARTA"), header_text_styles['line1']),
+        Paragraph(overrides.get('school', "SMAK EKUMENE"), header_text_styles['line2']),
+        Paragraph(overrides.get('npsn', "NPSN: 700040251"), header_text_styles['line1']),
         address_row,
         contact_row,
     ]
@@ -312,20 +314,20 @@ def build_pdf_header_table():
         ('LEFTPADDING', (1, 0), (1, 0), 24),
         ('TOPPADDING', (0, 0), (-1, -1), 0.01),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (0, 0), 0.01),
+        ('TOPPADDING', (0, 0), (0, 0), 4),
         ('BOTTOMPADDING', (0, 0), (0, 0), 20),
     ]))
     return header_table
 
 
-def get_pdf_header_height(page_width):
+def get_pdf_header_height(page_width, overrides=None):
     """
     Measures the header's rendered height without needing a real canvas.
     Used to dynamically size topMargin so body content never overlaps it.
     """
     scratch_buf = io.BytesIO()
     scratch_canvas = pdfcanvas.Canvas(scratch_buf, pagesize=(page_width, 1000))
-    table = build_pdf_header_table()
+    table = build_pdf_header_table(overrides)
     _, height = table.wrapOn(scratch_canvas, page_width, 1000)
     return height
 
@@ -352,7 +354,7 @@ def get_pdf_header(canvas, doc):
     #         mask='auto',
     #     )
     #     canvas.setFillAlpha(1)
-    header_table = build_pdf_header_table()
+    header_table = build_pdf_header_table(getattr(doc, 'header_overrides', None))
     header_width, header_height = header_table.wrapOn(canvas, doc.width, doc.topMargin)
     header_table.drawOn(canvas, doc.leftMargin - 1.5*cm, doc.pagesize[1] - header_height)
     canvas.restoreState()
@@ -4134,7 +4136,8 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'level': level,
             'raw_avg': sum(type_avgs.values()) / len(type_avgs),
             'weighted_avg': weighted_avg,
-            'final_score_preview': min(100, math.ceil(round(weighted_avg, 2))),  # round UP, capped at 100
+            # 'final_score_preview': min(100, math.ceil(round(weighted_avg, 2))),  # round UP, capped at 100
+            'final_score_preview': min(100, round(weighted_avg, 2)),  # round UP, capped at 100
             'period': period,
             'breakdown': breakdown,
             'term_breakdown': term_breakdown,
@@ -5189,6 +5192,11 @@ def print_pdev_pdf(request, pk):
         'IndicatorStyle', parent=styles['content'], fontSize=9,
     )
 
+    desc_style = ParagraphStyle(
+        'GroupDesc', parent=indicator_style, fontName='arial-narrow-italic', fontSize=9, alignment=TA_CENTER,
+    )
+
+
     for group_name, field_names in PERSONAL_DEV_FIELDS.items():
         pdf_label_content = [[group_name]]
         label_table = Table(pdf_label_content, colWidths=[19.4 * cm])
@@ -5202,6 +5210,15 @@ def print_pdev_pdf(request, pk):
             # ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5),
         ]))
         flowables.append(label_table)
+        desc_text = PERSONAL_DEV_DESCRIPTIONS.get(group_name)
+        if desc_text:
+            desc_table = Table([[Paragraph(desc_text, desc_style)]], colWidths=[19.4 * cm])
+            desc_table.setStyle(TableStyle([
+                ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ]))
+            flowables.append(desc_table)
         # flowables.append(Spacer(0, 0.0 * cm))
 
         # harus pake font lain, pake arial narrow nggak bisa
@@ -5242,11 +5259,11 @@ def print_pdev_pdf(request, pk):
 
     # Signatures
     sig_data = [
-        ['',f"Jakarta, {signing_date}"],
-        ['Orang Tua/Wali', 'Guru Bimbingan Konseling,'], #<---- INI PLACEHOLDER
-        ['Peserta Didik,', ''],
+        ['Mengetahui,',f"Jakarta, {signing_date}"],
+        ['Kepala Sekolah', 'Guru Bimbingan dan Konseling,'],
         ['', ''],
-        ['_________________________', f"{counselor.fullname_wtitle if counselor else '-'}"],
+        ['', ''],
+        [f"{headmaster.full_name if headmaster else '-'}", f"{counselor.fullname_wtitle if counselor else '-'}"],
     ]
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
     sig_table.setStyle(TableStyle([
@@ -5255,7 +5272,7 @@ def print_pdev_pdf(request, pk):
         ('TOPPADDING', (0, -1), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
+        ('FONTNAME', (0, -1), (-1, -1), 'arial-narrow-bold')
     ]))
     # flowables.append(sig_table)
     # flowables.append(Spacer(1, 0.3*cm))
@@ -5285,9 +5302,9 @@ def print_pdev_pdf(request, pk):
     signature_block = [
         sig_table,
         Spacer(1, 0.01 * cm),
-        Paragraph("Mengetahui,", center_style),
-        Spacer(1, 0.01 * cm),
-        headmaster_sig_table,
+        # Paragraph("Mengetahui,", center_style),
+        # Spacer(1, 0.01 * cm),
+        # headmaster_sig_table,
     ]
     flowables.append(KeepTogether(signature_block))
 
@@ -6473,7 +6490,7 @@ def print_midterm_report(request, pk):
 
 
     if show_notes:
-        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Catatan']]
+        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Catatan Kompetensi']]
     else:
         grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Predikat']]
 
@@ -7126,7 +7143,8 @@ def hr_monitor_pdf(request):
     meta_data = [
         ['Tahun Ajaran', ':', f"{cd['academic_year'].begin_date.year}/{cd['academic_year'].end_date.year}" if cd else '-'],
         ['Period', ':', str(cd['period']) if cd.get('period') else 'Semua'],
-        ['Nama Guru', ':', str(cd['teacher']) if cd.get('teacher') else 'Semua'],
+        # ['Nama Guru', ':', str(cd['teacher']) if cd.get('teacher') else 'Semua'],
+        ['Nama Guru', ':', str(cd['teacher'].fullname_wtitle) if cd.get('teacher') else 'Semua'],
         ['Mata Pelajaran', ':', str(cd['subject']) if cd.get('subject') else 'Semua'],
     ]
     meta_table = Table(meta_data, colWidths=[4 * cm, 0.5 * cm, 10 * cm])
@@ -7142,12 +7160,16 @@ def hr_monitor_pdf(request):
     flowables.append(meta_table)
     flowables.append(Spacer(1, 0.5 * cm))
 
-    table_data = [['No', 'Nama Guru', 'Mata Pelajaran', 'Kelas', 'Formatif', 'Sumatif']]
+    # uncomment and comment out the one right below if you wanna bring back teacher and subject name
+    # table_data = [['No', 'Nama Guru', 'Mata Pelajaran', 'Kelas', 'Formatif', 'Sumatif']]
+    table_data = [['No', 'Kelas', 'Formatif', 'Sumatif']]
     for i, c in enumerate(courses, start=1):
         table_data.append([
             str(i),
-            Paragraph(str(c.teacher), cell_style),
-            Paragraph(str(c.subject), cell_style),
+            # removed teacher name from the table coz its redundant
+            # Paragraph(str(c.teacher), cell_style),
+            # removed subject name for the same reason
+            # Paragraph(str(c.subject), cell_style),
             Paragraph(c.short_name, cell_style),
             str(c.form_count),
             str(c.summ_count),
@@ -7155,7 +7177,9 @@ def hr_monitor_pdf(request):
 
     monitor_table = Table(
         table_data,
-        colWidths=[1 * cm, 4.5 * cm, 5 * cm, 2.5 * cm, 2 * cm, 2 * cm],
+        # uncomment and comment out the one right below if you wanna bring back teacher and subject name or reuse its row width values
+        # colWidths=[1 * cm, 4.5 * cm, 5 * cm, 2.5 * cm, 2 * cm, 2 * cm],
+        colWidths=[1 * cm, 2.5 * cm, 2 * cm, 2 * cm],
         repeatRows=1,
     )
     monitor_table.setStyle(TableStyle([
@@ -7236,6 +7260,8 @@ def class_attendance_ledger_pdf(request):
     elif cd.get('level'):
         members = members.filter(kelas__level=cd['level'])
 
+    # homeroom = members.kelas.teacher
+
     att = 'student__studentattendance'
     in_period = Q(**{f'{att}__attendance_date__range': (period.date_start, period.date_end)})
 
@@ -7278,6 +7304,7 @@ def class_attendance_ledger_pdf(request):
         ['Tahun Ajaran', ':', f"{cd['academic_year'].begin_date.year}/{cd['academic_year'].end_date.year}" if cd else '-'],
         ['Periode', ':', period.period_name],
         ['Tingkat', ':', str(cd['level'])],
+        # ['Wali Kelas', ':', homeroom],
         ['Kelas', ':', str(cd['kelas']) if cd.get('kelas') else 'Semua'],
     ]
     meta_table = Table(meta_data, colWidths=[4 * cm, 0.5 * cm, 10 * cm])
@@ -7825,6 +7852,9 @@ def dorm_pdf(request, pk):
         student=student, is_active=True
     ).select_related('kelas').first()
 
+    # ubah header cuma buat laporan asrama
+    custom = {'school': "ASRAMA SMAK EKUMENE"}
+
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
@@ -7981,21 +8011,40 @@ def dorm_pdf(request, pk):
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
 
     # Signatures
-    sig_data = [
-        ['',f"Jakarta, {signing_date}"],
-        ['Orang Tua/Wali', 'Wali Kelas,'],
-        ['Peserta Didik,', ''],
-        ['', ''],
-        ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
-    ]
-    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
+    student_gender = student.registration_data.gender
+    if student_gender == "F":
+        sig_data = [
+            ['','Mengetahui', f"Jakarta, {signing_date}"],
+            ['Koordinator Asrama', 'Kepala Sekolah', 'Kepala Asrama,'],
+            ['Koordinator 1: Keren Hapukh Keziah Cakrawati, M.Pd.', '', ''],
+            ['Koordinator 2: Iis Dayanti, S.Pd.', '', ''],
+            ['Koordinator 3: Angel Gabriela Jenesa, S.Pd', '', ''],
+            ['Koordinator 4: Raden Sani Lai’a', '', ''],
+            ['Koordinator 5: Justiani Siriparang', '', ''],
+            # yg buat ketua asrama butuh switch apa nggak? tkutnya bisa aja orgnya ganti
+            ['', f"{headmaster.full_name if headmaster else '-'}", 'Dr.Lidya Yulianti, M.Th., M.Si'],
+        ]
+        sig_table = Table(sig_data, colWidths=[6 * cm, 6 * cm, 6 * cm], rowHeights=[16, 14, 12, 10, 10, 10, 10, 30])
+    # ntar dikasih lagi kondisinya buat penempatan asrama; untuk skrg kayak gini aj dlu (yg penting ada)
+    elif student_gender == "M":
+        sig_data = [
+            ['','Mengetahui', f"Jakarta, {signing_date}"],
+            ['Koordinator Asrama', 'Kepala Sekolah', 'Kepala Asrama,'],
+            ['Koordinator 1: Willy Christian Pratama, S.Pd.', '', ''],
+            ['Koordinator 2: Darman Syah Putra Zendrato. S.Pd', '', ''],
+            ['', f"{headmaster.full_name if headmaster else '-'}", 'Dr.Lidya Yulianti, M.Th., M.Si'],
+        ]
+        sig_table = Table(sig_data, colWidths=[6 * cm, 6 * cm, 6 * cm], rowHeights=[16, 14, 12, 10, 30])
+    # sig_table = Table(sig_data, colWidths=[6*cm, 6*cm, 6*cm], rowHeights=[16, 14, 12, 10, 10, 10, 10, 30])
     sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, -1), (-1, -1), 1),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
+        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold'),
+        ('FONTNAME', (1, -1), (1, -1), 'arial-narrow-bold')
     ]))
     # flowables.append(sig_table)
     # flowables.append(Spacer(1, 0.3*cm))
@@ -8025,12 +8074,13 @@ def dorm_pdf(request, pk):
     signature_block = [
         sig_table,
         Spacer(1, 0.01 * cm),
-        Paragraph("Mengetahui,", center_style),
-        Spacer(1, 0.01 * cm),
-        headmaster_sig_table,
+        # Paragraph("Mengetahui,", center_style),
+        # Spacer(1, 0.01 * cm),
+        # headmaster_sig_table,
     ]
     flowables.append(KeepTogether(signature_block))
 
+    doc.header_overrides = custom
     doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
     # doc.build(flowables, onFirstPage=get_pdf_header, onLaterPages=get_pdf_header)
     buf.seek(0)

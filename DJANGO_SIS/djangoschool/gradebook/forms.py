@@ -2802,6 +2802,13 @@ PERSONAL_DEV_FIELDS = {
     'IV. EXCELLENCE': ['excellence1', 'excellence2', 'excellence3', 'excellence4'],
 }
 
+PERSONAL_DEV_DESCRIPTIONS = {
+    'I. CARE': "Menunjukan sikap ramah, peduli, rendah hati kepada teman, orang tua, guru dan tamu sekolah",
+    'II. RESPECT': "Melaksanakan perencanaan dan pelaksanaan kegiatan sehari - hari secara mandiri dengan pengawasan",
+    'III. RESPONSIBILITY': "Menghargai teman, guru, orang tua dan tamu sekolah",
+    'IV. EXCELLENCE': "Melakukan kegiatan sekolah / sehari – hari yang berfokus pada pencapaian tujuan Akademik dan Karakter",
+}
+
 class PersonalDevSelectForm(forms.Form):
     academic_year = forms.ModelChoiceField(
         queryset=AcademicYear.objects.all(),
