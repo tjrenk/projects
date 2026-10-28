@@ -245,7 +245,9 @@ def build_pdf_header_table(overrides=None):
         'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
         'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
         'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
-        'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2)
+        'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2, leading=9),
+        'contact': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue,
+                                spaceBefore=10),
     }
 
     if os.path.exists(LOGO_PATH):
@@ -270,8 +272,8 @@ def build_pdf_header_table(overrides=None):
     )
     contact_row = Table(
         [[
-          phone_icon, Paragraph("0813-9948-8499", header_text_styles['line3']),
-          email_icon, Paragraph("info@ekumene.sch.id", header_text_styles['line3']
+          phone_icon, Paragraph("0813-9948-8499", header_text_styles['contact']),
+          email_icon, Paragraph("info@ekumene.sch.id", header_text_styles['contact']
                                 )
         ]
         ],
@@ -280,9 +282,7 @@ def build_pdf_header_table(overrides=None):
 
     address_row = Table(
         [[
-            location_icon, Paragraph(
-                "Pertokoan Jl. Gading Kirana Utara No.1-2 Blok A10, Klp. Gading Bar., Kec. Klp. Gading, Jakarta Utara, 14240",
-                header_text_styles['addr'])]],
+            location_icon, Paragraph(overrides.get('address', "Pertokoan Jl. Gading Kirana Utara No.1-2 Blok A10, Klp. Gading Bar., Kec. Klp. Gading, Jakarta Utara, 14240"),header_text_styles['addr'])]],
         colWidths=[0.4 * cm, 15 * cm], rowHeights=[20]
     )
 
@@ -5281,7 +5281,7 @@ def print_pdev_pdf(request, pk):
         alignment=TA_CENTER,
     )
     # flowables.append(Paragraph("Mengetahui,", center_style))
-    flowables.append(Spacer(1, 0.1 * cm))
+    flowables.append(Spacer(1, 0.3 * cm))
     headmaster_sig_data = [
         ['Kepala Sekolah'],
         [''],
@@ -7853,7 +7853,9 @@ def dorm_pdf(request, pk):
     ).select_related('kelas').first()
 
     # ubah header cuma buat laporan asrama
-    custom = {'school': "ASRAMA SMAK EKUMENE"}
+    # INI MASIH BLM FIX YA, LOKASI ASRAMA BELUM DIIMPLEMEN, INI PLACEHOLDER DOANG
+    custom = {'school': "ASRAMA SMAK EKUMENE",
+              'address': "Putra - Kelapa Cengkir Barat, Blok FR2 No.3, Kelapa Gading, Jakarta Utara 14240<br/>Putri - Gading Kirana Barat VII Blok CS No.16, RT.014/RW.008, Jakarta Utara 14240"}
 
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
@@ -8004,39 +8006,42 @@ def dorm_pdf(request, pk):
         # table.setStyle(table_style)
         # table.setStyle(behav_table)
         flowables.append(table)
-        # flowables.append(Spacer(1, 0.3*cm))
+        flowables.append(Spacer(1, 0.2*cm))
 
     # flowables.append(Paragraph(f"Printed by {user} on {date}", styles['footer']))
 
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
 
     # Signatures
-    student_gender = student.registration_data.gender
-    if student_gender == "F":
-        sig_data = [
-            ['','Mengetahui', f"Jakarta, {signing_date}"],
-            ['Koordinator Asrama', 'Kepala Sekolah', 'Kepala Asrama,'],
-            ['Koordinator 1: Keren Hapukh Keziah Cakrawati, M.Pd.', '', ''],
-            ['Koordinator 2: Iis Dayanti, S.Pd.', '', ''],
-            ['Koordinator 3: Angel Gabriela Jenesa, S.Pd', '', ''],
-            ['Koordinator 4: Raden Sani Lai’a', '', ''],
-            ['Koordinator 5: Justiani Siriparang', '', ''],
-            # yg buat ketua asrama butuh switch apa nggak? tkutnya bisa aja orgnya ganti
-            ['', f"{headmaster.full_name if headmaster else '-'}", 'Dr.Lidya Yulianti, M.Th., M.Si'],
-        ]
-        sig_table = Table(sig_data, colWidths=[6 * cm, 6 * cm, 6 * cm], rowHeights=[16, 14, 12, 10, 10, 10, 10, 30])
-    # ntar dikasih lagi kondisinya buat penempatan asrama; untuk skrg kayak gini aj dlu (yg penting ada)
-    elif student_gender == "M":
-        sig_data = [
-            ['','Mengetahui', f"Jakarta, {signing_date}"],
-            ['Koordinator Asrama', 'Kepala Sekolah', 'Kepala Asrama,'],
-            ['Koordinator 1: Willy Christian Pratama, S.Pd.', '', ''],
-            ['Koordinator 2: Darman Syah Putra Zendrato. S.Pd', '', ''],
-            ['', f"{headmaster.full_name if headmaster else '-'}", 'Dr.Lidya Yulianti, M.Th., M.Si'],
-        ]
-        sig_table = Table(sig_data, colWidths=[6 * cm, 6 * cm, 6 * cm], rowHeights=[16, 14, 12, 10, 30])
-    # sig_table = Table(sig_data, colWidths=[6*cm, 6*cm, 6*cm], rowHeights=[16, 14, 12, 10, 10, 10, 10, 30])
+    DORM_STAFF = {
+        'F': {'coordinators': ["Keren Hapukh Keziah Cakrawati, M.Pd.", "Iis Dayanti, S.Pd.", "Angel Gabriela Jenesa, S.Pd", "Raden Sani Lai’a", "Justiani Siriparang"],
+              'mentor': "Dr.Lidya Yulianti, M.Th., M.Si"},
+        'M': {'coordinators': ["Willy Christian Pratama, S.Pd.", "Darman Syah Putra Zendrato. S.Pd"],
+              'mentor': "Dr.Lidya Yulianti, M.Th., M.Si"},
+    }
+    SIGN_SPACE = 50
+
+    staff = DORM_STAFF.get(student.registration_data.gender, DORM_STAFF['M'])
+
+    sig_style = ParagraphStyle(
+        'SigCell', fontName='arial-narrow', fontSize=9, leading=10,
+        alignment=TA_LEFT,  # or TA_CENTER, to match what you had
+    )
+    coord_html = "<br/>".join(
+        f"<font name='arial-narrow-bold'>Koordinator {i}</font>: {name}"
+        for i, name in enumerate(staff['coordinators'], 1)
+    )
+
+    sig_data = [
+        ['', 'Mengetahui', f"Jakarta, {signing_date}"],
+        ['Koordinator Asrama', 'Kepala Sekolah', 'Kepala Asrama,'],
+        [Paragraph(coord_html, sig_style), '', ''],
+        ['', headmaster.full_name if headmaster else '-', staff['mentor']],
+    ]
+    sig_table = Table(sig_data, colWidths=[6 * cm, 6 * cm, 6 * cm],
+                      rowHeights=[16, 14, SIGN_SPACE, 30])
     sig_table.setStyle(TableStyle([
+        ('VALIGN', (0, 2), (0, 2), 'TOP'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('TOPPADDING', (0, -1), (-1, -1), 1),

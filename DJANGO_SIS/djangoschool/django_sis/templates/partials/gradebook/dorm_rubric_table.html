@@ -78,8 +78,8 @@
                     {% endfor %}
 
                     {% if pnation_sessions.has_next %}
-                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_sessions.next_page_number }}">&raquo;</a>
-                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_sessions.paginator.num_pages }}">&raquo;&raquo;</a>
+                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={% querystring page=pnation_sessions.next_page_number %}">&raquo;</a>
+                    <a class="join-item btn btn-sm" href="?sort={{ sort_by }}&dir={{ sort_dir }}&page={% querystring page=pnation_sessions.paginator.num_pages %}">&raquo;&raquo;</a>
                     {% endif %}
                 </div>
             </div>

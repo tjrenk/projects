@@ -2804,8 +2804,8 @@ PERSONAL_DEV_FIELDS = {
 
 PERSONAL_DEV_DESCRIPTIONS = {
     'I. CARE': "Menunjukan sikap ramah, peduli, rendah hati kepada teman, orang tua, guru dan tamu sekolah",
-    'II. RESPECT': "Melaksanakan perencanaan dan pelaksanaan kegiatan sehari - hari secara mandiri dengan pengawasan",
-    'III. RESPONSIBILITY': "Menghargai teman, guru, orang tua dan tamu sekolah",
+    'II. RESPECT': "Menghargai teman, guru, orang tua dan tamu sekolah",
+    'III. RESPONSIBILITY': "Melaksanakan perencanaan dan pelaksanaan kegiatan sehari - hari secara mandiri dengan pengawasan",
     'IV. EXCELLENCE': "Melakukan kegiatan sekolah / sehari – hari yang berfokus pada pencapaian tujuan Akademik dan Karakter",
 }
 

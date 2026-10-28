@@ -88,13 +88,13 @@
     <div class="join">
         {% if pnation_ah.has_previous %}
         <a class="join-item btn btn-sm"
-           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page=1"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={% querystring page=1 %}"
            hx-target="#grade-table-container"
            hx-select="#grade-table-container"
            hx-swap="outerHTML"
            hx-push-url="true">&laquo;&laquo;</a>
         <a class="join-item btn btn-sm"
-           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_ah.previous_page_number }}"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={% querystring page=pnation_ah.previous_page_number %}"
            hx-target="#grade-table-container"
            hx-select="#grade-table-container"
            hx-swap="outerHTML"
@@ -106,7 +106,7 @@
             <button class="join-item btn btn-sm btn-active">{{ num }}</button>
             {% elif num > pnation_ah.number|add:"-3" and num < pnation_ah.number|add:"3" %}
             <a class="join-item btn btn-sm"
-               hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ num }}"
+               hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={% querystring page=num %}"
                hx-target="#grade-table-container"
                hx-select="#grade-table-container"
                hx-swap="outerHTML"
@@ -116,13 +116,13 @@
 
         {% if pnation_ah.has_next %}
         <a class="join-item btn btn-sm"
-           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_ah.next_page_number }}"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={% querystring page=pnation_ah.next_page_number %}"
            hx-target="#grade-table-container"
            hx-select="#grade-table-container"
            hx-swap="outerHTML"
            hx-push-url="true">&raquo;</a>
         <a class="join-item btn btn-sm"
-           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={{ pnation_ah.paginator.num_pages }}"
+           hx-get="?sort={{ sort_by }}&dir={{ sort_dir }}&page={% querystring page=pnation_ah.paginator.num_pages %}"
            hx-target="#grade-table-container"
            hx-select="#grade-table-container"
            hx-swap="outerHTML"

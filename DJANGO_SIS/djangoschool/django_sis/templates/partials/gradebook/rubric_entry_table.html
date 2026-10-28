@@ -71,8 +71,8 @@
         <tr>
         <td>
         {% if pnation_sessions.has_previous %}
-        <a class="join-item btn" href="?page=1"><<</a>
-        <a class="join-item btn" href="?page={{ pnation_sessions.previous_page_number }}"><</a>
+        <a class="join-item btn" href="?page={% querystring page=1 %}"><<</a>
+        <a class="join-item btn" href="?page={% querystring page=pnation_sessions.previous_page_number %}"><</a>
         {% endif %}
         </td>
         <td>
@@ -81,9 +81,9 @@
 
         <td>
         {% if pnation_sessions.has_next %}
-        <a class="join-item btn" href="?page={{ pnation_sessions.next_page_number }}">></a>
+        <a class="join-item btn" href="?page={% querystring page=pnation_sessions.next_page_number %}">></a>
 
-        <a class="join-item btn" href="?page={{ pnation_sessions.paginator.num_pages }}">>></a>
+        <a class="join-item btn" href="?page={% querystring page=pnation_sessions.paginator.num_pages %}">>></a>
         {% endif %}
         </td>
         </tr>

@@ -192,6 +192,25 @@ class ClassMember(models.Model):
     def __str__(self):
         return f"{self.student}"
 
+# usulan aja, blm diimplemen
+# asrama
+# class Dorm(models.Model):
+#     name = models.CharField(max_length=50)
+#     address = models.CharField(max_length=100)
+#
+#     def __str__(self):
+#         return self.name
+#
+# # member asrama
+# class DormMember(models.Model):
+#     dorm = models.ForeignKey(Dorm, on_delete=models.CASCADE)
+#     student = models.ForeignKey(Student, on_delete=models.CASCADE)
+#     # gender too?
+#
+#
+#     def __str__(self):
+#         return f"{self.student}"
+
 class SchoolData(models.Model):
     school_name = models.CharField(max_length=100, unique=True)
     address1 = models.CharField(max_length=100)
