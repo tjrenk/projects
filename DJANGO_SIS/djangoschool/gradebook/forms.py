@@ -2802,6 +2802,7 @@ PERSONAL_DEV_FIELDS = {
     'IV. EXCELLENCE': ['excellence1', 'excellence2', 'excellence3', 'excellence4'],
 }
 
+# deskripsi / narasi tiap bagian / group
 PERSONAL_DEV_DESCRIPTIONS = {
     'I. CARE': "Menunjukan sikap ramah, peduli, rendah hati kepada teman, orang tua, guru dan tamu sekolah",
     'II. RESPECT': "Menghargai teman, guru, orang tua dan tamu sekolah",
@@ -3036,7 +3037,7 @@ class CpmpCreateForm(forms.ModelForm):
         label='Learning Targets (one per line)'
     )
 
-    # skrg kalo mau input data nilai ekskul, skip buat data LO (Learning Objective) baru
+    # skrg kalo mau input data nilai ekskul, skip buat data LO (Learning Outcome) baru
     # tapi ini dicomment out buat keperluan debugging / siapa tahu perlu
 
     # is_activity = forms.BooleanField(

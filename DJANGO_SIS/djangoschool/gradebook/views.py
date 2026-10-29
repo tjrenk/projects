@@ -243,12 +243,15 @@ def build_pdf_header_table(overrides=None):
 
     header_text_styles = {
         'line1': ParagraphStyle('HeaderLine1', fontName='Montserrat-SemiBold', fontSize=10, textColor=colors.darkblue, spaceAfter=1),
-        'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=10),
-        'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=2),
-        'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=2, leading=9),
+        'line2': ParagraphStyle('HeaderLine2', fontName='Montserrat-Bold', fontSize=15, textColor=colors.darkblue, spaceBefore=1, spaceAfter=5),
+        'line3': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue, spaceAfter=1),
+        'addr': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=8.1, textColor=colors.darkblue, spaceAfter=1, leading=9),
         'contact': ParagraphStyle('HeaderLine3', fontName='Montserrat-Regular', fontSize=9, textColor=colors.darkblue,
-                                spaceBefore=10),
+                                spaceBefore=5),
     }
+    for style_key, attrs in overrides.get('styles', {}).items():
+        for attr, value in attrs.items():
+            setattr(header_text_styles[style_key], attr, value)
 
     if os.path.exists(LOGO_PATH):
         logo = Image(LOGO_PATH, width=4.0 * cm, height=2.0 * cm)
@@ -277,45 +280,59 @@ def build_pdf_header_table(overrides=None):
                                 )
         ]
         ],
-        colWidths=[0.4 * cm, 2.8 * cm, 0.4 * cm, 5 * cm], rowHeights=[10]
+        colWidths=[0.4 * cm, 2.8 * cm, 0.4 * cm, 5 * cm]
     )
 
     address_row = Table(
         [[
             location_icon, Paragraph(overrides.get('address', "Pertokoan Jl. Gading Kirana Utara No.1-2 Blok A10, Klp. Gading Bar., Kec. Klp. Gading, Jakarta Utara, 14240"),header_text_styles['addr'])]],
-        colWidths=[0.4 * cm, 15 * cm], rowHeights=[20]
+        colWidths=[0.4 * cm, 15 * cm]
     )
 
     contact_row.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
     ]))
 
     address_row.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 2),
     ]))
 
-    info_block = [
-        Paragraph(overrides.get('foundation', "YAYASAN REHOBOT JAKARTA"), header_text_styles['line1']),
-        Paragraph(overrides.get('school', "SMAK EKUMENE"), header_text_styles['line2']),
-        Paragraph(overrides.get('npsn', "NPSN: 700040251"), header_text_styles['line1']),
-        address_row,
-        contact_row,
-    ]
+    # info_block = [
+    #     Paragraph(overrides.get('foundation', "YAYASAN REHOBOT JAKARTA"), header_text_styles['line1']),
+    #     Paragraph(overrides.get('school', "SMAK EKUMENE"), header_text_styles['line2']),
+    #     Paragraph(overrides.get('npsn', "NPSN: 700040251"), header_text_styles['line1']),
+    #     address_row,
+    #     contact_row,
+    # ]
+
+    foundation = overrides.get('foundation', "YAYASAN REHOBOT JAKARTA")
+    school     = overrides.get('school',     "SMAK EKUMENE")
+    npsn       = overrides.get('npsn',       "NPSN: 700040251")
+
+    info_block = []
+    if foundation:
+        info_block.append(Paragraph(foundation, header_text_styles['line1']))
+    if school:
+        info_block.append(Paragraph(school, header_text_styles['line2']))
+    if npsn:
+        info_block.append(Paragraph(npsn, header_text_styles['line1']))
+    info_block += [address_row, contact_row]
 
     header_table = Table([[logo, info_block]], colWidths=[2.9 * cm, 13 * cm])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('ALIGN', (0, 0), (0, 0), 'CENTER'),
         ('LEFTPADDING', (1, 0), (1, 0), 24),
         ('TOPPADDING', (0, 0), (-1, -1), 0.01),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (0, 0), 4),
-        ('BOTTOMPADDING', (0, 0), (0, 0), 20),
+        ('TOPPADDING', (0, 0), (0, 0), -2),
+        ('BOTTOMPADDING', (0, 0), (0, 0), 18),
     ]))
     return header_table
 
@@ -4137,7 +4154,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
             'raw_avg': sum(type_avgs.values()) / len(type_avgs),
             'weighted_avg': weighted_avg,
             # 'final_score_preview': min(100, math.ceil(round(weighted_avg, 2))),  # round UP, capped at 100
-            'final_score_preview': min(100, round(weighted_avg, 2)),  # round UP, capped at 100
+            'final_score_preview': min(100, round(weighted_avg)),  # round UP, capped at 100
             'period': period,
             'breakdown': breakdown,
             'term_breakdown': term_breakdown,
@@ -7855,7 +7872,11 @@ def dorm_pdf(request, pk):
     # ubah header cuma buat laporan asrama
     # INI MASIH BLM FIX YA, LOKASI ASRAMA BELUM DIIMPLEMEN, INI PLACEHOLDER DOANG
     custom = {'school': "ASRAMA SMAK EKUMENE",
-              'address': "Putra - Kelapa Cengkir Barat, Blok FR2 No.3, Kelapa Gading, Jakarta Utara 14240<br/>Putri - Gading Kirana Barat VII Blok CS No.16, RT.014/RW.008, Jakarta Utara 14240"}
+              'address': "Putra - Jl. Gading Mas Raya A8 No 11, Kelapa Gading Timur, Jakarta Utara; Klp. Cengkir Bar. X Blok FR2 No.3 RT.2/RW.13, Klp. Gading Tim., Kec. Klp. Gading, Jkt Utara, Daerah Khusus Ibukota Jakarta 14240<br/>Putri - Gading Kirana Barat VII Blok CS No.16, RT.014/RW.008, Jakarta Utara 14240",
+              'npsn': None,
+              'styles': {
+                  'addr': {'spaceAfter': 0.5},
+              }}
 
     user = request.user
     date = datetime.now().strftime("%d %B %Y, %H:%M")
@@ -7904,6 +7925,31 @@ def dorm_pdf(request, pk):
     period_number = ''.join(filter(str.isdigit, behaviour.period.period_name)) or behaviour.period.period_name
 
     # isian kata2 untuk header; disetor dalam sebuah array
+    DORM_LOC = {
+        'F': ["Gading Kirana Barat VII Blok CS No.16, RT.014/RW.008, Jakarta Utara 14240"],
+        # 'M': ["• Jl. Gading Mas Raya A8 No 11, Kelapa Gading Timur, Jakarta Utara. <br/>• Klp. Cengkir Bar. X Blok FR2 No.3 RT.2/RW.13, Klp. Gading Tim., Kec. Klp. Gading, Jkt Utara, Daerah Khusus Ibukota Jakarta 14240"]
+        'M': [
+            "Jl. Gading Mas Raya A8 No 11, Kelapa Gading Timur, Jakarta Utara.", "Klp. Cengkir Bar. X Blok FR2 No.3 RT.2/RW.13, Kelapa Gading Timur, Jakarta Utara"]
+    }
+    location = DORM_LOC.get(student.registration_data.gender, DORM_LOC['M'])
+
+    loc_style = ParagraphStyle(
+        'LocCell', fontName='arial-narrow', fontSize=9, leading=13.5,
+        alignment=TA_LEFT,  # or TA_CENTER, to match what you had
+    )
+    # loc_html = "<br/>".join(
+    #     f"<font name='arial-narrow-bold'>Koordinator {i}</font>: {name}"
+    #     for i, name in enumerate(staff['coordinators'], 1)
+    # )
+    location_items = [Paragraph(line, loc_style, bulletText='•') for line in location]
+
+    loc_plain = ParagraphStyle('LocPlain', parent=loc_style, leftIndent=0)
+
+    if len(location) > 1:
+        location_items = [Paragraph(line, loc_style, bulletText='•') for line in location]
+    else:
+        location_items = [Paragraph(location[0], loc_plain)]
+
     meta_data = [
         ['', 'Nama', ':', f"{student.registration_data.first_name or ''} {student.registration_data.middle_name or ''} {student.registration_data.last_name or ''}".strip(),
          'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
@@ -7911,12 +7957,15 @@ def dorm_pdf(request, pk):
          'Semester', ':', period_number],
         ['', 'NISN', ':', student.nisn or '-',
          'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
+        # [',', 'Asrama', ':', Paragraph("<br/>".join(location), loc_style),
+        #  '', '', '', ''],
+        ['', 'Asrama', ':', location_items, '', '', ''],
     ]
     # ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
     # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
 
     # isian array itu dimasukkin ke dlm tabel, sama konfigurasi jarak kiri-kanan antar kolom)
-    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
+    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 10.2 * cm, 2.3 * cm, 0.4 * cm, 2.1 * cm, 0.0 * cm, 5.0 * cm], rowHeights=[0.53 * cm, 0.53 * cm, 0.6 * cm, None])
 
     # styling tabel
     meta_table.setStyle(TableStyle([
@@ -7927,6 +7976,7 @@ def dorm_pdf(request, pk):
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('TOPPADDING', (0, 0), (-1, -1), 1.7),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('SPAN', (3, 3), (6, 3)),
     ]))
 
     # append / catat ke flowables (kertas)
@@ -8014,10 +8064,10 @@ def dorm_pdf(request, pk):
 
     # Signatures
     DORM_STAFF = {
-        'F': {'coordinators': ["Keren Hapukh Keziah Cakrawati, M.Pd.", "Iis Dayanti, S.Pd.", "Angel Gabriela Jenesa, S.Pd", "Raden Sani Lai’a", "Justiani Siriparang"],
-              'mentor': "Dr.Lidya Yulianti, M.Th., M.Si"},
-        'M': {'coordinators': ["Willy Christian Pratama, S.Pd.", "Darman Syah Putra Zendrato. S.Pd"],
-              'mentor': "Dr.Lidya Yulianti, M.Th., M.Si"},
+        'F': {'coordinators': ["Keren Hapukh Keziah Cakrawati, M.Pd.", "Iis Dayanti, S.Pd.", "Angel Gabriela Jenesa, S.Pd.", "Raden Sani Lai’a", "Justiani Siriparang"],
+              'mentor': "Dr. Lidya Yulianti, M.Th., M.Si."},
+        'M': {'coordinators': ["Willy Christian Pratama, S.Pd.", "Darman Syah Putra Zendrato. S.Pd."],
+              'mentor': "Dr. Lidya Yulianti, M.Th., M.Si."},
     }
     SIGN_SPACE = 50
 
@@ -8038,7 +8088,7 @@ def dorm_pdf(request, pk):
         [Paragraph(coord_html, sig_style), '', ''],
         ['', headmaster.full_name if headmaster else '-', staff['mentor']],
     ]
-    sig_table = Table(sig_data, colWidths=[6 * cm, 6 * cm, 6 * cm],
+    sig_table = Table(sig_data, colWidths=[7 * cm, 4 * cm, 8 * cm],
                       rowHeights=[16, 14, SIGN_SPACE, 30])
     sig_table.setStyle(TableStyle([
         ('VALIGN', (0, 2), (0, 2), 'TOP'),
