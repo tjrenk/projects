@@ -14,7 +14,7 @@ from .models import *
 from .signals import calc_letter_grade
 from admission.models import Class, ClassMember, Teacher, Student, User
 from django.db.models import Sum, Avg, Count, Max, Min, Q
-from django.db.models import F, OuterRef, Subquery
+from django.db.models import F, OuterRef, Subquery, Exists
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, GOV_LEGAL, landscape
 from reportlab.lib.units import inch, cm
@@ -411,6 +411,42 @@ def get_pdf_watermark(canvas, doc):
         )
 
     canvas.restoreState()
+
+# paging numbers (EXPERIMENTAL)
+class NumberedCanvas(canvas.Canvas):
+    """
+    A canvas that enables "Page X of Y" footers by intercepting
+    the drawing process to track total pages before saving.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        # Save the current page state for the second pass
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_page_number(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_page_number(self, page_count):
+        self.saveState()
+        self.setFont("arial-narrow", 8)
+
+        # Format the page number string
+        page_text = f"Hal {self._pageNumber} dari {page_count}"
+
+        # Position the text (0.75 inch from right margin, 0.5 inch from bottom)
+        # letter width is 612 points
+        self.drawRightString(612 - 54, 36, page_text)
+        self.restoreState()
 
 # decorator / combiner, karena onFirstPage & onLastPage cuma bisa terima 1 value, atau canvas & doc
 def get_pdf_page_decorations(canvas, doc, user=None, date=None):
@@ -4248,6 +4284,8 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
         if empty:
             messages.warning(self.request, "No weightings or scores for: " + ", ".join(empty))
 
+        result_subjects = sorted({r['subject'] for r in student_results}, key=lambda s: s.subject_name)
+
         context = {
             'student_results': student_results,
             'selected_academic_year': academic_year,
@@ -4255,6 +4293,7 @@ class AssignmentAvgWizard(LoginRequiredMixin, SessionWizardView):
             'selected_level': level,
             'selected_period': period,
             'is_mid': is_mid,
+            'result_subjects': result_subjects,
         }
         return render(self.request, "partials/gradebook/assignment_avg_result.html", context)
 
@@ -4601,7 +4640,10 @@ def get_subjects_assignment_avg(request):
     # isi subject nurut level (perlu diingat: ada yang kedisplay 2 kali (lebih keliatan di grade 11 & 12) karena dibuat untuk I & II)
     if level_id:
         # subjects = Subject.objects.all()
-        subjects = Subject.objects.filter(course__level=level_id)
+        # subjects = Subject.objects.filter(course__level=level_id)
+        subjects = Subject.objects.filter(
+            Exists(Course.objects.filter(subject=OuterRef('pk'), level=level_id))
+        ).order_by('subject_name')
     else:
         subjects = Subject.objects.none()
 
@@ -6421,7 +6463,7 @@ def print_midterm_report(request, pk):
         buf,
         pagesize=F4,
         topMargin=header_height + HEADER_GAP,
-        bottomMargin=0.01*cm,
+        bottomMargin=1.5*cm,
         # leftMargin=2.3*cm,
         # rightMargin=2.3*cm,
     )
@@ -6719,7 +6761,7 @@ def print_midterm_report(request, pk):
     # flowables.append(Paragraph(f"Kepala Sekolah — {headmaster.full_name if headmaster else '-'}", styles['label']))
 
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
-    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator, canvasmaker=NumberedCanvas)
     buf.seek(0)
 
     if show_notes:
@@ -7965,7 +8007,7 @@ def dorm_pdf(request, pk):
     # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
 
     # isian array itu dimasukkin ke dlm tabel, sama konfigurasi jarak kiri-kanan antar kolom)
-    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 10.2 * cm, 2.3 * cm, 0.4 * cm, 2.1 * cm, 0.0 * cm, 5.0 * cm], rowHeights=[0.53 * cm, 0.53 * cm, 0.6 * cm, None])
+    meta_table = Table(meta_data, colWidths=[0.5 * cm, 2.6 * cm, 0.4 * cm, 11.1 * cm, 2.3 * cm, 0.4 * cm, 2.1 * cm, 0.0 * cm, 5.0 * cm], rowHeights=[0.53 * cm, 0.53 * cm, 0.6 * cm, None])
 
     # styling tabel
     meta_table.setStyle(TableStyle([
@@ -8066,7 +8108,7 @@ def dorm_pdf(request, pk):
     DORM_STAFF = {
         'F': {'coordinators': ["Keren Hapukh Keziah Cakrawati, M.Pd.", "Iis Dayanti, S.Pd.", "Angel Gabriela Jenesa, S.Pd.", "Raden Sani Lai’a", "Justiani Siriparang"],
               'mentor': "Dr. Lidya Yulianti, M.Th., M.Si."},
-        'M': {'coordinators': ["Willy Christian Pratama, S.Pd.", "Darman Syah Putra Zendrato. S.Pd."],
+        'M': {'coordinators': ["Yunusman Hulu, S.Pd.", "Darman Syah Putra Zendrato. S.Pd.", "Willy Christian Pratama, S.Pd."],
               'mentor': "Dr. Lidya Yulianti, M.Th., M.Si."},
     }
     SIGN_SPACE = 50

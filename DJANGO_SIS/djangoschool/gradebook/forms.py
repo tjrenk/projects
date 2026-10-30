@@ -2722,6 +2722,7 @@ class AssignmentAvgForm(forms.Form):
             'hx-swap': 'innerHTML',
             'hx-include': '#assignment-avg-acayear-select',
         }),
+        label="Subject (ctrl + click to select more than one)"
     )
     course = forms.ModelChoiceField(
         queryset=Course.objects.none(),
