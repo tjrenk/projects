@@ -544,13 +544,15 @@ class AssignmentHeadEditForm(forms.ModelForm):
 
     class Meta:
         model = AssignmentHead
-        fields = ['date', 'max_score', 'assignment', 'category', 'course', 'cpmp_target', 'topic']
+        # lupa dibuang sebelumnya, max_score dan course harus dihilangin biar pas edit bisa kesimpen (dikiranya dua2nya nggak ada isi mumpung kedua field itu required)
+        # fields = ['date', 'max_score', 'assignment', 'category', 'course', 'cpmp_target', 'topic']
+        fields = ['date', 'assignment', 'category', 'cpmp_target', 'topic']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'input input-bordered input-sm w-full'}),
-            'max_score': forms.NumberInput(attrs={'class': 'input input-bordered input-sm w-24'}),
+            # 'max_score': forms.NumberInput(attrs={'class': 'input input-bordered input-sm w-24'}),
             'assignment': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'category': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
-            'course': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
+            # 'course': forms.Select(attrs={'class': 'select select-bordered select-sm w-full'}),
             'cpmp_target': forms.SelectMultiple(attrs={'class': 'select select-bordered select-sm w-full h-24', 'style': 'height: 10rem; min-height: 6rem; resize: vertical;'}),
             'topic': forms.TextInput(attrs={'class': 'input input-ghost'}),
         }
@@ -567,20 +569,20 @@ class AssignmentHeadEditForm(forms.ModelForm):
                                                                                                          None)
         self.initial.setdefault('subject', subject_id)
 
-        self.fields['course'].queryset = Course.objects.filter(
-            subject_id=subject_id) if subject_id else Course.objects.none()
-        self.fields['cpmp_target'].queryset = (
-            CapaianPemelajaranMataPelajaran.objects.filter(
-                subject_id=subject_id, academic_year_id=course.academic_year_id, level_id=course.level_id
-            ) if course else CapaianPemelajaranMataPelajaran.objects.none()
-        )
-        self.fields['course'].widget.attrs.update({
-            'hx-get': '/gradebook/get-cpmp-target-for-head/',
-            'hx-trigger': 'change',
-            'hx-target': '#cpmp-target-edit-wrapper',
-            'hx-swap': 'innerHTML',
-            'hx-include': 'this',
-        })
+        # self.fields['course'].queryset = Course.objects.filter(
+        #     subject_id=subject_id) if subject_id else Course.objects.none()
+        # self.fields['cpmp_target'].queryset = (
+        #     CapaianPemelajaranMataPelajaran.objects.filter(
+        #         subject_id=subject_id, academic_year_id=course.academic_year_id, level_id=course.level_id
+        #     ) if course else CapaianPemelajaranMataPelajaran.objects.none()
+        # )
+        # self.fields['course'].widget.attrs.update({
+        #     'hx-get': '/gradebook/get-cpmp-target-for-head/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#cpmp-target-edit-wrapper',
+        #     'hx-swap': 'innerHTML',
+        #     'hx-include': 'this',
+        # })
 
 
 # Form Step 3 (Detail per Siswa)
