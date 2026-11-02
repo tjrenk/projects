@@ -2245,8 +2245,8 @@ def ge_edit(request, pk):
         if head_form.is_valid() and formset.is_valid():
             head_form.save()
             formset.save()
-            if request.GET.get('next') == 'print':
-                return redirect('print-grade-list', pk=parent_head.pk)
+            # if request.GET.get('next') == 'print':
+            #     return redirect('print-grade-list', pk=parent_head.pk)
             # kalo bisa ini detect apa yg diedit dan didisplay editannya apa; buat later consideration aja
             log_activity(request.user, parent_head, 'change', "Updated via Grade Entry form")
             messages.success(request, "Grade record edited!")
