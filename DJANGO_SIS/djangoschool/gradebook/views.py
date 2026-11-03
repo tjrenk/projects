@@ -2510,8 +2510,9 @@ def tc_del(request, pk):
     src = get_object_or_404(StudentReportcard, pk=pk)
     if request.method == 'POST':
         src.ht_comment = None
+        # not sure if its gonna be any useful to track a data deletion inside the history of the data that was deleted
+        log_activity(self.request.user, src, 'delete', "Deleted a comment")
         src.save()
-        # log_activity(self.request.user, src, 'delete', "Deleted a comment")
         return redirect('report-card-table')
 
     # For a GET request, show the empty form
@@ -5073,6 +5074,7 @@ def pdev_edit(request, pk):
         formset = PersonalDevFormSet(request.POST, queryset=queryset)
         if formset.is_valid():
             formset.save()
+            log_activity(request.user, instance, 'change', "changed a personal development data")
             messages.success(request, "Personal development grades updated!")
             return redirect('pdev-edit', pk=pk)
     else:
@@ -5123,6 +5125,7 @@ def pdev_edit(request, pk):
 def pdev_del(request, pk):
     pdev = get_object_or_404(ReportcardPersonalDev, pk=pk)
     if request.method == 'POST':
+        log_activity(request.user, pdev, 'delete', "Deleted a personal development data")
         pdev.delete()
         return redirect('pdev-table')
 
@@ -7843,6 +7846,7 @@ def dorm_edit(request, pk):
         if formset.is_valid():
             formset.save()
             messages.success(request, "Behaviour grades updated successfully!")
+            log_activity(request.user, behaviour, 'change', "changed a dorm behaviour grade data")
             redirect_url = reverse('dorm-rubric-table')
             return redirect(redirect_url)
             # below is a part of the code to save on PDF print; the other one's on the edit template

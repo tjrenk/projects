@@ -4,6 +4,9 @@ from django.shortcuts import render
 from django.urls import path
 from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
 from django.utils.html import format_html
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
+from django.core.paginator import Paginator
 
 
 @staff_member_required
@@ -65,3 +68,19 @@ class LogEntryAdmin(admin.ModelAdmin):
         return "Unknown"
 
     action_flag_description.short_description = 'Action Type'
+
+admin.site.unregister(User)
+
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    object_history_template = "admin/user/user_activity_history.html"
+
+    def history_view(self, request, object_id, extra_context=None):
+        response = super().history_view(request, object_id, extra_context)
+        ctx = getattr(response, 'context_data', None)
+        if ctx and 'object' in ctx:                      # skips the "not found" redirect
+            qs = (LogEntry.objects.filter(user=ctx['object'])
+                  .select_related('content_type')
+                  .order_by('-action_time'))
+            ctx['action_list'] = Paginator(qs, 100).get_page(request.GET.get('p'))
+        return response

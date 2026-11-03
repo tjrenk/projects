@@ -88,11 +88,11 @@ class AdmissionView(LoginRequiredMixin, SessionWizardView):
                 religion=form_data.get('religion'),
                 church_name=form_data.get('church_name'),
                 current_address=form_data.get('current_address'),
-                current_district=form_data.get('current_district'),
-                current_region=form_data.get('current_region'),
-                current_city=form_data.get('current_city'),
-                current_province=form_data.get('current_province'),
-                contact_whatsapp=form_data.get('contact_whatsapp'),
+                # current_district=form_data.get('current_district'),
+                # current_region=form_data.get('current_region'),
+                # current_city=form_data.get('current_city'),
+                # current_province=form_data.get('current_province'),
+                # contact_whatsapp=form_data.get('contact_whatsapp'),
                 contact_mobile=form_data.get('contact_mobile'),
                 contact_email=form_data.get('contact_email'),
                 contact_preference=form_data.get('contact_preference'),
@@ -103,13 +103,13 @@ class AdmissionView(LoginRequiredMixin, SessionWizardView):
                 mother_occupation=form_data.get('mother_occupation'),
                 mother_address_same2applicant=form_data.get('mother_address_same2applicant'),
                 mother_address=form_data.get('mother_address'),
-                mother_district=form_data.get('mother_district'),
-                mother_region=form_data.get('mother_region'),
-                mother_city=form_data.get('mother_city'),
-                mother_province=form_data.get('mother_province'),
+                # mother_district=form_data.get('mother_district'),
+                # mother_region=form_data.get('mother_region'),
+                # mother_city=form_data.get('mother_city'),
+                # mother_province=form_data.get('mother_province'),
                 mother_phone=form_data.get('mother_phone'),
                 mother_mobile=form_data.get('mother_mobile'),
-                mother_whatsapp=form_data.get('mother_whatsapp'),
+                # mother_whatsapp=form_data.get('mother_whatsapp'),
                 mother_email=form_data.get('mother_email'),
                 father_name=form_data.get('father_name'),
                 father_nik=form_data.get('father_nik'),
@@ -118,13 +118,13 @@ class AdmissionView(LoginRequiredMixin, SessionWizardView):
                 father_occupation=form_data.get('father_occupation'),
                 father_address_same2applicant=form_data.get('father_address_same2applicant'),
                 father_address=form_data.get('father_address'),
-                father_district=form_data.get('father_district'),
-                father_region=form_data.get('father_region'),
-                father_city=form_data.get('father_city'),
-                father_province=form_data.get('father_province'),
+                # father_district=form_data.get('father_district'),
+                # father_region=form_data.get('father_region'),
+                # father_city=form_data.get('father_city'),
+                # father_province=form_data.get('father_province'),
                 father_phone=form_data.get('father_phone'),
                 father_mobile=form_data.get('father_mobile'),
-                father_whatsapp=form_data.get('father_whatsapp'),
+                # father_whatsapp=form_data.get('father_whatsapp'),
                 father_email=form_data.get('father_email'),
             )
 
@@ -368,7 +368,7 @@ def pdf_regist_table(request):
     available_width = 595 - 10  # A4 width minus margins (595 - 30 - 30 = 535)
 
     separator = Drawing(available_width, 2)
-    logo = os.path.join(settings.BASE_DIR, 'static_files\images\logo_echs_vert.jpeg')
+    logo = os.path.join(settings.BASE_DIR, 'static_files', 'images', 'logo_ecs1.png')
 
     # # setting gambar
     logo_stte = Image(logo, width=100, height=90)
@@ -475,8 +475,8 @@ def pdf_regist_table(request):
     flowables.append(table)
     doc.build(
         flowables, 
-        onFirstPage=draw_watermark, 
-        onLaterPages=draw_watermark
+        # onFirstPage=draw_watermark,
+        # onLaterPages=draw_watermark
     )
 
     # Return Response

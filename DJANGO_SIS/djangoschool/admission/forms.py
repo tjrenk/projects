@@ -19,9 +19,11 @@ class ContactInfoForm(forms.ModelForm):
 class ParentInfoForm(forms.ModelForm):
     class Meta:
         model = Registration
+        # fields = ['mother_name', 'mother_nik', 'mother_religion', 'mother_education', 'mother_occupation', 'mother_address_same2applicant', 'mother_address', 'mother_phone', 'mother_mobile', 'mother_email',
+        #           'father_name', 'father_nik', 'father_religion', 'father_education', 'father_occupation', 'father_address_same2applicant', 'father_address', 'father_phone', 'father_mobile', 'father_email']
         fields = ['mother_name', 'mother_nik', 'mother_religion', 'mother_education', 'mother_occupation', 'mother_address_same2applicant', 'mother_address', 'mother_phone', 'mother_mobile', 'mother_email',
                   'father_name', 'father_nik', 'father_religion', 'father_education', 'father_occupation', 'father_address_same2applicant', 'father_address', 'father_phone', 'father_mobile', 'father_email']
-        
+
         def clean(self):
             cleaned_data = super().clean()
             mother_same = cleaned_data.get('mother_address_same2applicant')

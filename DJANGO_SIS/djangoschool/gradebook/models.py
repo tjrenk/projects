@@ -152,6 +152,9 @@ class AssignmentHead(models.Model):
     topic = models.TextField(null=True, blank=True)
     max_score = models.IntegerField(default=100)
 
+    def __str__(self):
+        return f"{self.course} - {self.topic}"
+
 class AssignmentDetail(models.Model):
     assignment_head = models.ForeignKey(AssignmentHead, on_delete=models.CASCADE)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
