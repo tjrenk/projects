@@ -8200,7 +8200,7 @@ def print_student_transcript(request, pk):
     user = request.user
     student = reportcard.student
     reg = student.registration_data
-    show_notes = not reportcard.is_mid
+    midsem = not reportcard.is_mid
     date = datetime.now().strftime("%d %B %Y, %H:%M")
 
     terms = LearningPeriod.objects.filter(
@@ -8241,6 +8241,14 @@ def print_student_transcript(request, pk):
         subject=OuterRef('subject')
     ).values('order')[:1]
 
+    # grades = ReportcardGrade.objects.filter(
+    #     reportcard=reportcard
+    # ).exclude(
+    #     subject__is_activity=True
+    # ).select_related('subject').annotate(
+    #     print_order=Subquery(order_subq)
+    # ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
+
     grades = ReportcardGrade.objects.filter(
         reportcard=reportcard
     ).exclude(
@@ -8248,6 +8256,15 @@ def print_student_transcript(request, pk):
     ).select_related('subject').annotate(
         print_order=Subquery(order_subq)
     ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
+
+    grades_ismid = ReportcardGrade.objects.filter(
+        reportcard__is_mid=True
+    ).exclude(
+        subject__is_activity=True
+    ).select_related('subject').annotate(
+        print_order=Subquery(order_subq)
+    ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
+
     #OLD
     # grades = ReportcardGrade.objects.filter(
     #     reportcard=reportcard
@@ -8321,7 +8338,7 @@ def print_student_transcript(request, pk):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
-        pagesize=F4,
+        pagesize=landscape(F4),
         topMargin=header_height + HEADER_GAP,
         bottomMargin=1.5*cm,
         # leftMargin=2.3*cm,
@@ -8331,7 +8348,7 @@ def print_student_transcript(request, pk):
     styles, table_style, reportc_table_style = get_pdf_styles()
     flowables = [Spacer(1, 0.0*cm)]
 
-    title_text = "LAPORAN HASIL BELAJAR PESERTA DIDIK"
+    title_text = "LAPORAN TRANSKRIP PESERTA DIDIK"
     if not reportcard.period.period_name:
         term_label = "-"
     elif "Semester 1" in (reportcard.period.period_name or ""):
@@ -8343,7 +8360,7 @@ def print_student_transcript(request, pk):
     # sub_title_text = "1<sup rise='2.5' size='7.5'>ST</sup> MID-SEMESTER REPORT CARD" if reportcard.is_mid else "SEMESTER REPORT CARD"
     flowables.append(Paragraph(title_text, styles['title']))
     # flowables.append(Paragraph(sub_title_text, styles['title2']))
-    flowables.append(Paragraph(term_label, styles['title2']))
+    # flowables.append(Paragraph(term_label, styles['title2']))
     flowables.append(Spacer(1, 0.2*cm))
 
     # convert ke integer biar bisa +1 di dalam array teksnya dibawah
@@ -8355,12 +8372,12 @@ def print_student_transcript(request, pk):
     # isian kata2 untuk header; disetor dalam sebuah array
     meta_data = [
         ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
-         'Kelas', ':', str(student_class.kelas.short_name) if student_class else '-'],
+         'Semester', ':', period_number],
         ['', 'NIS', ':', student.id_number or '-',
          # 'Semester', ':', reportcard.period.period_name],
-         'Semester', ':', period_number],
-        ['', 'NISN', ':', student.nisn or '-',
          'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
+        ['', 'NISN', ':', student.nisn or '-',
+         '', '', ''],
     ]
     #ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
     # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
@@ -8408,10 +8425,7 @@ def print_student_transcript(request, pk):
     flowables.append(section_header("A. INTRAKURIKULER"))
 
 
-    if show_notes:
-        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Catatan Kompetensi']]
-    else:
-        grade_data = [['No', 'Mata Pelajaran', 'NMK', 'Nilai', 'Predikat']]
+    grade_data = [['No', 'Mata Pelajaran', 'Sem 1', 'Sem 2']]
 
     #OLD
     # for i, g in enumerate(grades, start=1):
@@ -8423,17 +8437,10 @@ def print_student_transcript(request, pk):
     #NEW
     notes_style = ParagraphStyle('label_notes', parent=styles['label'], fontSize=7, leading=10)
     for i, g in enumerate(grades, start=1):
-        if show_notes:
-            row = [str(i), g.subject.subject_name, '82', str(g.final_score)]
-            row.append(Paragraph(g.teacher_notes or '-', notes_style))
-        else:
-            row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
+        row = [str(i), g.subject.subject_name, str(g.final_score), str(g.final_score)]
         grade_data.append(row)
 
-    if show_notes:
-        col_widths = [1.1 * cm, 6.3 * cm, 1.4 * cm, 1.4 * cm, 9.2 * cm]
-    else:
-        col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm, 4.4 * cm]
+    col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm]
 
     grade_table = Table(grade_data, colWidths=col_widths)
     grade_table_style = TableStyle(reportc_table_style.getCommands() + [
@@ -8444,13 +8451,6 @@ def print_student_transcript(request, pk):
         ('ALIGN', (3, 0), (3, -1), 'CENTER'),
         ('ALIGN', (4, 0), (4, -1), 'CENTER'),
     ])
-    if show_notes:
-        # Catatan (comments) column — reset body rows only, keep header at 10
-        # grade_table_style.add('FONTSIZE', (4, 1), (4, -1), 8)
-        # grade_table_style.add('LEADING', (4, 1), (4, -1), 100)
-        grade_table_style.add('TOPPADDING', (4, 1), (4, -1), 0.5)
-        grade_table_style.add('BOTTOMPADDING', (4, 1), (4, -1), 0.3)
-        grade_table_style.add('LEFTPADDING', (4, 1), (4, -1), 2)
 
 
     grade_table.setStyle(grade_table_style)
@@ -8459,7 +8459,7 @@ def print_student_transcript(request, pk):
 
     # C. EXTRAKURIKULER
     flowables.append(section_header("B. EKSTRAKURIKULER"))
-    extra_data = [['No', 'Mata Pelajaran', 'Predikat', 'Deskripsi']]
+    extra_data = [['No', 'Mata Pelajaran', 'Sem 1', 'Sem 2']]
     #OLD
     # for i, row in enumerate(extracurricular_rows, start=1):
     #     extra_data.append([str(i), row['course_name'], str(row['score']), row['grade']])
@@ -8484,7 +8484,7 @@ def print_student_transcript(request, pk):
         ('BOTTOMPADDING', (4, 1), (4, -1), 0.3),
         ('LEFTPADDING', (4, 1), (4, -1), 2),
     ]))
-    flowables.append(extra_table)
+    # flowables.append(extra_table)
     # flowables.append(Spacer(1, 0.4 * cm))
 
     # D. PENGEMBANGAN DIRI — commented out, no data source wired yet
@@ -8507,65 +8507,7 @@ def print_student_transcript(request, pk):
     # flowables.append(prestasi_table)
     # flowables.append(Spacer(1, 0.4*cm))
 
-    # D. PRESTASI
-    flowables.append(section_header("C. PRESTASI"))
-    prest_data = [
-        ['No', 'Jenis Kegiatan', 'Keterangan'],
-        ['1', '-', '-'],
-    ]
-    prest_table = Table(prest_data, colWidths=[1.1 * cm, 9.1 * cm, 9.2 * cm])
-    prest_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('FONTSIZE', (2, 1), (2, -1), 8),  # Keterangan body — keep small
-        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-        ('ALIGN', (1, 1), (1, 1), 'CENTER'),
-        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
-    ]))
-    flowables.append(prest_table)
-
-    # F. KETIDAKHADIRAN
-    flowables.append(section_header("D. KETIDAKHADIRAN"))
-    attd_data = [
-        ['No', 'Keterangan', 'Jumlah'],
-        ['1', 'Sakit', str(attendance_summary['S']) if attendance_summary['S'] else '-'],
-        ['2', 'Izin', str(attendance_summary['P']) if attendance_summary['P'] else '-'],
-        ['3', 'Tanpa Keterangan', str(attendance_summary['A']) if attendance_summary['A'] else '-'],
-    ]
-    attd_table = Table(attd_data, colWidths=[1.1 * cm, 9.1 * cm, 9.2 * cm])
-    attd_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
-    ]))
-    flowables.append(attd_table)
     # flowables.append(Spacer(1, 0.4 * cm))
-
-
-
-    # G. CATATAN WALI KELAS
-    flowables.append(section_header("E. CATATAN WALI KELAS"))
-
-    hr_notes_style = ParagraphStyle(
-        'HomeroomNotesStyle', parent=styles['content'], fontSize=7.8,
-    )
-
-    catatan_table = Table(
-        [[Paragraph(ht_comment or '-', hr_notes_style)]],
-        colWidths=[19.4 * cm],
-    )
-    catatan_table.setStyle(TableStyle([
-        ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    flowables.append(catatan_table)
-    flowables.append(Spacer(1, 0.09 * cm))
-
 
 
     # Signatures
@@ -8624,10 +8566,7 @@ def print_student_transcript(request, pk):
     doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator, canvasmaker=NumberedCanvas)
     buf.seek(0)
 
-    if show_notes:
-        filename = f"finals_{student.id_number}_{reportcard.period.period_name}.pdf"
-    else:
-        filename = f"midsem_{student.id_number}_{reportcard.period.period_name}.pdf"
+    filename = f"transcript_{student.id_number}_{reportcard.period.period_name}.pdf"
 
     return FileResponse(buf, as_attachment=False, filename=filename)
 
@@ -8675,7 +8614,7 @@ def student_transcript_select(request):
     pnation = Paginator(reportcards, 9)
     pnation_reportcards = pnation.get_page(request.GET.get('page'))
 
-    return render(request, 'partials/gradebook/midterm_report_select.html', {
+    return render(request, 'partials/gradebook/transcript_select.html', {
         'pnation_reportcards': pnation_reportcards,
         'sort_by': sort_by,
         'sort_dir': sort_dir,
