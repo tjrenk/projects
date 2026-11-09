@@ -8197,6 +8197,13 @@ def print_student_transcript(request, pk):
         ),
         pk=pk
     )
+    reportcard_mid = StudentReportcard.objects.filter(
+    student_id=reportcard.student_id,
+    academic_year_id=reportcard.academic_year_id,
+    period_id=reportcard.period_id,
+    level_id=reportcard.level_id,
+    is_mid=True,
+).first()
     user = request.user
     student = reportcard.student
     reg = student.registration_data
@@ -8258,12 +8265,17 @@ def print_student_transcript(request, pk):
     ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
 
     grades_ismid = ReportcardGrade.objects.filter(
-        reportcard__is_mid=True
+        reportcard=reportcard_mid
     ).exclude(
         subject__is_activity=True
     ).select_related('subject').annotate(
         print_order=Subquery(order_subq)
     ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
+
+    mid_scores = dict(
+        ReportcardGrade.objects.filter(reportcard=reportcard_mid)
+        .values_list('subject_id', 'final_score')
+    ) if reportcard_mid else {}
 
     #OLD
     # grades = ReportcardGrade.objects.filter(
@@ -8400,7 +8412,7 @@ def print_student_transcript(request, pk):
     flowables.append(meta_table)
 
     # spacing antar konten dibawah
-    flowables.append(Spacer(0, 0.0 * cm))
+    flowables.append(Spacer(0, 0.5 * cm))
 
     # A. SIKAP
     # flowables.append(Paragraph("A. SIKAP SPIRITUAL DAN SOSIAL", styles['group']))
@@ -8422,23 +8434,50 @@ def print_student_transcript(request, pk):
     #OLD, SPACING NOT SYNCED WITH TABLES
     # flowables.append(Paragraph("A. INTRAKURIKULER", styles['group']))
     #NEW ONE USES THE "TABLE" STYLING DEFINED FROM WAY ABOVE THIS FILE TO MATCH THE SPACING WITH THE TABLES (section_header() is the func)
-    flowables.append(section_header("A. INTRAKURIKULER"))
+
+    levels = list(
+        GradeLevel.objects.filter(
+            students_level_reportcard__student_id=reportcard.student_id,
+            students_level_reportcard__academic_year__begin_date__lte=reportcard.academic_year.begin_date,
+        ).annotate(first=Min('students_level_reportcard__academic_year__begin_date')).order_by('first')
+    )
+
+    grades = (
+        ReportcardGrade.objects.filter(
+            reportcard__student_id=reportcard.student_id, reportcard__level__in=levels,
+        )
+        .exclude(subject__is_activity=True)
+        .select_related('subject', 'reportcard')
+        .annotate(print_order=Subquery(order_subq))
+        .order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name',
+                  'reportcard__academic_year__begin_date', 'reportcard__period__date_start')
+    )
+
+    rows = {}
+    for g in grades:  # later periods come last, so they overwrite earlier ones
+        rows.setdefault(g.subject_id, {'name': g.subject.subject_name})[
+            (g.reportcard.level_id, g.reportcard.is_mid)] = g.final_score
+
+    grade_data = [['No', 'Mata Pelajaran'] + [x for l in levels for x in (l.grade_name, '')]]
+    semester_col = [['', '', 'Sem 1', 'Sem 2']]
 
 
-    grade_data = [['No', 'Mata Pelajaran', 'Sem 1', 'Sem 2']]
 
-    #OLD
-    # for i, g in enumerate(grades, start=1):
-    #     row = [str(i), g.subject.subject_name, '82', str(g.final_score), g.final_grade]
-    #     if show_notes:
-    #         row.append(Paragraph(g.teacher_notes or '-', styles['label']))
+
+    notes_style = ParagraphStyle('label_notes', parent=styles['label'], fontSize=7, leading=10)
+    grade_data.append(semester_col)
+    # for i, (g, m) in enumerate(zip(grades, grades_ismid), start=1):
+    #     row = [str(i), g.subject.subject_name, str(m.final_score), str(g.final_score)]
     #     grade_data.append(row)
 
-    #NEW
-    notes_style = ParagraphStyle('label_notes', parent=styles['label'], fontSize=7, leading=10)
-    for i, g in enumerate(grades, start=1):
-        row = [str(i), g.subject.subject_name, str(g.final_score), str(g.final_score)]
-        grade_data.append(row)
+    # for i, g in enumerate(grades, start=1):
+    #     grade_data.append([
+    #         str(i), g.subject.subject_name,
+    #         str(mid_scores.get(g.subject_id, '-')), str(g.final_score),
+    #     ])
+
+    for i, r in enumerate(rows.values(), start=1):
+        grade_data.append([str(i), r['name']] + [str(r.get((l.id, mid), '-')) for l in levels for mid in (True, False)])
 
     col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm]
 
@@ -8450,6 +8489,10 @@ def print_student_transcript(request, pk):
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
         ('ALIGN', (3, 0), (3, -1), 'CENTER'),
         ('ALIGN', (4, 0), (4, -1), 'CENTER'),
+        ('SPAN', (0, 0), (0, 1)),
+        ('SPAN', (1, 0), (1, 1)),
+        ('SPAN', (2, 0), (3, 0)),
+        ('ALIGN', (2, 0), (2, 0), 'CENTER'),
     ])
 
 
@@ -8457,35 +8500,6 @@ def print_student_transcript(request, pk):
     flowables.append(grade_table)
     # flowables.append(Spacer(1, 0.4*cm))
 
-    # C. EXTRAKURIKULER
-    flowables.append(section_header("B. EKSTRAKURIKULER"))
-    extra_data = [['No', 'Mata Pelajaran', 'Sem 1', 'Sem 2']]
-    #OLD
-    # for i, row in enumerate(extracurricular_rows, start=1):
-    #     extra_data.append([str(i), row['course_name'], str(row['score']), row['grade']])
-
-    #NEW
-    for i, g in enumerate(activity_courses, start=1):
-        # row = [str(i), g.subject.subject_name, g.final_grade, str(g.final_score)]
-        # row = [str(i), g.subject.subject_name, g.final_grade, g.teacher_notes]
-        row = [str(i), g.subject.subject_name, g.final_grade]
-        row.append(Paragraph(g.teacher_notes or '-', notes_style))
-        extra_data.append(row)
-    # extra_table = Table(extra_data, colWidths=[1.1 * cm, 9.1 * cm, 2.4 * cm, 6.8 * cm])
-    extra_table = Table(extra_data, colWidths=[1.1 * cm, 7.7 * cm, 1.4 * cm, 9.2 * cm])
-    extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
-        ('ALIGN', (3, 0), (3, -1), 'CENTER'),
-        ('ALIGN', (4, 0), (4, -1), 'CENTER'),
-        ('TOPPADDING', (4, 1), (4, -1), 0.5),
-        ('BOTTOMPADDING', (4, 1), (4, -1), 0.3),
-        ('LEFTPADDING', (4, 1), (4, -1), 2),
-    ]))
-    # flowables.append(extra_table)
-    # flowables.append(Spacer(1, 0.4 * cm))
 
     # D. PENGEMBANGAN DIRI — commented out, no data source wired yet
     # flowables.append(Paragraph("D. PENGEMBANGAN DIRI", styles['group']))
@@ -8536,10 +8550,10 @@ def print_student_transcript(request, pk):
     # flowables.append(Paragraph("Mengetahui,", center_style))
     flowables.append(Spacer(1, 0.1 * cm))
     headmaster_sig_data = [
-        ['Kepala Sekolah'],
-        [''],
+        ['', '', 'Kepala Sekolah'],
+        ['', '', ''],
         # ['_________________________'],
-        [f"{headmaster.full_name if headmaster else '-'}"]
+        ['', '',  f"{headmaster.full_name if headmaster else '-'}"]
     ]
     headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm], rowHeights=[16, 23, 30])
     headmaster_sig_table.hAlign = 'CENTER'
@@ -8553,9 +8567,7 @@ def print_student_transcript(request, pk):
 
     # semua dikumpulin jadi 1 block
     signature_block = [
-        sig_table,
-        Spacer(1, 0.01 * cm),
-        Paragraph("Mengetahui,", center_style),
+        # Paragraph("Mengetahui,", center_style),
         Spacer(1, 0.01 * cm),
         headmaster_sig_table,
     ]
@@ -8563,7 +8575,7 @@ def print_student_transcript(request, pk):
     # flowables.append(Paragraph(f"Kepala Sekolah — {headmaster.full_name if headmaster else '-'}", styles['label']))
 
     page_decorator = partial(get_pdf_page_decorations, user=user, date=date)
-    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator, canvasmaker=NumberedCanvas)
+    doc.build(flowables, onFirstPage=page_decorator, onLaterPages=page_decorator)
     buf.seek(0)
 
     filename = f"transcript_{student.id_number}_{reportcard.period.period_name}.pdf"

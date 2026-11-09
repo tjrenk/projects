@@ -147,7 +147,7 @@ urlpatterns = [
     path('midterm-report-pdf/<int:pk>', views.print_midterm_report, name='midterm-report-pdf'),
     path('midterm-report-select/', views.midterm_report_select, name='midterm-report-select'),
 
-    # REPORT CARD
+    # STUDENT TRANSCRIPTS
     path('student-transcript-pdf/<int:pk>', views.print_student_transcript, name='student-transcript-pdf'),
     path('student-transcript-select/', views.student_transcript_select, name='student-transcript-select'),
 
