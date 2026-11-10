@@ -6615,7 +6615,14 @@ def print_midterm_report(request, pk):
         row.append(Paragraph(g.teacher_notes or '-', notes_style))
         extra_data.append(row)
     # extra_table = Table(extra_data, colWidths=[1.1 * cm, 9.1 * cm, 2.4 * cm, 6.8 * cm])
-    extra_table = Table(extra_data, colWidths=[1.1 * cm, 7.7 * cm, 1.4 * cm, 9.2 * cm])
+
+    # buat final reportcard
+    # extra_table = Table(extra_data, colWidths=[1.1 * cm, 7.7 * cm, 1.4 * cm, 9.2 * cm])
+
+    if show_notes:
+        extra_table = Table(extra_data, colWidths=[1.1 * cm, 7.7 * cm, 1.4 * cm, 9.2 * cm])
+    else:
+        extra_table = Table(extra_data, colWidths=[1.1 * cm, 9.1 * cm, 2.4 * cm, 6.8 * cm])
     extra_table.setStyle(TableStyle(reportc_table_style.getCommands() + [
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -8204,6 +8211,23 @@ def print_student_transcript(request, pk):
     level_id=reportcard.level_id,
     is_mid=True,
 ).first()
+
+    reportcard_s1 = StudentReportcard.objects.filter(
+        student_id=reportcard.student_id,
+        academic_year_id=reportcard.academic_year_id,
+        period__period_name__icontains='semester 1',
+        level_id=reportcard.level_id,
+        is_mid=True,
+    ).first()
+
+    reportcard_s2 = StudentReportcard.objects.filter(
+        student_id=reportcard.student_id,
+        academic_year_id=reportcard.academic_year_id,
+        period__period_name__icontains='semester 2',
+        level_id=reportcard.level_id,
+        is_mid=True,
+    ).first()
+
     user = request.user
     student = reportcard.student
     reg = student.registration_data
@@ -8256,13 +8280,13 @@ def print_student_transcript(request, pk):
     #     print_order=Subquery(order_subq)
     # ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
 
-    grades = ReportcardGrade.objects.filter(
-        reportcard=reportcard
-    ).exclude(
-        subject__is_activity=True
-    ).select_related('subject').annotate(
-        print_order=Subquery(order_subq)
-    ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
+    # grades = ReportcardGrade.objects.filter(
+    #     reportcard=reportcard
+    # ).exclude(
+    #     subject__is_activity=True
+    # ).select_related('subject').annotate(
+    #     print_order=Subquery(order_subq)
+    # ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
 
     grades_ismid = ReportcardGrade.objects.filter(
         reportcard=reportcard_mid
@@ -8442,33 +8466,55 @@ def print_student_transcript(request, pk):
         ).annotate(first=Min('students_level_reportcard__academic_year__begin_date')).order_by('first')
     )
 
+    # grades = (
+    #     ReportcardGrade.objects.filter(
+    #         reportcard__student_id=reportcard.student_id, reportcard__level__in=levels,
+    #     )
+    #     .exclude(subject__is_activity=True)
+    #     .select_related('subject', 'reportcard')
+    #     .annotate(print_order=Subquery(order_subq))
+    #     .order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name',
+    #               'reportcard__academic_year__begin_date', 'reportcard__period__date_start')
+    # )
     grades = (
         ReportcardGrade.objects.filter(
-            reportcard__student_id=reportcard.student_id, reportcard__level__in=levels,
+            reportcard__student_id=reportcard.student_id,
+            reportcard__level__in=levels,
+            reportcard__is_mid=False,
+            reportcard__period__period_name__icontains='semester',
         )
         .exclude(subject__is_activity=True)
-        .select_related('subject', 'reportcard')
+        .select_related('subject', 'reportcard__period')
         .annotate(print_order=Subquery(order_subq))
         .order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name',
                   'reportcard__academic_year__begin_date', 'reportcard__period__date_start')
     )
 
+    # rows = {}
+    # for g in grades:  # later periods come last, so they overwrite earlier ones
+    #     rows.setdefault(g.subject_id, {'name': g.subject.subject_name})[
+    #         (g.reportcard.level_id, g.reportcard.is_mid)] = g.final_score
     rows = {}
-    for g in grades:  # later periods come last, so they overwrite earlier ones
-        rows.setdefault(g.subject_id, {'name': g.subject.subject_name})[
-            (g.reportcard.level_id, g.reportcard.is_mid)] = g.final_score
+    for g in grades:
+        sem = 2 if 'semester 2' in g.reportcard.period.period_name.lower() else 1
+        rows.setdefault(g.subject_id, {'name': g.subject.subject_name})[(g.reportcard.level_id, sem)] = g.final_score
 
-    grade_data = [['No', 'Mata Pelajaran'] + [x for l in levels for x in (l.grade_name, '')]]
+    grade_data = [
+        ['No', 'Mata Pelajaran', *[x for l in levels for x in (l.grade_name, '')]],
+        ['', '', *['Sem 1', 'Sem 2'] * len(levels)],
+    ]
     semester_col = [['', '', 'Sem 1', 'Sem 2']]
 
 
 
 
     notes_style = ParagraphStyle('label_notes', parent=styles['label'], fontSize=7, leading=10)
-    grade_data.append(semester_col)
-    # for i, (g, m) in enumerate(zip(grades, grades_ismid), start=1):
-    #     row = [str(i), g.subject.subject_name, str(m.final_score), str(g.final_score)]
+    # grade_data.append(semester_col)
+    # for i, g in enumerate(grades, start=1):
+    #     row = [str(i), g.subject.subject_name, g.final_score, g.final_score]
     #     grade_data.append(row)
+    for i, r in enumerate(rows.values(), start=1):
+        grade_data.append([str(i), r['name']] + [str(r.get((l.id, sem), '-')) for l in levels for sem in (1, 2)])
 
     # for i, g in enumerate(grades, start=1):
     #     grade_data.append([
@@ -8476,8 +8522,8 @@ def print_student_transcript(request, pk):
     #         str(mid_scores.get(g.subject_id, '-')), str(g.final_score),
     #     ])
 
-    for i, r in enumerate(rows.values(), start=1):
-        grade_data.append([str(i), r['name']] + [str(r.get((l.id, mid), '-')) for l in levels for mid in (True, False)])
+    # for i, r in enumerate(rows.values(), start=1):
+    #     grade_data.append([str(i), r['name']] + [str(r.get((l.id, mid), '-')) for l in levels for mid in (True, False)])
 
     col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm]
 
@@ -8489,10 +8535,11 @@ def print_student_transcript(request, pk):
         ('ALIGN', (2, 0), (2, -1), 'CENTER'),
         ('ALIGN', (3, 0), (3, -1), 'CENTER'),
         ('ALIGN', (4, 0), (4, -1), 'CENTER'),
-        ('SPAN', (0, 0), (0, 1)),
-        ('SPAN', (1, 0), (1, 1)),
-        ('SPAN', (2, 0), (3, 0)),
-        ('ALIGN', (2, 0), (2, 0), 'CENTER'),
+        ('SPAN', (0, 0), (0, 1)),  # No
+        ('SPAN', (1, 0), (1, 1)),  # Mata Pelajaran
+        *[('SPAN', (2 + 2 * k, 0), (3 + 2 * k, 0)) for k in range(len(levels))],
+        ('ALIGN', (2, 0), (-1, 0), 'CENTER'),  # every level title, in one command
+        ('VALIGN', (0, 0), (1, 1), 'MIDDLE'),
     ])
 
 
