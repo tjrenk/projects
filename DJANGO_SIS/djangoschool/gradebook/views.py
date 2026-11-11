@@ -1,4 +1,4 @@
-from pyexpat.errors import messages
+from pyexpat.errors import messages # buat notif warning, error, dll
 
 from django.db import transaction, IntegrityError
 from django.views.decorators.http import require_POST
@@ -8288,13 +8288,14 @@ def print_student_transcript(request, pk):
     #     print_order=Subquery(order_subq)
     # ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
 
-    grades_ismid = ReportcardGrade.objects.filter(
-        reportcard=reportcard_mid
-    ).exclude(
-        subject__is_activity=True
-    ).select_related('subject').annotate(
-        print_order=Subquery(order_subq)
-    ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
+    # not needed anymore technically, but im just gonna disable just incase
+    # grades_ismid = ReportcardGrade.objects.filter(
+    #     reportcard=reportcard_mid
+    # ).exclude(
+    #     subject__is_activity=True
+    # ).select_related('subject').annotate(
+    #     print_order=Subquery(order_subq)
+    # ).order_by(F('print_order').asc(nulls_last=True), 'subject__subject_name')
 
     mid_scores = dict(
         ReportcardGrade.objects.filter(reportcard=reportcard_mid)
@@ -8397,7 +8398,7 @@ def print_student_transcript(request, pk):
     flowables.append(Paragraph(title_text, styles['title']))
     # flowables.append(Paragraph(sub_title_text, styles['title2']))
     # flowables.append(Paragraph(term_label, styles['title2']))
-    flowables.append(Spacer(1, 0.2*cm))
+    flowables.append(Spacer(1, 0.6*cm))
 
     # convert ke integer biar bisa +1 di dalam array teksnya dibawah
     acayear = int(reportcard.academic_year.year)
@@ -8423,7 +8424,7 @@ def print_student_transcript(request, pk):
 
     # styling tabel
     meta_table.setStyle(TableStyle([
-        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        # ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
         # ('FONTNAME', (3, 0), (3, -1), 'arial-narrow'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -8494,10 +8495,18 @@ def print_student_transcript(request, pk):
     # for g in grades:  # later periods come last, so they overwrite earlier ones
     #     rows.setdefault(g.subject_id, {'name': g.subject.subject_name})[
     #         (g.reportcard.level_id, g.reportcard.is_mid)] = g.final_score
+    # rows = {}
+    # for g in grades:
+    #     sem = 2 if 'semester 2' in g.reportcard.period.period_name.lower() else 1
+    #     rows.setdefault(g.subject_id, {'name': g.subject.subject_name})[(g.reportcard.level_id, sem)] = g.final_score
     rows = {}
     for g in grades:
         sem = 2 if 'semester 2' in g.reportcard.period.period_name.lower() else 1
         rows.setdefault(g.subject_id, {'name': g.subject.subject_name})[(g.reportcard.level_id, sem)] = g.final_score
+
+    def pick(r, level_id, sem):
+        v = r.get((level_id, sem, False), r.get((level_id, sem, True)))  # final first, mid as stand-in
+        return '-' if v is None else str(v)
 
     grade_data = [
         ['No', 'Mata Pelajaran', *[x for l in levels for x in (l.grade_name, '')]],
@@ -8525,7 +8534,7 @@ def print_student_transcript(request, pk):
     # for i, r in enumerate(rows.values(), start=1):
     #     grade_data.append([str(i), r['name']] + [str(r.get((l.id, mid), '-')) for l in levels for mid in (True, False)])
 
-    col_widths = [1.1 * cm, 9.1 * cm, 2.4 * cm, 2.4 * cm]
+    col_widths = [1.1 * cm, 9.1 * cm] + [2.4 * cm] * (2 * len(levels))
 
     grade_table = Table(grade_data, colWidths=col_widths)
     grade_table_style = TableStyle(reportc_table_style.getCommands() + [
@@ -8538,7 +8547,7 @@ def print_student_transcript(request, pk):
         ('SPAN', (0, 0), (0, 1)),  # No
         ('SPAN', (1, 0), (1, 1)),  # Mata Pelajaran
         *[('SPAN', (2 + 2 * k, 0), (3 + 2 * k, 0)) for k in range(len(levels))],
-        ('ALIGN', (2, 0), (-1, 0), 'CENTER'),  # every level title, in one command
+        ('ALIGN', (2, 0), (-1, -1), 'CENTER'),  # every level title, in one command
         ('VALIGN', (0, 0), (1, 1), 'MIDDLE'),
     ])
 
