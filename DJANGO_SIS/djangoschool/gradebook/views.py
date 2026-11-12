@@ -1554,6 +1554,12 @@ def get_assignment_types_ge(request):
     # Check for the course ID
     course_id = request.GET.get('0-course') or request.GET.get('course')
     is_activity = request.GET.get('0-is_activity') or request.GET.get('is_activity')
+    is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
+
+    if is_activity:
+        act = AssignmentType.objects.filter(short_name='ACT').first()
+        if act:
+            return HttpResponse('<div hx-swap-oob="innerHTML:#assignment-category-select-ge"></div>')
 
     if course_id:
         # Get the subject from the course
@@ -8407,20 +8413,26 @@ def print_student_transcript(request, pk):
     period_number = ''.join(filter(str.isdigit, reportcard.period.period_name)) or reportcard.period.period_name
 
     # isian kata2 untuk header; disetor dalam sebuah array
+    # meta_data = [
+    #     ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
+    #      'Semester', ':', period_number],
+    #     ['', 'NIS', ':', student.id_number or '-',
+    #      # 'Semester', ':', reportcard.period.period_name],
+    #      'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
+    #     ['', 'NISN', ':', student.nisn or '-',
+    #      '', '', ''],
+    # ]
     meta_data = [
-        ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip(),
-         'Semester', ':', period_number],
-        ['', 'NIS', ':', student.id_number or '-',
-         # 'Semester', ':', reportcard.period.period_name],
-         'Tahun Ajaran', ':', f"{acayear}/{acayear + 1}"],
-        ['', 'NISN', ':', student.nisn or '-',
-         '', '', ''],
+        ['', 'Nama', ':', f"{reg.first_name or ''} {reg.middle_name or ''} {reg.last_name or ''}".strip()],
+        ['', 'NIS', ':', student.id_number or '-'],
+        ['', 'NISN', ':', student.nisn or '-'],
     ]
     #ORIGINAL VALUES IN CASE SOMETHING GOES WRONG
     # meta_table = Table(meta_data, colWidths=[1.8 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 5.8 * cm])
 
     # isian array itu dimasukkin ke dlm tabel, sama konfigurasi jarak kiri-kanan antar kolom)
-    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
+    # meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm, 2.3 * cm, 0.4 * cm, 6.0 * cm])
+    meta_table = Table(meta_data, colWidths=[0.5 * cm, 3.5 * cm, 0.4 * cm, 6.3 * cm])
 
     # styling tabel
     meta_table.setStyle(TableStyle([
@@ -8653,7 +8665,7 @@ def student_transcript_select(request):
         'level':         'level__grade_name',
     }, default_sort='student')
 
-    reportcards = StudentReportcard.objects.select_related(
+    reportcards = StudentReportcard.objects.filter(is_mid=False).select_related(
         'student__registration_data', 'academic_year', 'period', 'level'
     )
 

@@ -196,7 +196,7 @@
                     </li>
                     {% endif %}
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger,dorm-rubric-table,dorm-rubric-edit,dorm-rubric-delete,class-attendance-ledger,hr-monitor-table" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger,dorm-rubric-table,dorm-rubric-edit,dorm-rubric-delete,class-attendance-ledger,hr-monitor-table,student-transcript-select" %}open{% endif %}>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
                                 {% if teacher or user.is_staff %}
@@ -241,6 +241,9 @@
                             <li><a class="nav-link {% if request.resolver_match.url_name == 'dorm-rubric-table' or request.resolver_match.url_name == 'dorm-rubric-edit' or request.resolver_match.url_name == 'dorm-rubric-delete' %}active{% endif %}" href="{% url 'dorm-rubric-table' %}">Student Dorm Behavior Grades Table</a></li>
                                 {% else %}
 
+                                {% endif %}
+                                                                {% if user.is_superuser %}
+                                    <li><a class="nav-link {% if request.resolver_match.url_name == 'student-transcript-select' %}active{% endif %}" href="{% url 'student-transcript-select' %}">Print Student Transcript</a></li>
                                 {% endif %}
                             </ul>
                         </details>

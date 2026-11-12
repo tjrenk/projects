@@ -122,7 +122,10 @@
                         <li><a class="{% if request.resolver_match.url_name == 'dorm-rubric-table' %}active{% endif %}" href="{% url 'dorm-rubric-table' %}">Student Dorm Behaviour Table</a></li>
                         <li><a class="{% if request.resolver_match.url_name == 'class-attendance-ledger' %}active{% endif %}" href="{% url 'class-attendance-ledger' %}">Attendance Ledger</a></li>
                         {% if is_homeroom or user.is_staff %}
-                            <li class="mb-4"><a class="{% if request.resolver_match.url_name == 'hr-monitor-table' %}active{% endif %}" href="{% url 'hr-monitor-table' %}">Hr Teacher Grade Monitor</a></li>
+                            <li><a class="{% if request.resolver_match.url_name == 'hr-monitor-table' %}active{% endif %}" href="{% url 'hr-monitor-table' %}">Hr Teacher Grade Monitor</a></li>
+                        {% endif %}
+                        {% if user.is_superuser %}
+                            <li class="mb-4"><a class="{% if request.resolver_match.url_name == 'student-transcript-select' %}active{% endif %}" href="{% url 'student-transcript-select' %}">Print Student Transcript</a></li>
                         {% endif %}
                         <li class="menu-title">Processes</li>
                         <li><a class="{% if request.resolver_match.url_name == 'assignment-avg-wizard' %}active{% endif %}" href="{% url 'assignment-avg-wizard' %}">Final Grade Calc</a></li>

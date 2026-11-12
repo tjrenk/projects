@@ -205,8 +205,10 @@ class GradeEntryForm(forms.ModelForm):
             self.fields['assignment_type'].widget.attrs['readonly'] = True
             self.fields['assignment_category'].required = False
             self.fields['assignment_category'].disabled = True
+            self.fields['assignment_category'].widget.attrs['readonly'] = True
             self.fields['cpmp_target'].required = False
             self.fields['cpmp_target'].disabled = True
+            self.fields['cpmp_target'].widget.attrs['readonly'] = True
 
         # --- HTMX Attributes ---
         # Update Academic Year to trigger Period update
@@ -270,8 +272,9 @@ class GradeEntryForm(forms.ModelForm):
             'hx-trigger': 'change',
             'hx-target': '#assignment-type-select-ge',
             'hx-swap': 'innerHTML',
-            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge',
-            # hx-include is not strictly needed if we just need the course ID 
+            # 'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge',
+            'hx-include': '#acayear-select-ge, #subject-select-ge, #level-select-ge, #is-activity-checkbox-ge',
+            # hx-include is not strictly needed if we just need the course ID
             # (htmx sends the trigger element's value by default)
         })
 
@@ -571,11 +574,11 @@ class AssignmentHeadEditForm(forms.ModelForm):
 
         # self.fields['course'].queryset = Course.objects.filter(
         #     subject_id=subject_id) if subject_id else Course.objects.none()
-        # self.fields['cpmp_target'].queryset = (
-        #     CapaianPemelajaranMataPelajaran.objects.filter(
-        #         subject_id=subject_id, academic_year_id=course.academic_year_id, level_id=course.level_id
-        #     ) if course else CapaianPemelajaranMataPelajaran.objects.none()
-        # )
+        self.fields['cpmp_target'].queryset = (
+            CapaianPemelajaranMataPelajaran.objects.filter(
+                subject_id=subject_id, academic_year_id=course.academic_year_id, level_id=course.level_id
+            ) if course else CapaianPemelajaranMataPelajaran.objects.none()
+        )
         # self.fields['course'].widget.attrs.update({
         #     'hx-get': '/gradebook/get-cpmp-target-for-head/',
         #     'hx-trigger': 'change',
