@@ -198,7 +198,7 @@ class StudentReportcard(models.Model):
     ht_comment = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.student} - {self.period} - {self.level}"
+        return f"{self.student} - {self.period} - {self.level} - {self.is_mid}"
 
 class ReportcardGrade(models.Model):
     reportcard = models.ForeignKey(StudentReportcard, on_delete=models.CASCADE)
@@ -209,6 +209,14 @@ class ReportcardGrade(models.Model):
 
     def __str__(self):
         return f"{self.reportcard.student}"
+
+class ReportcardNarrationTemplate(models.Model):
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE, related_name="students_level_reportcardtemplate", default=1)
+    lookup_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
+    is_mid = models.BooleanField(default=False)
+    text = models.TextField(null=True, blank=True)
 
 class StudentAttendance(models.Model):
     ATTD_CHOICES = [("S", "Sick"), ("P", "Permit"), ("A", "Absent")]

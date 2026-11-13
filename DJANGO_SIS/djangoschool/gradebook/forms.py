@@ -3669,3 +3669,104 @@ class DormitoryRubricEntryForm(forms.ModelForm):
             'id': 'rubric-kelas-select',
             'class': 'custom-select mb-4',
         })
+
+class RPNarrationCreateForm(forms.ModelForm):
+    class Meta:
+        model = ReportcardNarrationTemplate
+        fields = ['academic_year', 'level', 'subject', 'text']  # cpl_root removed (point 5)
+        widgets = {
+            'academic_year': forms.Select(attrs={'class': 'custom-select mb-4'}),
+            'level': forms.Select(attrs={'class': 'custom-select mb-4'}),
+            'subject': forms.Select(attrs={'class': 'custom-select mb-4'}),
+            'text': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        # Point 1 — move Teacher between Level and Subject.
+        # 'teacher' isn't a real model field so it can't go in Meta.fields;
+        # order_fields() is the clean way to reposition it after the fact.
+        self.order_fields(['academic_year', 'level', 'teacher', 'is_activity', 'subject', 'text'])
+
+        data = self.data
+        initial = self.initial
+
+        is_admin = user and (user.is_staff or user.is_superuser)
+        logged_in_teacher = Teacher.objects.filter(user=user).first() if user else None
+
+        level = data.get('level') or initial.get('level')
+
+        is_activity = data.get('is_activity') or initial.get('is_activity')
+        is_activity = bool(is_activity) and is_activity not in ('false', 'False', '0')
+
+        self.fields['subject'].queryset = Subject.objects.filter(is_activity=is_activity)
+
+        # Point 4 — always show Teacher, but restrict its own options
+        # BACKUP
+        # if is_admin:
+        #     self.fields['teacher'].queryset = Teacher.objects.all()
+        # elif logged_in_teacher:
+        #     self.fields['teacher'].queryset = Teacher.objects.filter(pk=logged_in_teacher.pk)
+        #     if not self.is_bound:
+        #         self.initial['teacher'] = logged_in_teacher.id
+        # else:
+        #     self.fields['teacher'].queryset = Teacher.objects.none()
+        #
+        # teacher_id = data.get('teacher') or initial.get('teacher')
+
+        # Point 2/3 — Subject actually cascades off Teacher now
+        # if teacher_id:
+        #     self.fields['subject'].queryset = Subject.objects.filter(
+        #         course__teacher_id=teacher_id
+        #     ).distinct()
+        # else:
+        #     self.fields['subject'].queryset = Subject.objects.none()
+
+        # HTMX — reuse the existing Grade Entry endpoint, same filter logic
+        # self.fields['teacher'].widget.attrs.update({
+        #     'id': 'teacher-select-ge',
+        #     'class': 'custom-select mb-4',
+        #     'hx-get': '/gradebook/get-subjects-cpmp/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#subject-select-cpmp',
+        #     'hx-swap': 'innerHTML',
+        # })
+
+        if is_admin:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                is_activity=is_activity
+            ).distinct()
+        elif logged_in_teacher:
+            self.fields['subject'].queryset = Subject.objects.filter(
+                course__teacher=logged_in_teacher, course__level_id=level
+                , is_activity=is_activity
+            ).distinct()
+        else:
+            self.fields['subject'].queryset = Subject.objects.none()
+
+        # self.fields['is_activity'].widget.attrs.update({
+        #     'id': 'is-activity-checkbox-cpmp',
+        #     'class': 'form-check-input',
+        #     'hx-get': '/gradebook/get-subjects-cpmp/',
+        #     'hx-trigger': 'change',
+        #     'hx-target': '#subject-select-cpmp',
+        #     'hx-swap': 'innerHTML',
+        #     'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
+        # })
+
+        self.fields['level'].widget.attrs.update({
+            'id': 'level-select-cpmp',
+            'class': 'custom-select mb-4',
+            'hx-get': '/gradebook/get-subjects-cpmp/',
+            'hx-trigger': 'change',
+            'hx-target': '#subject-select-cpmp',
+            'hx-swap': 'innerHTML',
+            'hx-include': '#is-activity-checkbox-cpmp, #level-select-cpmp',
+        })
+
+        self.fields['subject'].widget.attrs.update({
+            'id': 'subject-select-cpmp',
+            'class': 'custom-select mb-4',
+        })

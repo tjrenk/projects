@@ -271,7 +271,7 @@ class ReportcardGradeAdmin(admin.TabularInline):
 
 class StudentReportcardAdmin(admin.ModelAdmin):
     list_display = ("academic_year", "period", "is_mid", "level", "student")
-    list_filter = ["academic_year", "period", "is_mid", "student"]
+    list_filter = ["academic_year", "period", "is_mid", "level", "student"]
     inlines = [ReportcardGradeAdmin]
 
 
@@ -283,13 +283,20 @@ class StudentReportcardHistory(SimpleHistoryAdmin):
 
 class ReportcardGradeAdmin(admin.ModelAdmin):
     list_display = ("reportcard", "subject", "grade", "comments")
+    list_filter = ["subject", "grade", "comments"]
     history_list_display = ["reportcard", "subject"]
     max_num = 0
 
 
 class ReportCardGradeHistory(SimpleHistoryAdmin):
     list_display = ("reportcard", "subject")
+    list_filter = ["subject", ]
     history_list_display = ["reportcard", "subject"]
+
+class ReportcardNarrationTemplateAdmin(admin.ModelAdmin):
+    model = ReportcardNarrationTemplate
+    list_display = ("subject", "academic_year", "is_mid")
+    list_filter = ["subject", "academic_year", "is_mid"]
 
 
 class GradeLevelAdmin(admin.ModelAdmin):
@@ -479,3 +486,4 @@ admin.site.register(ReportCardOrder, RPOrderAdmin)
 admin.site.register(ReportcardDormitory, ReportcardDormitoryAdmin)
 admin.site.register(StudentDormitoryReport, StudentDormitoryReportAdmin)
 admin.site.register(StudentAttendance, AttendanceAdmin)
+admin.site.register(ReportcardNarrationTemplate, ReportcardNarrationTemplateAdmin)

@@ -1569,7 +1569,7 @@ def get_assignment_types_ge(request):
         assignment_ids = Weighting.objects.filter(subject_id=subject_id).values_list('assignment_id',
                                                                                      flat=True).distinct()
         # types = AssignmentType.objects.filter(id__in=assignment_ids)
-        types = AssignmentType.objects.all()
+        types = AssignmentType.objects.exclude(name__icontains='activity')
     else:
         types = AssignmentType.objects.none()
 
@@ -8381,7 +8381,8 @@ def print_student_transcript(request, pk):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
-        pagesize=landscape(F4),
+        # pagesize=landscape(F4),
+        pagesize=F4,
         topMargin=header_height + HEADER_GAP,
         bottomMargin=1.5*cm,
         # leftMargin=2.3*cm,
@@ -8546,7 +8547,7 @@ def print_student_transcript(request, pk):
     # for i, r in enumerate(rows.values(), start=1):
     #     grade_data.append([str(i), r['name']] + [str(r.get((l.id, mid), '-')) for l in levels for mid in (True, False)])
 
-    col_widths = [1.1 * cm, 9.1 * cm] + [2.4 * cm] * (2 * len(levels))
+    col_widths = [0.6 * cm, 6.7 * cm] + [1.5 * cm] * (1 * len(levels))
 
     grade_table = Table(grade_data, colWidths=col_widths)
     grade_table_style = TableStyle(reportc_table_style.getCommands() + [
@@ -8593,22 +8594,22 @@ def print_student_transcript(request, pk):
 
 
     # Signatures
-    sig_data = [
-        ['',f"Jakarta, {signing_date}"],
-        ['Orang Tua/Wali', 'Wali Kelas,'],
-        ['Peserta Didik,', ''],
-        ['', ''],
-        ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
-    ]
-    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm], rowHeights=[16, 14, 12, 10, 30])
-    sig_table.setStyle(TableStyle([
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 1),
-        ('TOPPADDING', (0, -1), (-1, -1), 1),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
-        ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
-    ]))
+    # sig_data = [
+    #
+    #     # ['Orang Tua/Wali', 'Wali Kelas,'],
+    #     # ['Peserta Didik,', ''],
+    #     # ['', ''],
+    #     # ['_________________________', f"{homeroom_teacher.fullname_wtitle if homeroom_teacher else '-'}"],
+    # ]
+    # sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    # sig_table.setStyle(TableStyle([
+    #     ('FONTSIZE', (0, 0), (-1, -1), 9),
+    #     ('TOPPADDING', (0, 0), (-1, -1), 1),
+    #     ('TOPPADDING', (0, -1), (-1, -1), 1),
+    #     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    #     ('FONTNAME', (0, 0), (-1, -1), 'arial-narrow'),
+    #     ('FONTNAME', (-1, -1), (-1, -1), 'arial-narrow-bold')
+    # ]))
     # flowables.append(sig_table)
     # flowables.append(Spacer(1, 0.3*cm))
     center_style = ParagraphStyle(
@@ -8616,14 +8617,15 @@ def print_student_transcript(request, pk):
         alignment=TA_CENTER,
     )
     # flowables.append(Paragraph("Mengetahui,", center_style))
-    flowables.append(Spacer(1, 0.1 * cm))
+    flowables.append(Spacer(1, 0.5 * cm))
     headmaster_sig_data = [
+        ['', '', f"Jakarta, {signing_date}"],
         ['', '', 'Kepala Sekolah'],
         ['', '', ''],
         # ['_________________________'],
         ['', '',  f"{headmaster.full_name if headmaster else '-'}"]
     ]
-    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[9*cm], rowHeights=[16, 23, 30])
+    headmaster_sig_table = Table(headmaster_sig_data, colWidths=[6*cm], rowHeights=[16, 16, 23, 30])
     headmaster_sig_table.hAlign = 'CENTER'
     headmaster_sig_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 9),
