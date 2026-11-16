@@ -3670,12 +3670,12 @@ class DormitoryRubricEntryForm(forms.ModelForm):
             'class': 'custom-select mb-4',
         })
 
-class RPNarrationCreateForm(forms.ModelForm):
+# Method 1: classic create form (copied from CPMP Create so itll work identically)
+class RPNarrationCreateFormVar1(forms.ModelForm):
     class Meta:
         model = ReportcardNarrationTemplate
-        fields = ['academic_year', 'level', 'subject', 'text']  # cpl_root removed (point 5)
+        fields = ['level', 'subject', 'text']  # cpl_root removed (point 5)
         widgets = {
-            'academic_year': forms.Select(attrs={'class': 'custom-select mb-4'}),
             'level': forms.Select(attrs={'class': 'custom-select mb-4'}),
             'subject': forms.Select(attrs={'class': 'custom-select mb-4'}),
             'text': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -3688,7 +3688,7 @@ class RPNarrationCreateForm(forms.ModelForm):
         # Point 1 — move Teacher between Level and Subject.
         # 'teacher' isn't a real model field so it can't go in Meta.fields;
         # order_fields() is the clean way to reposition it after the fact.
-        self.order_fields(['academic_year', 'level', 'teacher', 'is_activity', 'subject', 'text'])
+        self.order_fields(['level', 'teacher', 'is_activity', 'subject', 'text'])
 
         data = self.data
         initial = self.initial
@@ -3770,3 +3770,63 @@ class RPNarrationCreateForm(forms.ModelForm):
             'id': 'subject-select-cpmp',
             'class': 'custom-select mb-4',
         })
+
+
+# Method 2: formset version
+class GetRPCAcademicNarration(forms.ModelForm):
+    academic_year = forms.ModelChoiceField(queryset=AcademicYear.objects.none())
+    period = forms.ModelChoiceField(queryset=LearningPeriod.objects.none())
+
+    class Meta:
+        model = ReportcardNarrationTemplate
+        fields = ["level", "subject"]
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        is_admin = bool(user and (user.is_staff or user.is_superuser))
+        teacher = Teacher.objects.filter(user=user).first() if user and user.is_authenticated else None
+
+        # subject / level come from the logged-in teacher's courses (admins see everything)
+        if is_admin:
+            self.courses = Course.objects.all()
+        elif teacher:
+            self.courses = Course.objects.filter(teacher=teacher)
+        else:
+            self.courses = Course.objects.none()
+
+        self.fields['level'].queryset = GradeLevel.objects.filter(course__in=self.courses).distinct()
+        self.fields['subject'].queryset = Subject.objects.filter(course__in=self.courses).distinct()
+
+        # academic year / period only offer what exists in StudentReportcard
+        self.fields['academic_year'].queryset = AcademicYear.objects.filter(
+            studentreportcard__isnull=False
+        ).distinct()
+        self.fields['period'].queryset = LearningPeriod.objects.filter(
+            studentreportcard__isnull=False, period_name__icontains='semester'
+        ).select_related('academic_year').distinct()
+
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'custom-select mb-4'
+
+    def clean(self):
+        cd = super().clean()
+        ay, period = cd.get('academic_year'), cd.get('period')
+        level, subject = cd.get('level'), cd.get('subject')
+
+        if ay and period and period.academic_year_id != ay.id:
+            self.add_error('period', "This period doesn't belong to the selected academic year.")
+        if level and subject and not self.courses.filter(level=level, subject=subject).exists():
+            self.add_error('subject', "No course for this subject at this level.")
+        return cd
+
+
+
+class RPCNarrationCreateFormFormset(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for code, label in GRADE_CHOICES:
+            self.fields[f'text_{code}'] = forms.CharField(
+                label=f"Grade {label}",
+                widget=forms.Textarea(attrs={'rows': 4, 'class': 'textarea textarea-bordered w-full'}),
+            )

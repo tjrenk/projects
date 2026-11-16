@@ -211,11 +211,11 @@ class ReportcardGrade(models.Model):
         return f"{self.reportcard.student}"
 
 class ReportcardNarrationTemplate(models.Model):
-    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    # academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE)
+    # period = models.ForeignKey(LearningPeriod, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     level = models.ForeignKey(GradeLevel, on_delete=models.CASCADE, related_name="students_level_reportcardtemplate", default=1)
     lookup_grade = models.CharField(max_length=1, choices=GRADE_CHOICES)
-    is_mid = models.BooleanField(default=False)
     text = models.TextField(null=True, blank=True)
 
 class StudentAttendance(models.Model):

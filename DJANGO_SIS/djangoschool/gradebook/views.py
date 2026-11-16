@@ -2134,9 +2134,19 @@ def ge_table(request):
         'year': 'course__academic_year_id',
         'type': 'assignment_id'
     })
-    period = LearningPeriod.objects.filter(pk=request.GET.get('period'), academic_year_id=request.GET.get('year')).first()
-    if period:
-        ah = ah.filter(date__range=(period.date_start, period.date_end))
+    # period = LearningPeriod.objects.filter(pk=request.GET.get('period'), academic_year_id=request.GET.get('year')).first()
+    # if period:
+    #     ah = ah.filter(date__range=(period.date_start, period.date_end))
+    # fixed below
+    period_id, year_id = request.GET.get('period'), request.GET.get('year')
+    if period_id:
+        periods = LearningPeriod.objects.filter(pk=period_id)
+        if year_id:
+            periods = periods.filter(academic_year_id=year_id)  # ignore a period left over from another year
+        period = periods.first()
+        if period:
+            ah = ah.filter(date__range=(period.date_start, period.date_end))
+
 
     # search — BEFORE pagination
     search_query = request.GET.get('q', '')
@@ -8742,3 +8752,58 @@ def student_transcript_select(request):
 #         'form': form,
 #         'selected_cpmp': selected_cpmp,
 #     })
+
+class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
+    template_name = "partials/gradebook/rpc_final_narration.html"
+
+    form_list = [
+        ("0", GetRPCAcademicNarration),
+        ("1", RPCNarrationCreateFormFormset),
+    ]
+
+    def get_form_kwargs(self, step=None):
+        kwargs = super().get_form_kwargs(step)
+        if step == '0':
+            kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+        if step == '1':
+            data0 = self.get_cleaned_data_for_step('0')
+            if data0:
+                # prefill with whatever already exists, so re-submitting edits instead of duplicating
+                existing = ReportcardNarrationTemplate.objects.filter(
+                    subject=data0['subject'], level=data0['level']
+                )
+                initial = {f'text_{t.lookup_grade}': t.text for t in existing}
+        return initial
+
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        data0 = self.get_cleaned_data_for_step('0')
+        if data0:
+            context.update({
+                'selected_academic_year': data0.get('academic_year'),
+                'selected_period': data0.get('period'),
+                'selected_level': data0.get('level'),
+                'selected_subject': data0.get('subject'),
+            })
+        return context
+
+    def done(self, form_list, **kwargs):
+        data0 = form_list[0].cleaned_data
+        data1 = form_list[1].cleaned_data
+
+        with transaction.atomic():
+            for code, _ in GRADE_CHOICES:
+                ReportcardNarrationTemplate.objects.update_or_create(
+                    subject=data0['subject'], level=data0['level'], lookup_grade=code,
+                    defaults={'text': data1[f'text_{code}']},
+                )
+
+        messages.success(
+            self.request,
+            f"Saved narration templates (A-{GRADE_CHOICES[-1][0]}) for {data0['subject']} / {data0['level']}."
+        )
+        return redirect('rp-narration-create')

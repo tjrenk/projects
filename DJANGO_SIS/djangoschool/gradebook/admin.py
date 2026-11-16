@@ -295,8 +295,8 @@ class ReportCardGradeHistory(SimpleHistoryAdmin):
 
 class ReportcardNarrationTemplateAdmin(admin.ModelAdmin):
     model = ReportcardNarrationTemplate
-    list_display = ("subject", "academic_year", "is_mid")
-    list_filter = ["subject", "academic_year", "is_mid"]
+    list_display = ("subject", "level", "lookup_grade")
+    list_filter = ["subject", "level", "lookup_grade"]
 
 
 class GradeLevelAdmin(admin.ModelAdmin):

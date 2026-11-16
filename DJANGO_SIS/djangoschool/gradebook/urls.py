@@ -51,6 +51,9 @@ urlpatterns = [
     path("get-subjects-rpc/", views.get_subjects_rpc, name="get-subjects-rpc"),
     path("get-courses-rpc/", views.get_courses_rpc, name="get-courses-rpc"),
 
+    # FINAL RPC NARRATION
+    path("rp-narration-create", views.FinalRPCNarrationForm.as_view(), name="rp-narration-create"),
+
 
     path('toggle-na-reason/', views.toggle_na_reason, name='toggle_na_reason'),
 
