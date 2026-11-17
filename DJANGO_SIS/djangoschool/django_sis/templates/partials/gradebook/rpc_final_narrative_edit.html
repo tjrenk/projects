@@ -1,0 +1,41 @@
+{% extends "base_gradebook.html" %}
+
+{% block content %}
+<div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
+    <div class="collapse-title text-xl font-medium">Edit Narration Templates</div>
+
+    <div class="flex gap-6 mb-6 text-sm bg-base-200 p-3 rounded-lg">
+        <div><strong>Subject:</strong> {{ instance.subject }}</div>
+        <div><strong>Level:</strong> {{ instance.level }}</div>
+    </div>
+
+    <form method="post" id="narration-edit-form">
+        {% csrf_token %}
+        {{ formset.management_form }}
+
+        {% if formset.total_error_count %}
+        <div class="alert alert-error mb-4">
+            <strong>Errors:</strong> {{ formset.errors }}
+        </div>
+        {% endif %}
+
+        {% for form in formset %}
+        <div class="card bg-base-200 p-4 mb-4 rounded-lg">
+            {{ form.id }}
+            <h3 class="font-bold text-lg mb-3">Grade {{ form.instance.lookup_grade }}</h3>
+            {{ form.text }}
+            {% if form.text.errors %}
+            <div class="text-red-500 text-xs mt-1">{{ form.text.errors }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </form>
+</div>
+
+<div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
+    <button type="submit" form="narration-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">
+        Save Narrations
+    </button>
+<button onclick="history.back(); return false;" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</button>
+</div>
+{% endblock %}

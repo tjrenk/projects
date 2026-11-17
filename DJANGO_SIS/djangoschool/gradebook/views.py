@@ -8767,17 +8767,17 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
             kwargs['user'] = self.request.user
         return kwargs
 
-    def get_form_initial(self, step):
-        initial = super().get_form_initial(step)
-        if step == '1':
-            data0 = self.get_cleaned_data_for_step('0')
-            if data0:
-                # prefill with whatever already exists, so re-submitting edits instead of duplicating
-                existing = ReportcardNarrationTemplate.objects.filter(
-                    subject=data0['subject'], level=data0['level']
-                )
-                initial = {f'text_{t.lookup_grade}': t.text for t in existing}
-        return initial
+    # def get_form_initial(self, step):
+    #     initial = super().get_form_initial(step)
+    #     if step == '1':
+    #         data0 = self.get_cleaned_data_for_step('0')
+    #         if data0:
+    #             # prefill with whatever already exists, so re-submitting edits instead of duplicating
+    #             existing = ReportcardNarrationTemplate.objects.filter(
+    #                 subject=data0['subject'], level=data0['level']
+    #             )
+    #             initial = {f'text_{t.lookup_grade}': t.text for t in existing}
+    #     return initial
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
@@ -8794,16 +8794,171 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
     def done(self, form_list, **kwargs):
         data0 = form_list[0].cleaned_data
         data1 = form_list[1].cleaned_data
+        texts = {code: data1[f'text_{code}'] for code, _ in GRADE_CHOICES}
 
         with transaction.atomic():
-            for code, _ in GRADE_CHOICES:
+            for code, text in texts.items():
                 ReportcardNarrationTemplate.objects.update_or_create(
                     subject=data0['subject'], level=data0['level'], lookup_grade=code,
-                    defaults={'text': data1[f'text_{code}']},
+                    defaults={'text': text},
                 )
+
+            # apply to existing grades of this subject / level / year / period (final report cards only)
+            grades = ReportcardGrade.objects.filter(
+                subject=data0['subject'],
+                reportcard__level=data0['level'],
+                reportcard__academic_year=data0['academic_year'],
+                reportcard__period=data0['period'],
+                reportcard__is_mid=False,
+            ).select_related('reportcard__student__registration_data')
+            if not data1['overwrite']:
+                grades = grades.filter(Q(teacher_notes__isnull=True) | Q(teacher_notes=''))
+
+            to_update = []
+            for g in grades:
+                text = texts.get(g.final_grade)
+                if not text:
+                    continue
+                reg = g.reportcard.student.registration_data
+                g.teacher_notes = text.replace("[Nama Siswa]", f"{reg.first_name} {reg.last_name}")
+                to_update.append(g)
+            ReportcardGrade.objects.bulk_update(to_update, ['teacher_notes'], batch_size=200)
 
         messages.success(
             self.request,
-            f"Saved narration templates (A-{GRADE_CHOICES[-1][0]}) for {data0['subject']} / {data0['level']}."
+            f"Saved narration templates for {data0['subject']} / {data0['level']} "
+            f"and applied them to {len(to_update)} existing narration(s)."
         )
         return redirect('rp-narration-create')
+
+def narr_scope(user):
+    """Narration templates this user may see/edit: admins all, teachers only their (subject, level) pairs."""
+    if user.is_staff or user.is_superuser:
+        return ReportcardNarrationTemplate.objects.all()
+    teacher = Teacher.objects.filter(user=user).first()
+    if not teacher:
+        return ReportcardNarrationTemplate.objects.none()
+    return ReportcardNarrationTemplate.objects.filter(
+        Exists(Course.objects.filter(teacher=teacher, subject=OuterRef('subject'), level=OuterRef('level')))
+    )
+
+@login_required
+def rpc_narr_table(request):
+    user = request.user
+    is_admin = user.is_staff or user.is_superuser
+    teacher = Teacher.objects.filter(user=user).first()   # login_required => user is authenticated
+
+    # base queryset + dropdown options, scoped to what this user teaches
+    if is_admin:
+        narr_data = ReportcardNarrationTemplate.objects.all()
+        subjects, levels = Subject.objects.all(), GradeLevel.objects.all()
+    elif teacher:
+        # only (subject, level) pairs this teacher has a course for; Exists = no join duplicates
+        narr_data = ReportcardNarrationTemplate.objects.filter(
+            Exists(Course.objects.filter(
+                teacher=teacher, subject=OuterRef('subject'), level=OuterRef('level')
+            ))
+        )
+        subjects = Subject.objects.filter(course__teacher=teacher).distinct()
+        levels = GradeLevel.objects.filter(course__teacher=teacher).distinct()
+    else:
+        narr_data = ReportcardNarrationTemplate.objects.none()
+        subjects, levels = Subject.objects.none(), GradeLevel.objects.none()
+
+    # sorting
+    order_field, sort_by, sort_dir = get_sort_params(request, {
+        'subject': 'subject__subject_name',
+        'level': 'level__grade_name',
+        'grade': 'lookup_grade',
+    }, default_sort='subject')
+
+    # filtering — BEFORE pagination
+    narr_data = apply_filters(narr_data, request, {
+        'subject': 'subject_id',
+        'level': 'level_id',
+    })
+
+    # search — BEFORE pagination
+    search_query = request.GET.get('q', '')
+    if search_query:
+        narr_data = narr_data.filter(
+            Q(text__icontains=search_query) |
+            Q(subject__subject_name__icontains=search_query) |
+            Q(level__grade_name__icontains=search_query)
+        )
+
+    # apply sort AFTER filtering (tie-breakers keep pages stable)
+    # narr_data = narr_data.select_related('subject', 'level').order_by(
+    #     order_field, 'subject__subject_name', 'level__grade_name', 'lookup_grade'
+    # )
+    narr_data = (
+        narr_data
+        .values('subject_id', 'level_id',
+                subject_name=F('subject__subject_name'), level_name=F('level__grade_name'))
+        .annotate(first_id=Min('id'))
+        .order_by(order_field, 'subject_name', 'level_name')
+    )
+
+    # pagination — LAST
+    pnation = Paginator(narr_data, 9)
+    pnation_narr_data = pnation.get_page(request.GET.get('page'))
+
+    return render(request, 'partials/gradebook/rpc_final_narrative_table.html', {
+        'pnation_narr_data': pnation_narr_data,
+        'sort_by': sort_by,
+        'sort_dir': sort_dir,
+        'search_query': search_query,
+        'extra_filters': [
+            {
+                'label': 'Subject',
+                'param': 'subject',
+                'options': subjects,
+                'selected': request.GET.get('subject', ''),
+            },
+            {
+                'label': 'Level',
+                'param': 'level',
+                'options': levels,
+                'selected': request.GET.get('level', ''),
+            },
+        ],
+    })
+
+    if user.is_staff or user.is_superuser:
+        return ReportcardNarrationTemplate.objects.all()
+    teacher = Teacher.objects.filter(user=user).first()
+    if not teacher:
+        return ReportcardNarrationTemplate.objects.none()
+    return ReportcardNarrationTemplate.objects.filter(
+        Exists(Course.objects.filter(teacher=teacher, subject=OuterRef('subject'), level=OuterRef('level')))
+    )
+
+
+
+
+
+@login_required
+def rpc_narr_edit(request, pk):
+    # the row clicked in the table decides which subject/level pair gets edited
+    instance = get_object_or_404(narr_scope(request.user).select_related('subject', 'level'), pk=pk)
+
+    NarrFormSet = modelformset_factory(
+        ReportcardNarrationTemplate, fields=['text'], extra=0,
+        widgets={'text': forms.Textarea(attrs={'rows': 4, 'class': 'textarea textarea-bordered w-full'})},
+    )
+    formset = NarrFormSet(
+        request.POST or None,
+        queryset=ReportcardNarrationTemplate.objects.filter(
+            subject=instance.subject, level=instance.level
+        ).order_by('lookup_grade'),
+    )
+
+    if request.method == 'POST' and formset.is_valid():
+        formset.save()
+        messages.success(request, f"Saved narration templates for {instance.subject} / {instance.level}.")
+        return redirect('rp-narration-table')       # <- change to your table's url name
+
+    return render(request, 'partials/gradebook/rpc_final_narrative_edit.html', {
+        'formset': formset,
+        'instance': instance,
+    })

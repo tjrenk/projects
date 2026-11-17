@@ -53,6 +53,9 @@ urlpatterns = [
 
     # FINAL RPC NARRATION
     path("rp-narration-create", views.FinalRPCNarrationForm.as_view(), name="rp-narration-create"),
+    path('rp-narration-table', views.rpc_narr_table, name='rp-narration-table'),
+    path('rp-narration-edit/<int:pk>', views.rpc_narr_edit, name='rp-narration-edit'),
+
 
 
     path('toggle-na-reason/', views.toggle_na_reason, name='toggle_na_reason'),

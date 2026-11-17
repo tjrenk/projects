@@ -3830,3 +3830,9 @@ class RPCNarrationCreateFormFormset(forms.Form):
                 label=f"Grade {label}",
                 widget=forms.Textarea(attrs={'rows': 4, 'class': 'textarea textarea-bordered w-full'}),
             )
+        self.fields['overwrite'] = forms.BooleanField(
+            required=False,
+            initial=True,
+            widget=forms.HiddenInput(),
+            label=" ",
+        )

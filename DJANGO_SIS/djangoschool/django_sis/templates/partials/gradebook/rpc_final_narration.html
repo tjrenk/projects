@@ -4,7 +4,7 @@
 
 <div class="flex-1 card card-compact bg-base-100 shadow-md p-4 mb-4">
 
-    <div class="collapse-title text-xl font-medium">Final Report Card Narration Template Entry</div>
+    <div class="collapse-title text-xl font-medium">Subject Narrative Template Entry</div>
 
     <div class="w-full flex justify-center mb-8 mt-2">
         <ul class="steps w-full max-w-2xl">
@@ -27,67 +27,37 @@
                 {% if wizard.steps.current == '1' %}
                     {{ wizard.form.management_form }}
 
-                    {% if wizard.form.forms %}
-                        <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
-                            <div>
-                                <p class="text-gray-600 text-sm"><strong>Academic Year:</strong></p>
-                                <p class="text-lg font-semibold">{{ selected_academic_year }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600 text-sm"><strong>Period:</strong></p>
-                                <p class="text-lg font-semibold">{{ selected_period }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600 text-sm"><strong>Course:</strong></p>
-                                <p class="text-lg font-semibold">{{ selected_course }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600 text-sm"><strong>Subject:</strong></p>
-                                <p class="text-lg font-semibold">{{ selected_subject }}</p>
-                            </div>
-                        </div>
+                                <div class="grid grid-cols-4 gap-4 mb-6 p-4 bg-base-200 rounded-lg">
+                    <div>
+                        <p class="text-gray-600 text-sm"><strong>Academic Year:</strong></p>
+                        <p class="text-lg font-semibold">{{ selected_academic_year }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600 text-sm"><strong>Period:</strong></p>
+                        <p class="text-lg font-semibold">{{ selected_period }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600 text-sm"><strong>Level:</strong></p>
+                        <p class="text-lg font-semibold">{{ selected_level }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600 text-sm"><strong>Subject:</strong></p>
+                        <p class="text-lg font-semibold">{{ selected_subject }}</p>
+                    </div>
+                </div>
 
-                        <div class="table-responsive">
-                            <table class="table table-hover table-bordered align-middle">
-                                <thead class="bg-base-200 rounded-md">
-                                    <tr>
-                                        <th style="width: 25%;">Student</th>
-                                        <th style="width: 12%;">Score</th>
-                                        <th style="width: 12%;">Grade</th>
-                                        <th style="width: 51%;">Comment</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% if wizard.form.non_form_errors %}
-                                    <tr>
-                                        <td colspan="4">
-                                            <div class="alert alert-error text-red-500">{{ wizard.form.non_form_errors }}</div>
-                                        </td>
-                                    </tr>
-                                    {% endif %}
+                <div class="grid gap-4 mb-6 p-4 bg-info rounded-lg">
 
-                                    {% for form in wizard.form.forms %}
-                                    <tr>
-                                        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
-                                        <td>{{ form.student_name }}</td>
-                                        <td>{{ form.final_score }}</td>
-                                        <td>{{ form.final_grade }}</td>
-                                        <td>
-                                            {{ form.teacher_notes }}
-                                            {% if form.errors %}
-                                            <div class="text-red-500 text-xs mt-1">{{ form.errors }}</div>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="alert alert-warning">
-                            No graded students found for this subject and period yet.
-                        </div>
-                    {% endif %}
+                    <p class="text-600 text-xl">Untuk menyebut nama murid tolong ketikkan saja [Nama Siswa] di dalam narasinya agar sistem dapat menukar teks tersebut dengan nama murid di rapot secara otomatis</p>
+                </div>
+
+{% for field in wizard.form %}
+<div class="mb-3">
+    <label class="label"><span class="label-text font-bold">{{ field.label }}</span></label>
+    {{ field }}
+    <div class="error text-red-500 text-xs mt-1">{{ field.errors }}</div>
+</div>
+{% endfor %}
 
                 {% else %}
                     {{ wizard.form.management_form }}
@@ -162,7 +132,7 @@
 
 <div class="w-full z-20 border-t border-base-300 sticky bottom-0 bg-base-100 p-3 flex gap-2">
     {% if wizard.steps.prev %}
-    <button name="wizard_goto_step" type="submit" form="rp-comments-form" value="{{ wizard.steps.prev }}"
+    <button name="wizard_goto_step" type="submit" form="rp-comments-form" value="{{ wizard.steps.prev }}" formnovalidate
             class="btn-sm btn-secondary btn rounded-md legitRipple">
         &laquo; Back
     </button>

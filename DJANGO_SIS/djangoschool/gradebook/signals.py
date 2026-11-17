@@ -1,7 +1,7 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from gradebook.models import Subject, GradeEntry, AssignmentHead, CourseMember, AssignmentDetail, ReportcardGrade, StudentBehaviourReport, ReportcardRubricTemplate, StudentReportExtra, StudentDormitoryReport
-from admission.models import AcademicYear, Registration, ClassMember, Student
+from gradebook.models import *
+from admission.models import *
 
 from django.db.models.functions import Replace
 from django.db.models import Value
@@ -206,6 +206,35 @@ def set_dorm_desc(sender, instance, **kwargs):
         if new_text:
             instance.description = new_text
 
+def set_final_narr_desc(sender, instance, **kwargs):
+    def render_template_text(final_grade):
+        template_text = ReportcardNarrationTemplate.objects.filter(
+            lookup_grade=final_grade,
+            subject=instance.subject,
+            level_id=instance.reportcard.level_id
+        ).values_list('text', flat=True).first()
+        if not template_text:
+            return None
+        student_name = f"{instance.reportcard.student.registration_data.first_name} {instance.reportcard.student.registration_data.last_name}"
+        return template_text.replace("[Nama Siswa]", student_name)
+
+    old = sender.objects.filter(pk=instance.pk).only('teacher_notes', 'final_grade').first() if instance.pk else None
+
+    if old is None:
+        if not instance.teacher_notes:
+            instance.teacher_notes = render_template_text(instance.final_grade)
+        return
+
+    if instance.teacher_notes != old.teacher_notes:
+        return
+
+    was_template_generated = not old.teacher_notes or old.teacher_notes == render_template_text(old.final_grade)
+
+    if was_template_generated:
+        new_text = render_template_text(instance.final_grade)
+        if new_text:
+            instance.teacher_notes = new_text
+
 def set_extra_grade(sender, instance, **kwargs):
     if not instance.extra_description:
         if (instance.extra_score > 92 and instance.extra_score < 101):
@@ -308,6 +337,9 @@ post_save.connect(set_rubric_grade, StudentDormitoryReport)
 
 pre_save.connect(set_dorm_desc, StudentDormitoryReport)
 post_save.connect(set_dorm_desc, StudentDormitoryReport)
+
+pre_save.connect(set_final_narr_desc, ReportcardGrade)
+post_save.connect(set_final_narr_desc, ReportcardGrade)
 
 pre_save.connect(set_extra_grade, StudentReportExtra)
 
