@@ -55,6 +55,7 @@ urlpatterns = [
     path("rp-narration-create", views.FinalRPCNarrationForm.as_view(), name="rp-narration-create"),
     path('rp-narration-table', views.rpc_narr_table, name='rp-narration-table'),
     path('rp-narration-edit/<int:pk>', views.rpc_narr_edit, name='rp-narration-edit'),
+    path('rp-narration-del/<int:pk>', views.rpc_narr_del, name='rp-narration-del'),
 
 
 

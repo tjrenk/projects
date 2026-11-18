@@ -180,6 +180,9 @@
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'cpmp-create' %}active{% endif %}" href="{% url 'cpmp-create' %}">Lesson Outcomes</a></li>
                                 {% endif %}
 <!--                                <li><a href="{% url 'grades-wizard' %}">Grades Wizard</a></li>-->
+                                {% if teacher or user.is_staff %}
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'rp-narration-create' %}active{% endif %}" href="{% url 'rp-narration-create' %}">Subject Narrative Template Entry</a></li>
+                                {% endif %}
 
                             </ul>
                         </details>
@@ -196,7 +199,7 @@
                     </li>
                     {% endif %}
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger,dorm-rubric-table,dorm-rubric-edit,dorm-rubric-delete,class-attendance-ledger,hr-monitor-table,student-transcript-select" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name|in_list:"grade-entry-table,ge-edit,ge-delete,report-card-table,tc-view,tc-del,teacher-notes-table,teacher-notes-edit,teacher-notes-del,rcard-ledger,pdev-table,pdev-edit,pdev-del,rubric-table,rubric-edit,rubric-delete,report-extra-table,report-extra-edit,report-extra-del,assignment-ledger,dorm-rubric-table,dorm-rubric-edit,dorm-rubric-delete,class-attendance-ledger,hr-monitor-table,student-transcript-select,rp-narration-table,rp-narration-edit" %}open{% endif %}>
                             <summary><i class="fa-solid fa-clipboard"></i>Reporting</summary>
                             <ul>
                                 {% if teacher or user.is_staff %}
@@ -244,6 +247,9 @@
                                 {% endif %}
                                                                 {% if user.is_superuser %}
                                     <li><a class="nav-link {% if request.resolver_match.url_name == 'student-transcript-select' %}active{% endif %}" href="{% url 'student-transcript-select' %}">Print Student Transcript</a></li>
+                                {% endif %}
+                                {% if teacher or user.is_staff %}
+                                <li><a class="nav-link {% if request.resolver_match.url_name == 'rp-narration-table' or request.resolver_match.url_name == 'rp-narration-edit' or request.resolver_match.url_name == 'rp-narration-del' %}active{% endif %}" href="{% url 'rp-narration-table' %}">Subject Narrative Template Table</a></li>
                                 {% endif %}
                             </ul>
                         </details>

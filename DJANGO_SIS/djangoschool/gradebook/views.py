@@ -8767,18 +8767,6 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
             kwargs['user'] = self.request.user
         return kwargs
 
-    # def get_form_initial(self, step):
-    #     initial = super().get_form_initial(step)
-    #     if step == '1':
-    #         data0 = self.get_cleaned_data_for_step('0')
-    #         if data0:
-    #             # prefill with whatever already exists, so re-submitting edits instead of duplicating
-    #             existing = ReportcardNarrationTemplate.objects.filter(
-    #                 subject=data0['subject'], level=data0['level']
-    #             )
-    #             initial = {f'text_{t.lookup_grade}': t.text for t in existing}
-    #     return initial
-
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
         data0 = self.get_cleaned_data_for_step('0')
@@ -8796,6 +8784,11 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
         data1 = form_list[1].cleaned_data
         texts = {code: data1[f'text_{code}'] for code, _ in GRADE_CHOICES}
 
+        # first time templates exist for this subject/level => they take priority over what teachers already wrote
+        is_new = not ReportcardNarrationTemplate.objects.filter(
+            subject=data0['subject'], level=data0['level']
+        ).exists()
+
         with transaction.atomic():
             for code, text in texts.items():
                 ReportcardNarrationTemplate.objects.update_or_create(
@@ -8811,7 +8804,7 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
                 reportcard__period=data0['period'],
                 reportcard__is_mid=False,
             ).select_related('reportcard__student__registration_data')
-            if not data1['overwrite']:
+            if not (is_new or data1['overwrite']):
                 grades = grades.filter(Q(teacher_notes__isnull=True) | Q(teacher_notes=''))
 
             to_update = []
@@ -8961,4 +8954,25 @@ def rpc_narr_edit(request, pk):
     return render(request, 'partials/gradebook/rpc_final_narrative_edit.html', {
         'formset': formset,
         'instance': instance,
+    })
+
+@login_required
+def rpc_narr_del(request, pk):
+    narration = get_object_or_404(narr_scope(request.user).select_related('subject', 'level'), pk=pk)
+
+    # the whole subject/level pair (all its grades), same as one row in the table
+    narrations = ReportcardNarrationTemplate.objects.filter(
+        subject=narration.subject, level=narration.level
+    )
+
+    if request.method == 'POST':
+        log_activity(request.user, narration, 'delete',
+                     f"Deleted narration templates for {narration.subject} / {narration.level}")
+        deleted, _ = narrations.delete()
+        messages.success(request, f"Deleted {deleted} narration template(s).")
+        return redirect('rp-narration-table')       # <- your table's url name
+
+    return render(request, 'partials/gradebook/grade_entry_delconf.html', {
+        'narration': narration,
+        'narrations': narrations,
     })

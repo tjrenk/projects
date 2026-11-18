@@ -112,6 +112,18 @@
         <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Addressed to:</h1>
             <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ student }}</ul></strong></li>
     </ul>
+                                {% elif request.resolver_match.url_name == 'rp-narration-del' %}
+<div class="card-header">
+    <h2 class="text-xl mb-0"><strong>Are you sure you want to delete this subject narrative data?</strong></h2>
+</div>
+<div class="card-body">
+    <p></p>
+    <ul>
+        <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Subject:</h1>
+            <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ narration.subject }}</ul></strong></li>
+        <li class="font-xl mb-4"><h1 class="text-lg font-bold"><strong>Level:</h1>
+            <ul class="list-disc list-inside ml-4"><h1 class="text-lg">{{ narration.level }}</ul></strong></li>
+    </ul>
                         {% endif %}
 
                         <form method="post" class="mt-4">
