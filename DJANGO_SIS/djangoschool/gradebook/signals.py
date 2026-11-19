@@ -88,18 +88,6 @@ def new_grade_entry(sender, instance, created, **kwargs):
 #             instance.final_grade = "D"
 #         else:
 #             instance.final_grade = "E"
-def set_final_grade(sender, instance, **kwargs):
-    if not instance.final_grade:
-        if (instance.final_score > 92):
-            instance.final_grade = "A"
-        elif (85 < instance.final_score < 93):
-            instance.final_grade = "B"
-        elif (81 < instance.final_score < 86):
-            instance.final_grade = "C"
-        elif (69 < instance.final_score < 82):
-            instance.final_grade = "D"
-        else:
-            instance.final_grade = "E"
 
 def calc_letter_grade(score):
     if score is None:
@@ -119,6 +107,25 @@ def calc_letter_grade(score):
     # 0 - 69
     else:
         return "E"
+
+# def set_final_grade(sender, instance, **kwargs):
+#     if not instance.final_grade:
+#         if (instance.final_score > 92):
+#             instance.final_grade = "A"
+#         elif (85 < instance.final_score < 93):
+#             instance.final_grade = "B"
+#         elif (81 < instance.final_score < 86):
+#             instance.final_grade = "C"
+#         elif (69 < instance.final_score < 82):
+#             instance.final_grade = "D"
+#         else:
+#             instance.final_grade = "E"
+
+def set_final_grade(sender, instance, **kwargs):
+    grade = calc_letter_grade(instance.final_score)
+    if grade:
+        instance.final_grade = grade
+
 
 # pemetaan grading untuk nilai sikap
 # def set_rubric_grade(sender, instance, **kwargs):
@@ -207,6 +214,8 @@ def set_dorm_desc(sender, instance, **kwargs):
             instance.description = new_text
 
 def set_final_narr_desc(sender, instance, **kwargs):
+    set_final_grade(sender, instance)          # letter always follows the score
+
     def render_template_text(final_grade):
         template_text = ReportcardNarrationTemplate.objects.filter(
             lookup_grade=final_grade,
@@ -220,17 +229,20 @@ def set_final_narr_desc(sender, instance, **kwargs):
 
     old = sender.objects.filter(pk=instance.pk).only('teacher_notes', 'final_grade').first() if instance.pk else None
 
+    # new row: fill from the template if there's no narration yet
     if old is None:
         if not instance.teacher_notes:
             instance.teacher_notes = render_template_text(instance.final_grade)
         return
 
+    # the text itself was edited in this save: keep what the teacher wrote
     if instance.teacher_notes != old.teacher_notes:
         return
 
-    was_template_generated = not old.teacher_notes or old.teacher_notes == render_template_text(old.final_grade)
-
-    if was_template_generated:
+    # letter moved to another grade (old letter known) => the old narration no longer fits, use the new template
+    # no narration yet => fill it
+    letter_changed = bool(old.final_grade) and instance.final_grade != old.final_grade
+    if letter_changed or not old.teacher_notes:
         new_text = render_template_text(instance.final_grade)
         if new_text:
             instance.teacher_notes = new_text

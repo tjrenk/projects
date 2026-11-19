@@ -264,9 +264,20 @@ class RubricAdmin(admin.ModelAdmin):
     list_filter = ["type"]
     inlines = [RubricIndicatorAdmin]
 
+class ReportcardGradeAdminForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        data = self.data
+        initial = self.initial
+
+        self.fields['final_grade'].disabled = True
+
 
 class ReportcardGradeAdmin(admin.TabularInline):
     model = ReportcardGrade
+    form = ReportcardGradeAdminForm
 
 
 class StudentReportcardAdmin(admin.ModelAdmin):
@@ -281,7 +292,10 @@ class StudentReportcardHistory(SimpleHistoryAdmin):
     inlines = [ReportcardGradeAdmin]
 
 
+
+
 class ReportcardGradeAdmin(admin.ModelAdmin):
+    form = ReportcardGradeAdminForm
     list_display = ("reportcard", "subject", "grade", "comments")
     list_filter = ["subject", "grade", "comments"]
     history_list_display = ["reportcard", "subject"]
@@ -289,9 +303,12 @@ class ReportcardGradeAdmin(admin.ModelAdmin):
 
 
 class ReportCardGradeHistory(SimpleHistoryAdmin):
+    form = ReportcardGradeAdminForm
     list_display = ("reportcard", "subject")
     list_filter = ["subject", ]
     history_list_display = ["reportcard", "subject"]
+
+
 
 class ReportcardNarrationTemplateAdmin(admin.ModelAdmin):
     model = ReportcardNarrationTemplate
