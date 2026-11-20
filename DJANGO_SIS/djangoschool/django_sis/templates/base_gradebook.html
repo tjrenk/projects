@@ -144,7 +144,7 @@
                     <div class="divider text-base-content/40 menu-title divider-start">Gradebook</div>
 
                     <li class="mb-2">
-                            <details {% if request.resolver_match.url_name|in_list:"grade-entry,student-attendance,report-card,rubric-entry,rp-comment,extra-report,personal-dev,cpmp-create,dorm-rubric-entry" %}open{% endif %}>
+                            <details {% if request.resolver_match.url_name|in_list:"grade-entry,student-attendance,report-card,rubric-entry,rp-comment,extra-report,personal-dev,cpmp-create,dorm-rubric-entry,rp-narration-create" %}open{% endif %}>
                             <summary><i class="fa-solid fa-keyboard"></i>Data Entry</summary>
                             <ul>
                                 {% if teacher or user.is_staff %}
