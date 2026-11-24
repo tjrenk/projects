@@ -139,6 +139,9 @@ class CapaianPemelajaranMataPelajaran(models.Model):
     cpl_root = models.ForeignKey(CapaianPemelajaranLulusan, on_delete=models.CASCADE)
     text = models.TextField(null=True, blank=True)
 
+    # def __str__(self):
+    #     return f"{self.academic_year} / {self.level} for {self.subject} - {self.text}"
+
     class Meta:
         verbose_name_plural = "Learning Outcomes"
         verbose_name = "Learning Outcome"

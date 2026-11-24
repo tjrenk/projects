@@ -1890,7 +1890,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
         header_height = get_pdf_header_height(page_width)
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=GOV_LEGAL,
+            pagesize=landscape(GOV_LEGAL),
             topMargin=header_height + HEADER_GAP,
             bottomMargin=2 * cm,
             leftMargin=2.3 * cm,
@@ -1955,6 +1955,7 @@ class ReportCardGradeSummary(LoginRequiredMixin, ReportView):
     export_pdf.title = ("Export PDF")
     export_pdf.icon = "fa fa-file-pdf-o"
     export_pdf.css_class = "btn btn-primary"
+    export_pdf.new_window = True
 
     def export_csv(self, report_data):
         return super().export_csv(report_data)
@@ -5888,7 +5889,7 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         "nis",
         "full_name",                                    # <-- replaces the two name fields
         # ComputationField.create(Avg, "score", verbose_name="Average", is_summable=False),
-        RoundedAverageField
+        # RoundedAverageField
     ]
 
     # def full_name(self, obj, data):
@@ -5980,7 +5981,7 @@ class AssignmentGradeLedger(LoginRequiredMixin, ReportView):
         elements.append(Spacer(1, 0.3 * cm))
         meta_data = [
             ['Tahun Ajaran', ':', f"{acayear}/{acayear + 1}" if acayear else '-'],
-            ['Level', ':', level],
+            ['Level', ':', level.short_name],
             ['Subject', ':', subject],
             ['Teacher', ':', teacher]
         ]
@@ -8784,7 +8785,7 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
         data1 = form_list[1].cleaned_data
         texts = {code: data1[f'text_{code}'] for code, _ in GRADE_CHOICES}
 
-        # first time templates exist for this subject/level => they take priority over what teachers already wrote
+        # pengecekan kalo ini record template yg baru ato bukan
         is_new = not ReportcardNarrationTemplate.objects.filter(
             subject=data0['subject'], level=data0['level']
         ).exists()

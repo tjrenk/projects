@@ -123,7 +123,7 @@
         {% else %}
             <button type="submit" class="btn-sm btn-success btn rounded-md legitRipple">Save Grades</button>
         {% endif %}
-        <a href="{% url 'print-grade-list' pk=parent_head.pk %}" class="btn-sm btn-secondary btn rounded-md legitRipple"><i class="fa-solid fa-file-pdf"></i>Print PDF</a>
+        <a href="{% url 'print-grade-list' pk=parent_head.pk %}" class="btn-sm btn-secondary btn rounded-md legitRipple" target="_blank"><i class="fa-solid fa-file-pdf"></i>Print PDF</a>
 <!--        <button type="submit" formaction="?next=print" class="btn-sm btn-secondary btn rounded-md legitRipple">-->
 <!--    <i class="fa-solid fa-file-pdf"></i> Print PDF-->
 <!--</button>-->

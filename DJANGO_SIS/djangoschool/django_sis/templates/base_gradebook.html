@@ -217,7 +217,7 @@
                                 {% if is_homeroom or user.is_staff %}
                                     <li><a class="nav-link {% if request.resolver_match.url_name == 'rcard-ledger' %}active{% endif %}" href="{% url 'rcard-ledger' %}">Report Card Ledger</a></li>
                                 {% endif %}
-                                {% if teacher %}
+                                {% if teacher or user.is_staff %}
                                 <li><a class="nav-link {% if request.resolver_match.url_name == 'assignment-ledger' %}active{% endif %}" href="{% url 'assignment-ledger' %}">Assignments Ledger</a></li>
                                 {% endif %}
                                 {#                              <li><a class="nav-link {% if request.resolver_match.url_name == 'grades-wizard' %}active{% endif %}" href="{% url 'grades-wizard' %}">Grades List</a></li>#}

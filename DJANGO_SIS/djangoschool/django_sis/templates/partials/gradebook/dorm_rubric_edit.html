@@ -46,7 +46,7 @@
     <button type="submit" form="dorm-rubric-edit-form" class="btn-sm btn-success btn rounded-md legitRipple">Save</button>
 <!--    <a href="{% url 'dorm-rubric-table' %}" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</a>-->
     <button onclick="history.back(); return false;" class="btn-sm btn-error btn rounded-md legitRipple">Cancel</button>
-    <a href="{% url 'dorm-rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple">
+    <a href="{% url 'dorm-rubric-pdf' behaviour.id %}?student={{ student.id }}" class="btn-sm btn-secondary btn rounded-md legitRipple" target="_blank">
         <i class="fa fa-file-pdf"></i> Print PDF
     </a>
 
