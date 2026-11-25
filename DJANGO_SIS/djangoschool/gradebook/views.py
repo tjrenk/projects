@@ -8793,6 +8793,22 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
             kwargs['user'] = self.request.user
         return kwargs
 
+    def get_form_initial(self, step):
+        initial = super().get_form_initial(step)
+
+        if step == '1':
+            data0 = self.get_cleaned_data_for_step('0')
+            if not data0:
+                return initial
+
+            # one query: saved template text per grade -> text_A ... text_E
+            saved = ReportcardNarrationTemplate.objects.filter(
+                subject=data0['subject'], level=data0['level']
+            ).values_list('lookup_grade', 'text')
+            return {f'text_{grade}': text or '' for grade, text in saved}
+
+        return initial
+
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
         data0 = self.get_cleaned_data_for_step('0')
@@ -8973,8 +8989,53 @@ def rpc_narr_edit(request, pk):
     )
 
     if request.method == 'POST' and formset.is_valid():
-        formset.save()
-        messages.success(request, f"Saved narration templates for {instance.subject} / {instance.level}.")
+        pair = ReportcardNarrationTemplate.objects.filter(subject=instance.subject, level=instance.level)
+        old_texts = dict(pair.values_list('lookup_grade', 'text'))      # template text BEFORE saving
+
+        def fill(text, reg):
+            return text.replace("[Nama Siswa]", f"{reg.first_name} {reg.last_name}")
+
+        updated = 0
+        with transaction.atomic():
+            formset.save()
+            new_texts = dict(pair.values_list('lookup_grade', 'text'))  # template text AFTER saving
+
+            # latest academic year = "current"; older years stay untouched
+            academic_year = AcademicYear.objects.order_by('-year').first()
+            if academic_year:
+                grades = ReportcardGrade.objects.filter(
+                    subject=instance.subject,
+                    reportcard__level=instance.level,
+                    reportcard__academic_year=academic_year,
+                    reportcard__is_mid=False,
+                ).select_related('reportcard__student__registration_data')
+
+                to_update = []
+                for g in grades:
+                    new = new_texts.get(g.final_grade)
+                    if not new:
+                        continue
+                    reg = g.reportcard.student.registration_data
+                    old = old_texts.get(g.final_grade)
+
+                    # only touch notes that are empty or still equal to the OLD template (teacher never edited them)
+                    untouched = not g.teacher_notes or (old and g.teacher_notes == fill(old, reg))
+                    if not untouched:
+                        continue
+
+                    text = fill(new, reg)
+                    if text != g.teacher_notes:
+                        g.teacher_notes = text
+                        to_update.append(g)
+
+                ReportcardGrade.objects.bulk_update(to_update, ['teacher_notes'], batch_size=200)
+                updated = len(to_update)
+
+        messages.success(
+            request,
+            f"Saved narration templates for {instance.subject} / {instance.level} "
+            f"and updated {updated} existing narration(s)."
+        )
         return redirect('rp-narration-table')       # <- change to your table's url name
 
     return render(request, 'partials/gradebook/rpc_final_narrative_edit.html', {

@@ -37,3 +37,4 @@ DJANGO_SIS/djangoschool/gradebook/migrations/__pycache__/0009_remove_passinggrad
 DJANGO_SIS/djangoschool/gradebook/migrations/__pycache__/0010_gradeentry_school_level_assignmenthead_and_more.cpython-313.pyc
 DJANGO_SIS/djangoschool/gradebook/migrations/__pycache__/0011_alter_subject_short_name.cpython-313.pyc
 DJANGO_SIS/djangoschool/gradebook/migrations/__pycache__/__init__.cpython-313.pyc
+DJANGO_SIS/djangoschool/django_sisdb.sqlite3
