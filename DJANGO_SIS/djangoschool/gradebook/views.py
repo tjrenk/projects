@@ -4112,7 +4112,7 @@ def calculate_student_averages_optimized(academic_year, subject, level, is_mid, 
         assignment_head__course__level=level,
         assignment_head__course__academic_year=academic_year,
         assignment_head__assignment_id__in=weight_map.keys(),
-    )
+    ).exclude(is_active=False)
 
     # Per-type averages for EVERY student, one query per term:
     # {term_id: {student_id: {assignment_type_id: avg}}}
@@ -4455,21 +4455,46 @@ def save_assignment_results_bulk(request):
                 reportcard_id__in=list(reportcard_ids.values()), subject_id__in=subject_ids,
             )
         }
+
+        templates = {
+            (t.subject_id, t.lookup_grade): t.text
+            for t in ReportcardNarrationTemplate.objects.filter(level=level, subject_id__in=subject_ids)
+            if t.text
+        }
+        names = {
+            s.id: f"{s.registration_data.first_name} {s.registration_data.last_name}"
+            for s in Student.objects.filter(id__in=student_ids).select_related('registration_data')
+        }
+
+        def narration(subject_id, letter, student_id):
+            text = templates.get((subject_id, letter))
+            return text.replace("[Nama Siswa]", names[student_id]) if text else None
+
         to_create, to_update = [], []
         for d in calculated_data:
-            key = (reportcard_ids[d['student_obj'].id], d['subject'].id)
+            sid, subj = d['student_obj'].id, d['subject']
+            key = (reportcard_ids[sid], subj.id)
             score = d['final_score_preview']
-            grade = existing.get(key)
             letter = calc_letter_grade(score)
+            grade = existing.get(key)
+
             if grade is None:
-                to_create.append(ReportcardGrade(reportcard_id=key[0], subject=d['subject'], final_score=score, final_grade=letter))
-            elif (grade.final_score, grade.final_grade) != (score, letter):  # unchanged rows are not rewritten
-                grade.final_score = score
-                grade.final_grade = letter
+                to_create.append(ReportcardGrade(
+                    reportcard_id=key[0], subject=subj, final_score=score, final_grade=letter,
+                    teacher_notes=narration(subj.id, letter, sid),
+                ))
+                continue
+
+            notes = grade.teacher_notes
+            if (grade.final_grade and grade.final_grade != letter) or not notes:  # same rule as the signal
+                notes = narration(subj.id, letter, sid) or notes
+
+            if (grade.final_score, grade.final_grade, grade.teacher_notes) != (score, letter, notes):
+                grade.final_score, grade.final_grade, grade.teacher_notes = score, letter, notes
                 to_update.append(grade)
 
         ReportcardGrade.objects.bulk_create(to_create)
-        ReportcardGrade.objects.bulk_update(to_update, ['final_score', 'final_grade'])
+        ReportcardGrade.objects.bulk_update(to_update, ['final_score', 'final_grade', 'teacher_notes'])
 
     # label = subject.subject_name if subject else "all subjects"
     label = ", ".join(s.subject_name for s in subjects) if subjects else "all subjects"
