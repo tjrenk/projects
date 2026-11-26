@@ -966,6 +966,11 @@ class ReportCardGradeForm(forms.Form):  # plain Form, not ModelForm
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'readonly': True})
     )
+    is_mid = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(),
+        label="Mid?",
+    )
     ht_comment = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2})
@@ -3823,6 +3828,71 @@ class GetRPCAcademicNarration(forms.ModelForm):
 
 
 class RPCNarrationCreateFormFormset(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for code, label in GRADE_CHOICES:
+            self.fields[f'text_{code}'] = forms.CharField(
+                label=f"Grade {label}",
+                widget=forms.Textarea(attrs={'rows': 4, 'class': 'textarea textarea-bordered w-full'}),
+            )
+        self.fields['overwrite'] = forms.BooleanField(
+            required=False,
+            initial=True,
+            widget=forms.HiddenInput(),
+            label=" ",
+        )
+
+
+class GetBehaviourRubricNarration(forms.ModelForm):
+    academic_year = forms.ModelChoiceField(queryset=AcademicYear.objects.none())
+    period = forms.ModelChoiceField(queryset=LearningPeriod.objects.none())
+
+    class Meta:
+        model = ReportcardNarrationTemplate
+        fields = ["level", "subject"]
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        is_admin = bool(user and (user.is_staff or user.is_superuser))
+        teacher = Teacher.objects.filter(user=user).first() if user and user.is_authenticated else None
+
+        # subject / level come from the logged-in teacher's courses (admins see everything)
+        if is_admin:
+            self.courses = Course.objects.all()
+        elif teacher:
+            self.courses = Course.objects.filter(teacher=teacher)
+        else:
+            self.courses = Course.objects.none()
+
+        self.fields['level'].queryset = GradeLevel.objects.filter(course__in=self.courses).distinct()
+        self.fields['subject'].queryset = Subject.objects.filter(course__in=self.courses).distinct()
+
+        # academic year / period only offer what exists in StudentReportcard
+        self.fields['academic_year'].queryset = AcademicYear.objects.filter(
+            studentreportcard__isnull=False
+        ).distinct()
+        self.fields['period'].queryset = LearningPeriod.objects.filter(
+            studentreportcard__isnull=False, period_name__icontains='semester'
+        ).select_related('academic_year').distinct()
+
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'custom-select mb-4'
+
+    def clean(self):
+        cd = super().clean()
+        ay, period = cd.get('academic_year'), cd.get('period')
+        level, subject = cd.get('level'), cd.get('subject')
+
+        if ay and period and period.academic_year_id != ay.id:
+            self.add_error('period', "This period doesn't belong to the selected academic year.")
+        if level and subject and not self.courses.filter(level=level, subject=subject).exists():
+            self.add_error('subject', "No course for this subject at this level.")
+        return cd
+
+
+
+class RubricBehaviourNarrationCreateFormFormset(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for code, label in GRADE_CHOICES:

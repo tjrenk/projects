@@ -1287,26 +1287,21 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
             }
 
 
+            # ADDING THE LOGIC TO GET IS_MID STATUS FROM STEP 0
+            # IF THIS GOES WRONG COMPARE AND BRING THIS BLOCK BACK TO HOW IT WAS
+            # BEFORE 26/11/2026
             initial_list = []
             for member in members:
                 student = member.student
-
-                # Check if a reportcard already exists for this student
-                existing_reportcard = StudentReportcard.objects.filter(
-                    student=student,
-                    academic_year=academic_year,
-                    period=period,
-                    is_mid=is_mid,
-                    level=level
-                ).first()
-
+                rc = existing_reportcards.get(student.id)
                 initial_list.append({
                     'student_id': student.id,
                     'student_name': f"{student.id_number} - {student.registration_data.first_name} {student.registration_data.last_name}",
-                    'ht_comment': existing_reportcard.ht_comment if existing_reportcard else None,
+                    'ht_comment': rc.ht_comment if rc else None,
+                    'is_mid': is_mid,  # switch starts at the term chosen in step 0
                 })
-
             return initial_list
+        # END OF REPLACEMENT
         return initial
 
     def get_context_data(self, form, **kwargs):
@@ -1368,50 +1363,73 @@ class ReportCardForm(LoginRequiredMixin, SessionWizardView):
                            f"Class '{kelas}' has no Grade Level set. Assign one in the admin panel first.")
             return redirect('report-card')
 
-        skipped_students = []
+        # ANYTHING GOES WRONG BEYOND THIS POINT
+        # COMPARE AND APPLY THE CODE BLOCK BELOW
+        # FROM BEFORE 26/11/2026
+        source_mid = is_mid                      # the term picked in step 0
+        rows = [f.cleaned_data for f in formset if f.is_valid() and f.cleaned_data]
+        student_ids = [r['student_id'] for r in rows]
 
-        with transaction.atomic():
-            for form in formset:
-                if form.is_valid() and form.cleaned_data:
-                    data = form.cleaned_data
-                    student_id = data.get('student_id')
+        # one query: both terms' report cards for the whole class, flagged for "has grades"
+        cards = {
+            (rc.student_id, rc.is_mid): rc
+            for rc in StudentReportcard.objects.filter(
+                student_id__in=student_ids, academic_year=academic_year,
+                period=period, level=level,
+            ).annotate(
+                has_grades=Exists(ReportcardGrade.objects.filter(reportcard=OuterRef('pk')))
+            )
+        }
 
-                    existing_reportcard = StudentReportcard.objects.filter(
-                        student_id=student_id,
-                        academic_year=academic_year,
-                        period=period,
-                        is_mid=is_mid,
-                        level=level
-                    ).first()
+        to_update, no_grades, conflicts, moved = [], [], [], 0
 
-                    has_grades = (
-                            existing_reportcard is not None
-                            and ReportcardGrade.objects.filter(reportcard=existing_reportcard).exists()
-                    )
+        for r in rows:
+            sid = r['student_id']
+            comment = r.get('ht_comment') or ''
+            target_mid = r['is_mid']
+            target = cards.get((sid, target_mid))
 
-                    if not has_grades:
-                        skipped_students.append(student_id)
-                        continue
+            if target is None or not target.has_grades:
+                no_grades.append(sid)
+                continue
 
-                    StudentReportcard.objects.update_or_create(
-                        student_id=student_id,
-                        academic_year=academic_year,
-                        period=period,
-                        is_mid=is_mid,
-                        level=level,
-                        defaults={
-                            'ht_comment': data.get('ht_comment'),
-                        }
-                    )
+            if target_mid == source_mid:                      # normal save
+                if (target.ht_comment or '') != comment:
+                    target.ht_comment = comment
+                    to_update.append(target)
+                continue
 
-        if skipped_students:
-            #Old, intended warning; buat ngecek aja siapa tau ada yg keskip karena report cardny blm finalisasi
-            # messages.warning(self.request, "WARNING - Cannot put comment. No report card grade saved yet.")
-            messages.warning(self.request, f"WARNING - Homeroom comments were skipped for {len(skipped_students)} students because their report card grades weren't saved yet.")
-        else:
-            messages.success(self.request, "Homeroom comments saved successfully!")
+            # switch flipped: move to the other term
+            if not comment:
+                continue                                       # nothing to move
+            if target.ht_comment and target.ht_comment != comment:
+                conflicts.append(sid)                          # don't overwrite a different comment
+                continue
+            target.ht_comment = comment
+            to_update.append(target)
+            source = cards.get((sid, source_mid))
+            if source and source.ht_comment:
+                source.ht_comment = ''                         # clear it from the old term
+                to_update.append(source)
+            moved += 1
+
+        if to_update:
+            with transaction.atomic():
+                StudentReportcard.objects.bulk_update(to_update, ['ht_comment'])
+
+        HC_TAG = "hc-comments"
+
+        if moved:
+            messages.info(self.request, f"{moved} comment(s) moved to the other term.", extra_tags=HC_TAG)
+        if no_grades:
+            messages.warning(self.request, f"Skipped {len(no_grades)} student(s): the report card grades for that term aren't saved yet.", extra_tags=HC_TAG)
+        if conflicts:
+            messages.warning(self.request, f"{len(conflicts)} comment(s) were not moved: the other term already has a different comment.", extra_tags=HC_TAG)
+        if not (no_grades or conflicts):
+            messages.success(self.request, "Homeroom comments saved successfully!", extra_tags=HC_TAG)
 
         return redirect('report-card')
+    # END OF REPLACEMENT
 
 # Grade Entry dynamic fields
 def get_levels_ge(request):
@@ -2351,12 +2369,16 @@ def ge_del(request, pk):
 def tc_table(request):
     user = request.user
     superadmin = user.is_superuser
+    staff = user.is_staff
     teacher = Teacher.objects.filter(user=user).first()
 
-    if teacher:
-        homeroom_class = Class.objects.filter(teacher=teacher).first()
+    # which classes this user may see
+    if superadmin or staff:
+        homeroom_class = Class.objects.all()
+    elif teacher:
+        homeroom_class = Class.objects.filter(teacher=teacher)
     else:
-        homeroom_class = None
+        homeroom_class = Class.objects.none()
 
     order_field, sort_by, sort_dir = get_sort_params(request, {
         'academic_year': 'academic_year',
@@ -2376,16 +2398,11 @@ def tc_table(request):
         'period',
     )
 
-
-
-    if homeroom_class:
-        src = src.filter(
-            student__classmember__kelas=homeroom_class,
-            student__classmember__is_active=True,
-        ).distinct()
-    elif not superadmin:
-        # neither a homeroom teacher nor a superadmin — show nothing
-        src = src.none()
+    # narrow to the allowed classes
+    src = src.filter(
+        student__classmember__kelas__in=homeroom_class,
+        student__classmember__is_active=True,
+    ).distinct()
 
     src = apply_filters(src, request, {
         'academic_year': 'academic_year_id',
@@ -2416,15 +2433,10 @@ def tc_table(request):
         ).select_related('kelas').first()
         strepc.student_class = cm.kelas if cm else None
 
-    if homeroom_class:
-        student_options = Student.objects.filter(
-            classmember__kelas=homeroom_class,
-            classmember__is_active=True
-        ).distinct()
-    elif superadmin:
-        student_options = Student.objects.filter(classmember__isnull=False).distinct()
-    else:
-        student_options = Student.objects.none()
+    student_options = Student.objects.filter(
+        classmember__kelas__in=homeroom_class,
+        classmember__is_active=True,
+    ).distinct()
 
     return render(request, 'partials/gradebook/report_card_table.html', {
         'pnation_src': pnation_src,
@@ -8832,11 +8844,13 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
         ).exists()
 
         with transaction.atomic():
+            rows = []
             for code, text in texts.items():
-                ReportcardNarrationTemplate.objects.update_or_create(
+                row, _ = ReportcardNarrationTemplate.objects.update_or_create(
                     subject=data0['subject'], level=data0['level'], lookup_grade=code,
                     defaults={'text': text},
                 )
+                rows.append(row)
 
             # apply to existing grades of this subject / level / year / period (final report cards only)
             grades = ReportcardGrade.objects.filter(
@@ -8858,12 +8872,19 @@ class FinalRPCNarrationForm(LoginRequiredMixin, SessionWizardView):
                 g.teacher_notes = text.replace("[Nama Siswa]", f"{reg.first_name} {reg.last_name}")
                 to_update.append(g)
             ReportcardGrade.objects.bulk_update(to_update, ['teacher_notes'], batch_size=200)
+            
+            log_activity(
+                self.request.user, rows[0], 'add' if is_new else 'change',
+                f"{'Created' if is_new else 'Updated'} narration templates for {data0['subject']} / {data0['level']}, "
+                f"applied to {len(to_update)} existing narration(s) of {data0['period']}"
+            )
 
         messages.success(
             self.request,
             f"Saved narration templates for {data0['subject']} / {data0['level']} "
             f"and applied them to {len(to_update)} existing narration(s)."
         )
+
         return redirect('rp-narration-create')
 
 def narr_scope(user):
@@ -8991,6 +9012,11 @@ def rpc_narr_edit(request, pk):
     if request.method == 'POST' and formset.is_valid():
         pair = ReportcardNarrationTemplate.objects.filter(subject=instance.subject, level=instance.level)
         old_texts = dict(pair.values_list('lookup_grade', 'text'))      # template text BEFORE saving
+        changed = formset.save()    # only the grade texts that were actually edited
+        if changed:
+            log_activity(request.user, instance, 'change',
+                         f"Updated narration templates for {instance.subject} / {instance.level} "
+                         f"(grade {', '.join(o.lookup_grade for o in changed)})")
 
         def fill(text, reg):
             return text.replace("[Nama Siswa]", f"{reg.first_name} {reg.last_name}")
