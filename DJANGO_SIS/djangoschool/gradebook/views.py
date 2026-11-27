@@ -47,9 +47,11 @@ from django.utils.encoding import force_str
 import os
 from django.conf import settings
 from reportlab.pdfgen import canvas as pdfcanvas
-from functools import partial
+from functools import partial, wraps
+from django.contrib.auth.views import redirect_to_login
 from collections import defaultdict
 import math
+from django.utils.decorators import method_decorator
 
 
 
@@ -88,6 +90,25 @@ def log_activity(user, obj, action, message=""):
         change_message=message or f"{action.capitalize()}d via frontend",
     )
 
+# VIEW / PAGE ROLE GATEKEEP BY PERMS
+def perm_required(*perms, denied_url=None):
+    """Allow users who have ALL the given permissions (granted to their Group in the admin)."""
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            user = request.user
+
+            if not user.is_authenticated:
+                return redirect_to_login(request.get_full_path())
+
+            if user.has_perms(perms):          # superusers pass automatically
+                return view_func(request, *args, **kwargs)
+
+            messages.error(request, "You don't have access to that page.")
+            return redirect(denied_url or settings.LOGIN_REDIRECT_URL)
+        return _wrapped_view
+    return decorator
+
 # BUAT SORTING TABEL
 def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
     sort_by = request.GET.get('sort', default_sort)
@@ -98,7 +119,7 @@ def get_sort_params(request, sort_map, default_sort='id', default_dir='desc'):
 
     return order_field, sort_by, sort_dir
 
-# filtering
+# FILTERING TABEL
 def apply_filters(queryset, request, filter_map):
     for param, lookup in filter_map.items():
         value = request.GET.get(param)
@@ -732,14 +753,17 @@ def attendance_list_admin(request):
 
 
 class GradeEntryForm(LoginRequiredMixin, SessionWizardView):
+    # set the template
     template_name = "partials/gradebook/grade_entry.html"
 
+    # set the forms from forms.py
     form_list = [
         ("0", GradeEntryForm),
         ("1", AssignmentHeadForm),
         ("2", AssignmentDetailFormSet),
     ]
 
+    # get the definition of the logged in homeroom teacher's class (if the one who logged in is a homeroom teacher)
     def _get_homeroom_class(self):
         return Class.objects.filter(
             teacher__user=self.request.user,
